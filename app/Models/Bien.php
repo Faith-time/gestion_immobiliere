@@ -39,6 +39,11 @@ class Bien extends Model
         return $this->belongsTo(Categorie::class, 'categorie_id');
     }
 
+    public function getTypeAttribute()
+    {
+        return $this->category ? $this->category->name : null;
+    }
+
     public function proprietaire()
     {
         return $this->belongsTo(User::class, 'proprietaire_id');

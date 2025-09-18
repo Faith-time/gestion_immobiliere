@@ -9,7 +9,7 @@
 
                         <ul class="js-clone-nav d-none d-lg-inline-block text-start site-menu float-end">
                             <!-- Accueil - Visible pour tous -->
-                            <li>
+                            <li v-if="hasRole('proprietaire') || hasRole('client')">
                                 <Link
                                     :href="route('home')"
                                     :class="{ 'active': route().current('home') }"
@@ -20,7 +20,7 @@
                             </li>
 
                             <!-- Catalogue - Visible pour tous -->
-                            <li class="has-children">
+                            <li class="has-children" v-if="hasRole('proprietaire') || hasRole('client')">
                                 <a href="#" @click.prevent>Catalogue</a>
                                 <ul class="dropdown filter-dropdown">
                                     <li class="filter-section">
@@ -65,7 +65,7 @@
                             </li>
 
                             <!-- Mes réservations - Visible pour tous (client potentiel) -->
-                            <li>
+                            <li v-if="hasRole('proprietaire') || hasRole('client')">
                                 <Link
                                     :href="route('reservations.index')"
                                     :class="{ 'active': route().current('reservations.*') }"
