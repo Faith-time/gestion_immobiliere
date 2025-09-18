@@ -299,17 +299,9 @@ const reserverBien = async () => {
     reservationEnCours.value = true
 
     try {
-        // Ici vous pouvez ajouter la logique de réservation
-        // Par exemple, faire un appel API pour créer une réservation
-
-        // Simulation d'une requête
-        await new Promise(resolve => setTimeout(resolve, 2000))
-
-        // Redirection vers une page de confirmation ou affichage d'un message
-        alert('Réservation effectuée avec succès ! Nous vous contactons bientôt.')
-
-        // Optionnel: rediriger vers une page de confirmation
-        // router.visit('/reservations/confirmation')
+        // Redirection vers la page de création de réservation avec l'ID du bien
+        // Utilisez props.bien.id au lieu de bien.id
+        router.visit(route('reservations.create', { bien: props.bien.id }))
 
     } catch (error) {
         console.error('Erreur lors de la réservation:', error)
@@ -318,7 +310,6 @@ const reserverBien = async () => {
         reservationEnCours.value = false
     }
 }
-
 const contacterAgent = () => {
     // Ici vous pouvez ouvrir un modal de contact ou rediriger
     alert('Fonctionnalité de contact en cours de développement')

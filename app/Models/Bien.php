@@ -9,8 +9,6 @@ class Bien extends Model
 {
     use HasFactory;
 
-    protected $table = 'biens';
-
     protected $fillable = [
         'title',
         'description',
@@ -25,20 +23,17 @@ class Bien extends Model
         'status',
         'categorie_id',
         'proprietaire_id',
-        'property_title',
+        'property_title'
     ];
 
     protected $casts = [
+        'price' => 'decimal:2',
+        'superficy' => 'decimal:2',
         'rooms' => 'integer',
         'floors' => 'integer',
-        'bathrooms' => 'integer',
-        'superficy' => 'float',
-        'price' => 'float',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'bathrooms' => 'integer'
     ];
 
-    // Relations
     public function category()
     {
         return $this->belongsTo(Categorie::class, 'categorie_id');
@@ -49,15 +44,58 @@ class Bien extends Model
         return $this->belongsTo(User::class, 'proprietaire_id');
     }
 
+    public function mandat()
+    {
+        return $this->hasOne(Mandat::class);
+    }
+
+    public function mandatActuel()
+    {
+        return $this->hasOne(Mandat::class)->where('statut', 'actif');
+    }
+
+    public function scopeAvecMandat($query)
+    {
+        return $query->whereHas('mandats', function ($q) {
+            $q->where('statut', 'actif');
+        });
+    }
+
+    public function scopeVente($query)
+    {
+        return $query->whereHas('mandats', function ($q) {
+            $q->where('type_mandat', 'vente')->where('statut', 'actif');
+        });
+    }
+
+    public function scopeLocation($query)
+    {
+        return $query->whereHas('mandats', function ($q) {
+            $q->where('type_mandat', 'gestion_locative')->where('statut', 'actif');
+        });
+    }
+
+    public function getTypeMandatAttribute()
+    {
+        $mandatActuel = $this->mandatActuel;
+        return $mandatActuel ? $mandatActuel->type_mandat : null;
+    }
+
+    public function getIsPourVenteAttribute()
+    {
+        return $this->type_mandat === 'vente';
+    }
+
+    public function getIsPourLocationAttribute()
+    {
+        return $this->type_mandat === 'gestion_locative';
+    }
+
     public function locations()
     {
         return $this->hasMany(Location::class, 'bien_id');
     }
 
-    public function mandats()
-    {
-        return $this->hasMany(Mandat::class, 'biens_id');
-    }
 
     public function visites()
     {

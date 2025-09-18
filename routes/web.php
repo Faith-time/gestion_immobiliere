@@ -3,8 +3,11 @@
 use App\Http\Controllers\AuthentificationController;
 use App\Http\Controllers\BienController;
 use App\Http\Controllers\CategorieController;
+use App\Http\Controllers\ClientDocumentController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PaiementController;
+use App\Http\Controllers\ProprietaireController;
+use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\UtilisateurController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -44,6 +47,18 @@ Route::middleware('authenticate')->group(function () {
         Route::delete('/{bien}', 'destroy')->name('destroy');
     });
 
+    // Route pour valider un bien
+    Route::post('biens/{bien}/valider', [BienController::class, 'valider'])
+        ->name('biens.valider');
+
+    // Route pour rejeter un bien
+    Route::post('biens/{bien}/rejeter', [BienController::class, 'rejeter'])
+        ->name('biens.rejeter');
+
+    Route::get('/proprietaire/demande', [ProprietaireController::class, 'create'])->name('proprietaire.demande');
+    Route::post('/proprietaire/store', [ProprietaireController::class, 'store'])->name('proprietaire.store');
+
+
     // Routes pour les catégories
     Route::prefix('/categories')->controller(CategorieController::class)->name('categories.')->group(function () {
         Route::get('/', 'index')->name('index');
@@ -64,46 +79,51 @@ Route::middleware('authenticate')->group(function () {
         Route::delete('/{user}', 'destroy')->name('destroy');
     });
 
+    // Routes Réservations
+        Route::get('/reservations/create/{bien}', [ReservationController::class, 'create'])->name('reservations.create');
+        Route::post('/reservations', [ReservationController::class, 'store'])->name('reservations.store');
+        Route::get('/reservations/{reservation}', [ReservationController::class, 'show'])->name('reservations.show');
+        Route::get('/reservations/{reservation}/edit', [ReservationController::class, 'edit'])->name('reservations.edit');
+        Route::get('/reservations', [ReservationController::class, 'index'])->name('reservations.index');
+        Route::post('/reservations/{reservation}/valider', [ReservationController::class, 'valider'])->name('reservations.valider');
+        Route::post('/reservations/{reservation}/annuler', [ReservationController::class, 'annuler'])->name('reservations.annuler');
+        Route::get('/reservations/{reservation}/initier-paiement', [ReservationController::class, 'initierPaiement'])->name('reservations.initier-paiement');
+
+
+    Route::post('/client-documents', [ClientDocumentController::class, 'store'])->name('client-documents.store');
+        Route::get('/client-documents', [ClientDocumentController::class, 'index'])->name('client-documents.index');
+        Route::get('/client-documents/{document}', [ClientDocumentController::class, 'show'])->name('client-documents.show');
+        Route::delete('/client-documents/{document}', [ClientDocumentController::class, 'destroy'])->name('client-documents.destroy');
+        Route::get('/client-documents/{document}/download', [ClientDocumentController::class, 'download'])->name('client-documents.download');
+        Route::post('/client-documents/{document}/valider', [ClientDocumentController::class, 'valider'])->name('client-documents.valider');
+        Route::post('/client-documents/{document}/refuser', [ClientDocumentController::class, 'refuser'])->name('client-documents.refuser');
+
+
     // Routes protégées pour les paiements
-    Route::prefix('/paiements')->controller(PaiementController::class)->name('paiements.')->group(function () {
-        // Routes CRUD pour les paiements
+    Route::prefix('/paiement')->controller(PaiementController::class)->name('paiement.')->group(function () {
         Route::get('/', 'index')->name('index');           // Liste tous les paiements
         Route::post('/', 'store')->name('store');          // Créer un nouveau paiement
+
+        // IMPORTANT: Routes spécifiques AVANT les routes avec paramètres
+        Route::get('/initier', 'showInitierPaiement')->name('initier');
+        Route::get('/succes/{paiement}', 'showSucces')->name('succes');
+        Route::get('/erreur', 'showErreur')->name('erreur');
+
+        // Routes avec paramètres à la fin
         Route::get('/{paiement}', 'show')->name('show');   // Afficher un paiement spécifique
         Route::put('/{paiement}', 'update')->name('update'); // Mettre à jour un paiement
         Route::delete('/{paiement}', 'destroy')->name('destroy'); // Supprimer un paiement
 
-        // Route pour initier un paiement avec CinetPay
-        Route::post('/initier', 'initier')->name('initier');
+        // Traitement de l'initiation du paiement (POST)
+        Route::post('/initier', 'initier')->name('traiter');
+
+        // Webhook de notification CinetPay (doit être accessible publiquement)
+        Route::post('/notify', 'notify')->name('notify')->withoutMiddleware(['authenticate']);
+        // Page de retour après paiement (doit être accessible publiquement)
+        Route::get('/retour/{paiement_id}', 'retour')->name('retour')->withoutMiddleware(['authenticate']);
     });
 });
 
-// Routes API optionnelles (si vous voulez une API séparée)
-Route::prefix('api/v1')->middleware('authenticate')->group(function () {
-
-    // API pour les paiements
-    Route::prefix('/paiements')->controller(PaiementController::class)->name('api.paiements.')->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('/', 'store')->name('store');
-        Route::get('/{paiement}', 'show')->name('show');
-        Route::put('/{paiement}', 'update')->name('update');
-        Route::delete('/{paiement}', 'destroy')->name('destroy');
-        Route::post('/initier', 'initier')->name('initier');
-    });
-
-    // API pour les biens avec filtres
-    Route::prefix('/biens')->controller(BienController::class)->name('api.biens.')->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::get('/search', 'search')->name('search'); // Pour les recherches avec filtres
-        Route::get('/{bien}', 'show')->name('show');
-    });
-
-    // API pour les catégories
-    Route::prefix('/categories')->controller(CategorieController::class)->name('api.categories.')->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::get('/{category}', 'show')->name('show');
-    });
-});
 
 // Route de fallback pour les erreurs 404 (optionnelle)
 Route::fallback(function () {

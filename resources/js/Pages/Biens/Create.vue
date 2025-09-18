@@ -8,6 +8,7 @@ const props = defineProps({
 })
 
 const form = useForm({
+    // Données du bien
     title: '',
     property_title: null,
     description: '',
@@ -19,8 +20,11 @@ const form = useForm({
     address: '',
     superficy: '',
     price: '',
-    status: '',
     categorie_id: '',
+
+    // Données du mandat
+    type_mandat: '',
+    conditions_particulieres: ''
 })
 
 const imagePreview = ref(null)
@@ -31,6 +35,11 @@ const statusOptions = [
     { value: 'loue', label: 'Loué' },
     { value: 'vendu', label: 'Vendu' },
     { value: 'reserve', label: 'Réservé' },
+]
+
+const typeMandatOptions = [
+    { value: 'vente', label: 'Mandat de Vente' },
+    { value: 'gestion_locative', label: 'Mandat de Gérance (Location)' },
 ]
 
 const handleImageChange = (e) => {
@@ -71,10 +80,10 @@ const cancel = () => {
 
             <div class="relative max-w-7xl mx-auto px-4 text-center">
                 <h1 class="text-5xl font-extrabold text-white mb-4 tracking-tight">
-                    Ajouter un Bien Immobilier
+                    Ajouter un Bien Immobilier avec Mandat
                 </h1>
                 <p class="text-xl text-blue-100 max-w-2xl mx-auto">
-                    Créez une annonce exceptionnelle pour votre propriété
+                    Créez votre bien et définissez son mandat de gestion
                 </p>
             </div>
         </div>
@@ -99,7 +108,7 @@ const cancel = () => {
                             <!-- Titre -->
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Titre du bien
+                                    Titre du bien <span class="text-red-500">*</span>
                                 </label>
                                 <input
                                     v-model="form.title"
@@ -108,12 +117,13 @@ const cancel = () => {
                                     placeholder="Ex: Villa moderne avec piscine"
                                     required
                                 />
+                                <div v-if="form.errors.title" class="text-red-500 text-sm mt-1">{{ form.errors.title }}</div>
                             </div>
 
                             <!-- Document -->
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Document commercial
+                                    Document commercial <span class="text-red-500">*</span>
                                 </label>
                                 <div class="relative">
                                     <input
@@ -138,11 +148,55 @@ const cancel = () => {
                         </div>
                     </div>
 
+                    <!-- Section Type de Mandat -->
+                    <div class="space-y-8">
+                        <div class="flex items-center space-x-3 mb-6">
+                            <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-teal-600 rounded-xl flex items-center justify-center">
+                                <span class="text-white font-bold">2</span>
+                            </div>
+                            <h2 class="text-2xl font-bold text-gray-800">Type de Mandat</h2>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <!-- Type de mandat -->
+                            <div class="group">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                    Type de mandat <span class="text-red-500">*</span>
+                                </label>
+                                <select
+                                    v-model="form.type_mandat"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm appearance-none cursor-pointer"
+                                    required
+                                >
+                                    <option value="">-- Sélectionner un type de mandat --</option>
+                                    <option v-for="type in typeMandatOptions" :key="type.value" :value="type.value">
+                                        {{ type.label }}
+                                    </option>
+                                </select>
+                                <div v-if="form.errors.type_mandat" class="text-red-500 text-sm mt-1">{{ form.errors.type_mandat }}</div>
+                            </div>
+
+                            <!-- Conditions particulières -->
+                            <div class="group md:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                    Conditions particulières
+                                </label>
+                                <textarea
+                                    v-model="form.conditions_particulieres"
+                                    rows="4"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm resize-none"
+                                    placeholder="Précisez les conditions spéciales du mandat..."
+                                ></textarea>
+                                <div v-if="form.errors.conditions_particulieres" class="text-red-500 text-sm mt-1">{{ form.errors.conditions_particulieres }}</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Section Localisation -->
                     <div class="space-y-8">
                         <div class="flex items-center space-x-3 mb-6">
                             <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-                                <span class="text-white font-bold">2</span>
+                                <span class="text-white font-bold">3</span>
                             </div>
                             <h2 class="text-2xl font-bold text-gray-800">Localisation</h2>
                         </div>
@@ -151,7 +205,7 @@ const cancel = () => {
                             <!-- Ville -->
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Ville
+                                    Ville <span class="text-red-500">*</span>
                                 </label>
                                 <input
                                     v-model="form.city"
@@ -160,12 +214,13 @@ const cancel = () => {
                                     placeholder="Ex: Dakar"
                                     required
                                 />
+                                <div v-if="form.errors.city" class="text-red-500 text-sm mt-1">{{ form.errors.city }}</div>
                             </div>
 
                             <!-- Adresse -->
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Adresse complète
+                                    Adresse complète <span class="text-red-500">*</span>
                                 </label>
                                 <input
                                     v-model="form.address"
@@ -174,6 +229,7 @@ const cancel = () => {
                                     placeholder="Ex: Parcelles Assainies, Unité 15"
                                     required
                                 />
+                                <div v-if="form.errors.address" class="text-red-500 text-sm mt-1">{{ form.errors.address }}</div>
                             </div>
                         </div>
                     </div>
@@ -181,8 +237,8 @@ const cancel = () => {
                     <!-- Section Caractéristiques -->
                     <div class="space-y-8">
                         <div class="flex items-center space-x-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-teal-600 rounded-xl flex items-center justify-center">
-                                <span class="text-white font-bold">3</span>
+                            <div class="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
+                                <span class="text-white font-bold">4</span>
                             </div>
                             <h2 class="text-2xl font-bold text-gray-800">Caractéristiques</h2>
                         </div>
@@ -191,29 +247,31 @@ const cancel = () => {
                             <!-- Superficie -->
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Superficie (m²)
+                                    Superficie (m²) <span class="text-red-500">*</span>
                                 </label>
                                 <input
                                     v-model="form.superficy"
                                     type="number"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
                                     placeholder="200"
                                     required
                                 />
+                                <div v-if="form.errors.superficy" class="text-red-500 text-sm mt-1">{{ form.errors.superficy }}</div>
                             </div>
 
                             <!-- Prix -->
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Prix (FCFA)
+                                    Prix (FCFA) <span class="text-red-500">*</span>
                                 </label>
                                 <input
                                     v-model="form.price"
                                     type="number"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
                                     placeholder="50000000"
                                     required
                                 />
+                                <div v-if="form.errors.price" class="text-red-500 text-sm mt-1">{{ form.errors.price }}</div>
                             </div>
 
                             <!-- Chambres -->
@@ -224,9 +282,10 @@ const cancel = () => {
                                 <input
                                     v-model="form.rooms"
                                     type="number"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
                                     placeholder="3"
                                 />
+                                <div v-if="form.errors.rooms" class="text-red-500 text-sm mt-1">{{ form.errors.rooms }}</div>
                             </div>
 
                             <!-- Étages -->
@@ -237,9 +296,10 @@ const cancel = () => {
                                 <input
                                     v-model="form.floors"
                                     type="number"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
                                     placeholder="2"
                                 />
+                                <div v-if="form.errors.floors" class="text-red-500 text-sm mt-1">{{ form.errors.floors }}</div>
                             </div>
 
                             <!-- Salles de bain -->
@@ -250,26 +310,10 @@ const cancel = () => {
                                 <input
                                     v-model="form.bathrooms"
                                     type="number"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
                                     placeholder="2"
                                 />
-                            </div>
-
-                            <!-- Statut -->
-                            <div class="group">
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Statut
-                                </label>
-                                <select
-                                    v-model="form.status"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm appearance-none cursor-pointer"
-                                    required
-                                >
-                                    <option value="" class="text-gray-500">-- Sélectionner --</option>
-                                    <option v-for="status in statusOptions" :key="status.value" :value="status.value" class="text-gray-800">
-                                        {{ status.label }}
-                                    </option>
-                                </select>
+                                <div v-if="form.errors.bathrooms" class="text-red-500 text-sm mt-1">{{ form.errors.bathrooms }}</div>
                             </div>
                         </div>
                     </div>
@@ -277,19 +321,19 @@ const cancel = () => {
                     <!-- Section Catégorie -->
                     <div class="space-y-8">
                         <div class="flex items-center space-x-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
-                                <span class="text-white font-bold">4</span>
+                            <div class="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-600 rounded-xl flex items-center justify-center">
+                                <span class="text-white font-bold">5</span>
                             </div>
                             <h2 class="text-2xl font-bold text-gray-800">Catégorie</h2>
                         </div>
 
                         <div class="group max-w-md">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                Type de bien
+                                Type de bien <span class="text-red-500">*</span>
                             </label>
                             <select
                                 v-model="form.categorie_id"
-                                class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm appearance-none cursor-pointer"
+                                class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:ring-4 focus:ring-pink-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm appearance-none cursor-pointer"
                                 required
                             >
                                 <option value="" class="text-gray-500">-- Sélectionner une catégorie --</option>
@@ -297,21 +341,22 @@ const cancel = () => {
                                     {{ categorie.name }}
                                 </option>
                             </select>
+                            <div v-if="form.errors.categorie_id" class="text-red-500 text-sm mt-1">{{ form.errors.categorie_id }}</div>
                         </div>
                     </div>
 
                     <!-- Section Image -->
                     <div class="space-y-8">
                         <div class="flex items-center space-x-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-600 rounded-xl flex items-center justify-center">
-                                <span class="text-white font-bold">5</span>
+                            <div class="w-10 h-10 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center">
+                                <span class="text-white font-bold">6</span>
                             </div>
                             <h2 class="text-2xl font-bold text-gray-800">Image du Bien</h2>
                         </div>
 
                         <div class="group">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                Photo principale
+                                Photo principale <span class="text-red-500">*</span>
                             </label>
                             <div class="relative">
                                 <input
@@ -319,11 +364,12 @@ const cancel = () => {
                                     @change="handleImageChange"
                                     class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                     accept="image/*"
+                                    required
                                 />
-                                <div class="w-full h-64 border-2 border-dashed border-gray-300 rounded-xl hover:border-pink-400 transition-all duration-300 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center group-hover:from-pink-50 group-hover:to-rose-50">
+                                <div class="w-full h-64 border-2 border-dashed border-gray-300 rounded-xl hover:border-teal-400 transition-all duration-300 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center group-hover:from-teal-50 group-hover:to-cyan-50">
                                     <div v-if="!imagePreview" class="text-center">
-                                        <div class="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                            <span class="text-3xl">🖼️</span>
+                                        <div class="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <span class="text-3xl">📸</span>
                                         </div>
                                         <p class="text-gray-600 font-medium mb-2">Cliquez pour ajouter une photo</p>
                                         <p class="text-sm text-gray-500">PNG, JPG, WebP jusqu'à 10MB</p>
@@ -337,14 +383,15 @@ const cancel = () => {
                                     </div>
                                 </div>
                             </div>
+                            <div v-if="form.errors.image" class="text-red-500 text-sm mt-1">{{ form.errors.image }}</div>
                         </div>
                     </div>
 
                     <!-- Section Description -->
                     <div class="space-y-8">
                         <div class="flex items-center space-x-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center">
-                                <span class="text-white font-bold">6</span>
+                            <div class="w-10 h-10 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center">
+                                <span class="text-white font-bold">7</span>
                             </div>
                             <h2 class="text-2xl font-bold text-gray-800">Description</h2>
                         </div>
@@ -356,9 +403,10 @@ const cancel = () => {
                             <textarea
                                 v-model="form.description"
                                 rows="6"
-                                class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm resize-none"
+                                class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm resize-none"
                                 placeholder="Décrivez votre bien immobilier en détail : équipements, points forts, environnement..."
                             ></textarea>
+                            <div v-if="form.errors.description" class="text-red-500 text-sm mt-1">{{ form.errors.description }}</div>
                         </div>
                     </div>
 
@@ -373,9 +421,11 @@ const cancel = () => {
                         </button>
                         <button
                             type="submit"
-                            class="px-12 py-4 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                            :disabled="form.processing"
+                            class="px-12 py-4 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50"
                         >
-                            Créer le Bien
+                            <span v-if="form.processing">Traitement...</span>
+                            <span v-else>Créer le Bien avec Mandat</span>
                         </button>
                     </div>
                 </form>

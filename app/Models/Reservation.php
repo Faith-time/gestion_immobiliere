@@ -40,4 +40,10 @@ class Reservation extends Model
     {
         return $this->belongsTo(Paiement::class);
     }
+
+    public function clientDocuments()
+    {
+        return $this->hasMany(ClientDocument::class);
+    }
+
 }

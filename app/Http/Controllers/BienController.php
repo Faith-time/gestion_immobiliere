@@ -4,18 +4,47 @@ namespace App\Http\Controllers;
 
 use App\Models\Bien;
 use App\Models\Categorie;
+use App\Models\Mandat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Spatie\Permission\Models\Role;
 
 class BienController extends Controller
 {
+    // Pourcentage de commission fixe
+    const COMMISSION_PERCENTAGE = 10;
+
     // GET /biens
     public function index()
     {
-        $biens = Bien::with('category')->get();
+        $user = auth()->user();
+
+        // Si l'utilisateur a le rôle admin, il voit tous les biens avec leurs relations
+        if ($user->hasRole('admin')) {
+            $biens = Bien::with(['category', 'mandat', 'proprietaire'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+        // Si l'utilisateur a le rôle proprietaire, il ne voit que ses biens
+        elseif ($user->hasRole('proprietaire')) {
+            $biens = Bien::with(['category', 'mandat'])
+                ->where('proprietaire_id', $user->id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+        // Sinon, il voit tous les biens disponibles seulement (catalogue public)
+        else {
+            $biens = Bien::with(['category', 'mandat'])
+                ->where('status', 'disponible')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        }
+
         return Inertia::render('Biens/Index', [
             'biens' => $biens,
+            'userRoles' => $user->roles->pluck('name'),
         ]);
     }
 
@@ -34,30 +63,214 @@ class BienController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'property_title' => 'required|file',
-            'description' => 'required|string',
+            'description' => 'nullable|string',
             'image' => 'required|image',
-            'rooms' => 'required|integer',
-            'floors' => 'required|integer',
-            'bathrooms' => 'required|integer',
+            'rooms' => 'nullable|integer|min:0',
+            'floors' => 'nullable|integer|min:0',
+            'bathrooms' => 'nullable|integer|min:0',
             'city' => 'required|string|max:255',
             'address' => 'required|string|max:255',
-            'superficy' => 'required|numeric',
-            'price' => 'required|numeric',
-            'status' => 'required|in:disponible,loue,vendu,reserve',
+            'superficy' => 'required|numeric|min:1',
+            'price' => 'required|numeric|min:1',
             'categorie_id' => 'required|exists:categories,id',
+
+            // Données du mandat
+            'type_mandat' => 'required|in:vente,gestion_locative',
+            'conditions_particulieres' => 'nullable|string',
         ]);
 
-        $validated['proprietaire_id'] = auth()->id();
+        $user = auth()->user();
 
-        if ($request->hasFile('image')) {
-            $validated['image'] = $request->file('image')->store('biens', 'public');
+        // Utiliser une transaction pour s'assurer que tout est créé ou rien
+        DB::beginTransaction();
+
+        try {
+            // Préparer les données du bien
+            $bienData = [
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? '',
+                'rooms' => $validated['rooms'] ?? 0,
+                'floors' => $validated['floors'] ?? 0,
+                'bathrooms' => $validated['bathrooms'] ?? 0,
+                'city' => $validated['city'],
+                'address' => $validated['address'],
+                'superficy' => $validated['superficy'],
+                'price' => $validated['price'],
+                'status' => 'en_validation', // Statut par défaut - en attente de validation
+                'categorie_id' => $validated['categorie_id'],
+                'proprietaire_id' => $user->id,
+            ];
+
+            // Gérer l'upload de l'image
+            if ($request->hasFile('image')) {
+                $bienData['image'] = $request->file('image')->store('biens', 'public');
+            }
+
+            // Gérer l'upload du document
+            if ($request->hasFile('property_title')) {
+                $bienData['property_title'] = $request->file('property_title')->store('documents', 'public');
+            }
+
+            // Créer le bien
+            $bien = Bien::create($bienData);
+
+            // Calculer la commission automatiquement
+            $commissionMontant = ($validated['price'] * self::COMMISSION_PERCENTAGE) / 100;
+
+            // Dates automatiques du mandat : aujourd'hui + 1 an
+            $dateDebut = now()->format('Y-m-d');
+            $dateFin = now()->addYear()->format('Y-m-d');
+
+            // Créer le mandat associé
+            $mandatData = [
+                'bien_id' => $bien->id,
+                'type_mandat' => $validated['type_mandat'],
+                'date_debut' => $dateDebut,
+                'date_fin' => $dateFin,
+                'commission_pourcentage' => self::COMMISSION_PERCENTAGE,
+                'commission_montant' => $commissionMontant,
+                'conditions_particulieres' => $validated['conditions_particulieres'] ?? '',
+                'statut' => 'en_attente', // En attente de validation du bien
+            ];
+
+            Mandat::create($mandatData);
+
+            // Attribuer automatiquement le rôle 'proprietaire' si l'utilisateur ne l'a pas déjà
+            if (!$user->hasRole('proprietaire') && !$user->hasRole('admin')) {
+                $proprietaireRole = Role::firstOrCreate(['name' => 'proprietaire']);
+                $user->assignRole('proprietaire');
+            }
+
+            DB::commit();
+
+            return redirect()->route('biens.index')->with('success', 'Bien immobilier soumis avec succès. Il sera visible une fois validé par l\'administration. Commission calculée automatiquement à ' . self::COMMISSION_PERCENTAGE . '% (' . number_format($commissionMontant, 0, ',', ' ') . ' FCFA).');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+
+            // Supprimer les fichiers uploadés en cas d'erreur
+            if (isset($bienData['image']) && Storage::disk('public')->exists($bienData['image'])) {
+                Storage::disk('public')->delete($bienData['image']);
+            }
+            if (isset($bienData['property_title']) && Storage::disk('public')->exists($bienData['property_title'])) {
+                Storage::disk('public')->delete($bienData['property_title']);
+            }
+
+            throw $e;
+        }
+    }
+
+    // POST /biens/{bien}/valider - Nouvelle méthode pour valider un bien
+
+// Remplacez votre méthode valider dans BienController
+
+    public function valider(Bien $bien)
+    {
+        $user = auth()->user();
+
+        // Seuls les admins peuvent valider
+        if (!$user->hasRole('admin')) {
+            abort(403, 'Vous n\'êtes pas autorisé à valider des biens.');
         }
 
-        $validated['property_title'] = $request->file('property_title')->store('documents', 'public');
+        // Vérifier que le bien est en cours de validation
+        if ($bien->status !== 'en_validation') {
+            return redirect()->back()->with('error', 'Ce bien ne peut pas être validé car il n\'est pas en cours de validation.');
+        }
 
-        Bien::create($validated);
+        DB::beginTransaction();
 
-        return redirect()->route('biens.index')->with('success', 'Bien immobilier créé avec succès');
+        try {
+            // Mettre à jour le statut du bien
+            $bien->update([
+                'status' => 'disponible',
+                'validated_at' => now(),
+                'validated_by' => $user->id,
+            ]);
+
+            // CORRECTION : Activer le mandat associé
+            // Option 1: Si vous avez UNE relation hasOne avec mandat
+            if ($bien->mandat) {
+                $bien->mandat->update([
+                    'statut' => 'actif'
+                ]);
+            }
+
+            // Option 2: Si vous avez une relation hasMany (plusieurs mandats)
+            // Décommentez cette partie et commentez l'option 1 si c'est le cas
+            /*
+            if ($bien->mandats && $bien->mandats->count() > 0) {
+                // Activer tous les mandats du bien
+                $bien->mandats()->update([
+                    'statut' => 'actif'
+                ]);
+            }
+            */
+
+            // Option 3: Si vous voulez juste le dernier mandat
+            // Décommentez cette partie si c'est le cas
+            /*
+            $dernierMandat = $bien->mandats()->latest()->first();
+            if ($dernierMandat) {
+                $dernierMandat->update([
+                    'statut' => 'actif'
+                ]);
+            }
+            */
+
+            DB::commit();
+
+            return redirect()->route('biens.index')->with('success', 'Bien "' . $bien->title . '" validé avec succès. Il est maintenant visible publiquement.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            \Log::error('Erreur lors de la validation du bien:', [
+                'bien_id' => $bien->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->back()->with('error', 'Erreur lors de la validation du bien.');
+        }
+    }    // POST /biens/{bien}/rejeter - Nouvelle méthode pour rejeter un bien
+    public function rejeter(Request $request, Bien $bien)
+    {
+        $user = auth()->user();
+
+        // Seuls les admins peuvent rejeter
+        if (!$user->hasRole('admin')) {
+            abort(403, 'Vous n\'êtes pas autorisé à rejeter des biens.');
+        }
+
+        $request->validate([
+            'motif_rejet' => 'required|string|max:500',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            // Mettre à jour le statut du bien
+            $bien->update([
+                'status' => 'rejete',
+                'motif_rejet' => $request->motif_rejet,
+                'rejected_at' => now(),
+                'rejected_by' => $user->id,
+            ]);
+
+            // Désactiver le mandat associé
+            if ($bien->mandat) {
+                $bien->mandat->update([
+                    'statut' => 'rejete'
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect()->route('biens.index')->with('success', 'Bien "' . $bien->title . '" rejeté. Le propriétaire pourra le modifier et le soumettre à nouveau.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->back()->with('error', 'Erreur lors du rejet du bien.');
+        }
     }
 
     // GET /biens/{bien}
@@ -65,111 +278,191 @@ class BienController extends Controller
     {
         $categories = Categorie::all();
         return Inertia::render('Biens/Show', [
-            'bien' => $bien->load('category'),
-            'categories' => $categories
+            'bien' => $bien->load(['category', 'mandat', 'proprietaire']),
+            'categories' => $categories,
+            'userRoles' => auth()->user()->roles->pluck('name'),
         ]);
     }
 
     // GET /biens/{bien}/edit
     public function edit(Bien $bien)
     {
-        // Vérification des permissions
-        if ($bien->proprietaire_id !== auth()->id() && !auth()->user()->hasRole('admin')) {
+        $user = auth()->user();
+
+        // Vérification des permissions : seul le propriétaire du bien ou un admin peut modifier
+        if ($bien->proprietaire_id !== $user->id && !$user->hasRole('admin')) {
             abort(403, 'Vous n\'êtes pas autorisé à modifier ce bien.');
         }
 
         $categories = Categorie::all();
 
         return Inertia::render('Biens/Edit', [
-            'bien' => $bien->load('category'),
+            'bien' => $bien->load(['category', 'mandat']),
             'categories' => $categories
         ]);
     }
 
-    // PUT /biens/{bien} - C'est cette méthode qui sera appelée
+    // PUT /biens/{bien}
     public function update(Request $request, Bien $bien)
     {
+        $user = auth()->user();
+
         // Vérification des permissions
-        if ($bien->proprietaire_id !== auth()->id() && !auth()->user()->hasRole('admin')) {
+        if ($bien->proprietaire_id !== $user->id && !$user->hasRole('admin')) {
             abort(403, 'Vous n\'êtes pas autorisé à modifier ce bien.');
         }
 
-        // ✅ CORRECTION : Règles de validation avec des champs requis appropriés
         $validated = $request->validate([
-            'title' => 'required|string|max:255',              // ✅ Required
+            'title' => 'required|string|max:255',
             'property_title' => 'nullable|file',
             'description' => 'nullable|string',
             'image' => 'nullable|image',
             'rooms' => 'nullable|integer|min:0',
             'floors' => 'nullable|integer|min:0',
             'bathrooms' => 'nullable|integer|min:0',
-            'city' => 'required|string|max:255',               // ✅ Required
-            'address' => 'required|string|max:255',            // ✅ Required
-            'superficy' => 'required|numeric|min:1',           // ✅ Required
-            'price' => 'required|numeric|min:1',               // ✅ Required
-            'status' => 'required|in:disponible,loue,vendu,reserve', // ✅ Required
-            'categorie_id' => 'required|exists:categories,id', // ✅ Required
+            'city' => 'required|string|max:255',
+            'address' => 'required|string|max:255',
+            'superficy' => 'required|numeric|min:1',
+            'price' => 'required|numeric|min:1',
+            'status' => 'nullable|in:disponible,loue,vendu,reserve',
+            'categorie_id' => 'required|exists:categories,id',
+
+            // Données du mandat (optionnelles pour la mise à jour)
+            'type_mandat' => 'nullable|in:vente,gestion_locative',
+            'conditions_particulieres' => 'nullable|string',
         ]);
 
-        // ✅ CORRECTION : Utiliser les valeurs existantes du bien comme fallback
-        $data = [
-            'title' => $validated['title'],
-            'description' => $validated['description'] ?? $bien->description,
-            'rooms' => $validated['rooms'] ?? $bien->rooms,
-            'floors' => $validated['floors'] ?? $bien->floors,
-            'bathrooms' => $validated['bathrooms'] ?? $bien->bathrooms,
-            'city' => $validated['city'],
-            'address' => $validated['address'],
-            'superficy' => $validated['superficy'],
-            'price' => $validated['price'],
-            'status' => $validated['status'],
-            'categorie_id' => $validated['categorie_id'],
-        ];
+        DB::beginTransaction();
 
-        // ✅ Gestion séparée du document
-        if ($request->hasFile('property_title')) {
-            // Supprimer l'ancien fichier
-            if ($bien->property_title && Storage::disk('public')->exists($bien->property_title)) {
-                Storage::disk('public')->delete($bien->property_title);
+        try {
+            $data = [
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? $bien->description,
+                'rooms' => $validated['rooms'] ?? $bien->rooms,
+                'floors' => $validated['floors'] ?? $bien->floors,
+                'bathrooms' => $validated['bathrooms'] ?? $bien->bathrooms,
+                'city' => $validated['city'],
+                'address' => $validated['address'],
+                'superficy' => $validated['superficy'],
+                'price' => $validated['price'],
+                'categorie_id' => $validated['categorie_id'],
+            ];
+
+            // Si c'est un admin qui modifie, il peut changer le statut
+            if ($user->hasRole('admin') && isset($validated['status'])) {
+                $data['status'] = $validated['status'];
             }
-            // Ajouter le nouveau fichier
-            $data['property_title'] = $request->file('property_title')->store('documents', 'public');
-        }
-
-        // ✅ Gestion séparée de l'image
-        if ($request->hasFile('image')) {
-            // Supprimer l'ancienne image
-            if ($bien->image && Storage::disk('public')->exists($bien->image)) {
-                Storage::disk('public')->delete($bien->image);
+            // Si c'est le propriétaire qui modifie un bien rejeté, remettre en validation
+            elseif ($bien->status === 'rejete' && $bien->proprietaire_id === $user->id) {
+                $data['status'] = 'en_validation';
+                $data['motif_rejet'] = null;
+                $data['rejected_at'] = null;
+                $data['rejected_by'] = null;
             }
-            // Ajouter la nouvelle image
-            $data['image'] = $request->file('image')->store('biens', 'public');
+
+            // Gestion du document
+            if ($request->hasFile('property_title')) {
+                if ($bien->property_title && Storage::disk('public')->exists($bien->property_title)) {
+                    Storage::disk('public')->delete($bien->property_title);
+                }
+                $data['property_title'] = $request->file('property_title')->store('documents', 'public');
+            }
+
+            // Gestion de l'image
+            if ($request->hasFile('image')) {
+                if ($bien->image && Storage::disk('public')->exists($bien->image)) {
+                    Storage::disk('public')->delete($bien->image);
+                }
+                $data['image'] = $request->file('image')->store('biens', 'public');
+            }
+
+            $bien->update($data);
+
+            // Mettre à jour le mandat si les données sont fournies
+            $mandat = $bien->mandat;
+            if ($mandat) {
+                $mandatData = [];
+
+                // Recalculer la commission si le prix a changé
+                if ($validated['price'] != $bien->getOriginal('price')) {
+                    $mandatData['commission_montant'] = ($validated['price'] * self::COMMISSION_PERCENTAGE) / 100;
+                }
+
+                // Mettre à jour les autres champs du mandat si fournis
+                if (isset($validated['type_mandat'])) {
+                    $mandatData['type_mandat'] = $validated['type_mandat'];
+                }
+                if (isset($validated['conditions_particulieres'])) {
+                    $mandatData['conditions_particulieres'] = $validated['conditions_particulieres'];
+                }
+
+                // Si le bien repasse en validation, le mandat aussi
+                if (isset($data['status']) && $data['status'] === 'en_validation') {
+                    $mandatData['statut'] = 'en_attente';
+                }
+
+                if (!empty($mandatData)) {
+                    $mandat->update($mandatData);
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('biens.index')->with('success', 'Bien immobilier et mandat modifiés avec succès');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            throw $e;
         }
+    }
 
-        // ✅ DEBUG : Log des données avant mise à jour
-        \Log::info('Données à mettre à jour:', $data);
-        \Log::info('Données de validation reçues:', $validated);
-
-        $bien->update($data);
-
-        return redirect()->route('biens.index')->with('success', 'Bien immobilier modifié avec succès');
-    }    // DELETE /biens/{bien}
+    // DELETE /biens/{bien}
     public function destroy(Bien $bien)
     {
-        if ($bien->proprietaire_id !== auth()->id() && !auth()->user()->hasRole('admin')) {
+        $user = auth()->user();
+
+        if ($bien->proprietaire_id !== $user->id && !$user->hasRole('admin')) {
             abort(403, 'Vous n\'êtes pas autorisé à supprimer ce bien.');
         }
 
-        if ($bien->image && Storage::disk('public')->exists($bien->image)) {
-            Storage::disk('public')->delete($bien->image);
+        DB::beginTransaction();
+
+        try {
+            // Supprimer les fichiers associés
+            if ($bien->image && Storage::disk('public')->exists($bien->image)) {
+                Storage::disk('public')->delete($bien->image);
+            }
+
+            if ($bien->property_title && Storage::disk('public')->exists($bien->property_title)) {
+                Storage::disk('public')->delete($bien->property_title);
+            }
+
+            // Le mandat sera supprimé automatiquement grâce à la contrainte de clé étrangère
+            // ou vous pouvez l'expliciter si nécessaire
+            if ($bien->mandat) {
+                $bien->mandat->delete();
+            }
+
+            $bien->delete();
+
+            DB::commit();
+
+            return redirect()->route('biens.index')->with('success', 'Bien immobilier et mandat associé supprimés avec succès');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            throw $e;
         }
+    }
 
-        if ($bien->property_title && Storage::disk('public')->exists($bien->property_title)) {
-            Storage::disk('public')->delete($bien->property_title);
-        }
+    // Méthode pour obtenir les biens publics (catalogue)
+    public function catalogue()
+    {
+        $biens = Bien::with(['category', 'mandat'])->where('status', 'disponible')->get();
 
-        $bien->delete();
-
-        return redirect()->route('biens.index')->with('success', 'Bien immobilier supprimé avec succès');
+        return Inertia::render('Layout', [
+            'biens' => $biens,
+            'userRoles' => auth()->user()->roles->pluck('name'),
+        ]);
     }
 }

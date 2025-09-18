@@ -8,6 +8,7 @@
                         <Link :href="route('home')" class="logo m-0 float-start">Agence Immobilière</Link>
 
                         <ul class="js-clone-nav d-none d-lg-inline-block text-start site-menu float-end">
+                            <!-- Accueil - Visible pour tous -->
                             <li>
                                 <Link
                                     :href="route('home')"
@@ -17,6 +18,8 @@
                                     Accueil
                                 </Link>
                             </li>
+
+                            <!-- Catalogue - Visible pour tous -->
                             <li class="has-children">
                                 <a href="#" @click.prevent>Catalogue</a>
                                 <ul class="dropdown filter-dropdown">
@@ -46,12 +49,13 @@
                                         <h6 class="filter-title">Navigation rapide</h6>
                                     </li>
                                     <li>
-                                        <Link :href="route('biens.index')" class="filter-option" @click="handleNavClick">
+                                        <Link :href="route('categories.index')" class="filter-option" @click="handleNavClick">
                                             <i class="fas fa-list me-2"></i>
-                                            Tous les biens
+                                            Tous les biens disponibles
                                         </Link>
                                     </li>
-                                    <li>
+                                    <!-- Gestion des catégories - Visible uniquement pour admin -->
+                                    <li v-if="hasRole('admin')">
                                         <Link :href="route('categories.index')" class="filter-option" @click="handleNavClick">
                                             <i class="fas fa-tags me-2"></i>
                                             Gestion des catégories
@@ -59,7 +63,42 @@
                                     </li>
                                 </ul>
                             </li>
+
+                            <!-- Mes réservations - Visible pour tous (client potentiel) -->
                             <li>
+                                <Link
+                                    :href="route('reservations.index')"
+                                    :class="{ 'active': route().current('reservations.*') }"
+                                    @click="handleNavClick"
+                                >
+                                    Mes réservations
+                                </Link>
+                            </li>
+
+                            <!-- Mes Biens - Visible pour proprietaire et admin -->
+                            <li v-if="hasRole('proprietaire') || hasRole('admin')  || hasRole('client')">
+                                <Link
+                                    :href="route('biens.index')"
+                                    :class="{ 'active': route().current('biens.*') }"
+                                    @click="handleNavClick"
+                                >
+                                    {{ hasRole('admin') ? 'Tous les Biens' : 'Mes Biens' }}
+                                </Link>
+                            </li>
+
+                            <!-- Devenir Propriétaire - visible si client -->
+                            <li v-if="!hasRole('proprietaire') && !hasRole('admin')">
+                                <Link
+                                    :href="route('proprietaire.demande')"
+                                    :class="{ 'active': route().current('proprietaire.demande') }"
+                                    @click="handleNavClick"
+                                >
+                                    Faire gérer mes biens
+                                </Link>
+                            </li>
+
+                            <!-- Utilisateurs - Visible uniquement pour admin -->
+                            <li v-if="hasRole('admin')">
                                 <Link
                                     :href="route('users.index')"
                                     :class="{ 'active': route().current('users.*') }"
@@ -68,23 +107,23 @@
                                     Utilisateurs
                                 </Link>
                             </li>
-                            <li>
-                                <Link
-                                    :href="route('biens.index')"
-                                    :class="{ 'active': route().current('biens.*') }"
-                                    @click="handleNavClick"
-                                >
-                                    Biens
-                                </Link>
+
+                            <!-- Tableau de bord Admin - Visible uniquement pour admin -->
+
+                            <!-- Badge de rôle actuel -->
+                            <li class="role-badge">
+                                <span v-if="hasRole('admin')" class="badge bg-danger">
+                                    <i class="fas fa-crown me-1"></i> Admin
+                                </span>
+                                <span v-else-if="hasRole('proprietaire')" class="badge bg-success">
+                                    <i class="fas fa-home me-1"></i> Propriétaire
+                                </span>
+                                <span v-else class="badge bg-info">
+                                    <i class="fas fa-user me-1"></i> Client
+                                </span>
                             </li>
-                            <li>
-                                <Link
-                                    :href="route('categories.index')"
-                                    :class="{ 'active': route().current('categories.*') }"
-                                >
-                                    Catégories
-                                </Link>
-                            </li>
+
+                            <!-- Déconnexion -->
                             <li>
                                 <Link
                                     :href="route('auth.logout')"
@@ -217,6 +256,18 @@
         <!-- Contenu principal -->
         <main class="main-content flex-grow-1 pt-nav mt-nav">
             <div class="container-fluid">
+                <!-- Notification de rôle pour nouveau propriétaire -->
+                <div v-if="$page.props.flash?.success && $page.props.flash.success.includes('Propriétaire')" class="alert alert-success mt-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-home me-3 fs-4"></i>
+                        <div>
+                            <strong>Félicitations !</strong><br>
+                            {{ $page.props.flash.success }}
+                            <br><small class="text-muted">Vous pouvez maintenant accéder à la section "Mes Biens" dans le menu.</small>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Affichage des erreurs -->
                 <div v-if="$page.props.errors && Object.keys($page.props.errors).length > 0" class="alert alert-danger mt-3">
                     <h5>Erreurs détectées :</h5>
@@ -228,7 +279,7 @@
                 </div>
 
                 <!-- Messages de succès -->
-                <div v-if="$page.props.flash?.success" class="alert alert-success mt-3">
+                <div v-if="$page.props.flash?.success && !$page.props.flash.success.includes('Propriétaire')" class="alert alert-success mt-3">
                     {{ $page.props.flash.success }}
                 </div>
 
@@ -270,15 +321,15 @@
                 <div class="row gy-4">
                     <div class="col-md-4">
                         <h5 class="mb-3">Contact</h5>
-                        <p class="mb-1">43 Raymouth Rd. Baltimore, London 3910</p>
-                        <p class="mb-1">Tél : <a href="tel:+11234567890" class="text-white">+1 (123) 456-7890</a></p>
+                        <p class="mb-1">Parcelles assainies,Keur Massar,Dakar</p>
+                        <p class="mb-1">Tél : <a href="tel:+221778940392" class="text-white">+221 77 894 03 92</a></p>
                         <p>Email : <a href="mailto:info@agence.com" class="text-white">info@agence.com</a></p>
                     </div>
                     <div class="col-md-4">
                         <h5 class="mb-3">Navigation</h5>
                         <ul class="list-unstyled">
                             <li><Link :href="route('home')" class="text-white">Accueil</Link></li>
-                            <li><Link :href="route('biens.index')" class="text-white">Biens</Link></li>
+                            <li><Link :href="route('categories.index')" class="text-white">Catalogue</Link></li>
                             <li><a href="#" class="text-white">Services</a></li>
                             <li><a href="#" class="text-white">Contact</a></li>
                         </ul>
@@ -304,9 +355,11 @@
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3'
+import { Link, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import { ref, computed, provide } from 'vue'
+
+const page = usePage()
 
 // État des filtres
 const showModal = ref(false)
@@ -326,9 +379,23 @@ const hasActiveFilters = computed(() => {
     return Object.values(filters.value).some(value => value !== '')
 })
 
+// Fonction pour vérifier les rôles de l'utilisateur
+const hasRole = (roleName) => {
+    const user = page.props.auth?.user
+    if (!user || !user.roles) return false
+    return user.roles.includes(roleName)
+}
+
+// Computed pour les rôles utilisateur
+const userRoles = computed(() => {
+    return page.props.auth?.user?.roles || []
+})
+
 // Provide les filtres aux composants enfants
 provide('filters', filters)
 provide('hasActiveFilters', hasActiveFilters)
+provide('userRoles', userRoles)
+provide('hasRole', hasRole)
 
 // Gestion des clics de navigation avec debug
 const handleNavClick = (event) => {
@@ -364,18 +431,15 @@ const getModalTitle = () => {
 }
 
 const applyFilters = () => {
-    // Ici vous pouvez émettre un événement ou utiliser Inertia pour recharger la page avec les filtres
     console.log('Filtres appliqués:', filters.value)
 
-    // Exemple de redirection avec filtres (à adapter selon votre routage)
     const queryParams = new URLSearchParams()
     Object.entries(filters.value).forEach(([key, value]) => {
         if (value) queryParams.set(key, value)
     })
 
-    // Redirection vers la page d'accueil avec les paramètres de filtre
-    window.location.href = route('home') + (queryParams.toString() ? '?' + queryParams.toString() : '')
-
+    // Redirection vers le catalogue avec les filtres
+    window.location.href = route('biens.catalogue') + (queryParams.toString() ? '?' + queryParams.toString() : '')
     closeModal()
 }
 
@@ -393,8 +457,7 @@ const resetFilters = () => {
 
 const clearAllFilters = () => {
     resetFilters()
-    // Redirection sans paramètres
-    window.location.href = route('home')
+    window.location.href = route('biens.catalogue')
 }
 
 const formatFilterDisplay = () => {
@@ -476,6 +539,24 @@ const formatFilterDisplay = () => {
 .site-menu a:hover,
 .site-menu a.active {
     color: #e0f7fa;
+}
+
+.role-badge {
+    margin-left: 1rem;
+}
+
+.role-badge .badge {
+    padding: 0.5rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { opacity: 1; }
 }
 
 .site-footer {
@@ -640,6 +721,7 @@ const formatFilterDisplay = () => {
 .alert-success {
     background-color: #d4edda;
     color: #155724;
+    border-left: 4px solid #28a745;
 }
 
 .alert-info {
@@ -669,4 +751,27 @@ const formatFilterDisplay = () => {
         transform: translateY(0);
     }
 }
+
+/* Styles spécifiques pour les alertes de nouveau propriétaire */
+.alert-success .fas.fa-home {
+    color: #28a745;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .site-menu {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .site-menu li {
+        margin-left: 0;
+    }
+
+    .role-badge {
+        margin-left: 0;
+        margin-top: 0.5rem;
+    }
+}
+
 </style>

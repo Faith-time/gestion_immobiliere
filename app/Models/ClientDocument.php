@@ -9,12 +9,8 @@ class ClientDocument extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'client_id',
-        'type_document',
-        'fichier_path',
-        'statut',
-    ];
+    // Dans votre modèle ClientDocument
+    protected $fillable = ['client_id', 'type_document', 'fichier_path', 'statut'];
 
     protected $casts = [
         'created_at' => 'datetime',
@@ -26,4 +22,10 @@ class ClientDocument extends Model
     {
         return $this->belongsTo(User::class, 'client_id');
     }
+
+    public function reservation()
+    {
+        return $this->belongsTo(Reservation::class);
+    }
+
 }
