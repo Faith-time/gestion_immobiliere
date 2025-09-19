@@ -16,6 +16,7 @@ class Reservation extends Model
         'statut',
         'paiement_id',
         'date_reservation',
+        'motif_rejet'
     ];
 
     protected $casts = [
@@ -43,7 +44,7 @@ class Reservation extends Model
 
     public function clientDocuments()
     {
-        return $this->hasMany(ClientDocument::class);
+        return $this->hasMany(ClientDocument::class, 'reservation_id');
     }
 
 }

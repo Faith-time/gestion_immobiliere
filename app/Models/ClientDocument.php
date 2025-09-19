@@ -2,30 +2,30 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ClientDocument extends Model
 {
-    use HasFactory;
-
-    // Dans votre modèle ClientDocument
-    protected $fillable = ['client_id', 'type_document', 'fichier_path', 'statut'];
-
-    protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+    protected $fillable = [
+        'client_id',
+        'reservation_id',
+        'type_document',
+        'fichier_path',
+        'statut'
     ];
 
-    // Relations
-    public function client()
-    {
-        return $this->belongsTo(User::class, 'client_id');
-    }
+    protected $casts = [
+        'validated_at' => 'datetime',
+        'rejected_at' => 'datetime',
+    ];
 
     public function reservation()
     {
         return $this->belongsTo(Reservation::class);
     }
 
+    public function client()
+    {
+        return $this->belongsTo(User::class, 'client_id');
+    }
 }

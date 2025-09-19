@@ -299,9 +299,7 @@ const reserverBien = async () => {
     reservationEnCours.value = true
 
     try {
-        // Redirection vers la page de création de réservation avec l'ID du bien
-        // Utilisez props.bien.id au lieu de bien.id
-        router.visit(route('reservations.create', { bien: props.bien.id }))
+        router.get(route('reservations.create', { bien_id: props.bien.id }));
 
     } catch (error) {
         console.error('Erreur lors de la réservation:', error)

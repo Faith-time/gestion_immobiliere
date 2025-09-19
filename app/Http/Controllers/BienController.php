@@ -76,10 +76,18 @@ class BienController extends Controller
 
             // Données du mandat
             'type_mandat' => 'required|in:vente,gestion_locative',
+            'type_mandat_vente' => 'nullable|in:exclusif,simple,semi_exclusif',
             'conditions_particulieres' => 'nullable|string',
         ]);
 
         $user = auth()->user();
+
+        // Validation conditionnelle : si type_mandat = 'vente', type_mandat_vente est requis
+        if ($validated['type_mandat'] === 'vente' && empty($validated['type_mandat_vente'])) {
+            return back()->withErrors([
+                'type_mandat_vente' => 'Le type de mandat de vente est requis pour un mandat de vente.'
+            ])->withInput();
+        }
 
         // Utiliser une transaction pour s'assurer que tout est créé ou rien
         DB::beginTransaction();
@@ -125,6 +133,7 @@ class BienController extends Controller
             $mandatData = [
                 'bien_id' => $bien->id,
                 'type_mandat' => $validated['type_mandat'],
+                'type_mandat_vente' => $validated['type_mandat_vente'] ?? null,
                 'date_debut' => $dateDebut,
                 'date_fin' => $dateFin,
                 'commission_pourcentage' => self::COMMISSION_PERCENTAGE,
@@ -143,7 +152,16 @@ class BienController extends Controller
 
             DB::commit();
 
-            return redirect()->route('biens.index')->with('success', 'Bien immobilier soumis avec succès. Il sera visible une fois validé par l\'administration. Commission calculée automatiquement à ' . self::COMMISSION_PERCENTAGE . '% (' . number_format($commissionMontant, 0, ',', ' ') . ' FCFA).');
+            $typeMessage = $validated['type_mandat_vente'] ?
+                $this->getTypeMandatVenteLabel($validated['type_mandat_vente']) :
+                'Mandat de ' . ucfirst($validated['type_mandat']);
+
+            return redirect()->route('biens.index')->with('success',
+                'Bien immobilier soumis avec succès avec un ' . $typeMessage . '. ' .
+                'Il sera visible une fois validé par l\'administration. ' .
+                'Commission calculée automatiquement à ' . self::COMMISSION_PERCENTAGE . '% (' .
+                number_format($commissionMontant, 0, ',', ' ') . ' FCFA).'
+            );
 
         } catch (\Exception $e) {
             DB::rollback();
@@ -160,10 +178,19 @@ class BienController extends Controller
         }
     }
 
-    // POST /biens/{bien}/valider - Nouvelle méthode pour valider un bien
+    // Méthode utilitaire pour obtenir le libellé du type de mandat de vente
+    private function getTypeMandatVenteLabel($type)
+    {
+        $labels = [
+            'exclusif' => 'Mandat Exclusif',
+            'simple' => 'Mandat Simple',
+            'semi_exclusif' => 'Mandat Semi-Exclusif'
+        ];
 
-// Remplacez votre méthode valider dans BienController
+        return $labels[$type] ?? $type;
+    }
 
+    // POST /biens/{bien}/valider - Méthode pour valider un bien
     public function valider(Bien $bien)
     {
         $user = auth()->user();
@@ -188,35 +215,12 @@ class BienController extends Controller
                 'validated_by' => $user->id,
             ]);
 
-            // CORRECTION : Activer le mandat associé
-            // Option 1: Si vous avez UNE relation hasOne avec mandat
+            // Activer le mandat associé
             if ($bien->mandat) {
                 $bien->mandat->update([
                     'statut' => 'actif'
                 ]);
             }
-
-            // Option 2: Si vous avez une relation hasMany (plusieurs mandats)
-            // Décommentez cette partie et commentez l'option 1 si c'est le cas
-            /*
-            if ($bien->mandats && $bien->mandats->count() > 0) {
-                // Activer tous les mandats du bien
-                $bien->mandats()->update([
-                    'statut' => 'actif'
-                ]);
-            }
-            */
-
-            // Option 3: Si vous voulez juste le dernier mandat
-            // Décommentez cette partie si c'est le cas
-            /*
-            $dernierMandat = $bien->mandats()->latest()->first();
-            if ($dernierMandat) {
-                $dernierMandat->update([
-                    'statut' => 'actif'
-                ]);
-            }
-            */
 
             DB::commit();
 
@@ -231,7 +235,9 @@ class BienController extends Controller
 
             return redirect()->back()->with('error', 'Erreur lors de la validation du bien.');
         }
-    }    // POST /biens/{bien}/rejeter - Nouvelle méthode pour rejeter un bien
+    }
+
+    // POST /biens/{bien}/rejeter - Méthode pour rejeter un bien
     public function rejeter(Request $request, Bien $bien)
     {
         $user = auth()->user();
@@ -329,8 +335,16 @@ class BienController extends Controller
 
             // Données du mandat (optionnelles pour la mise à jour)
             'type_mandat' => 'nullable|in:vente,gestion_locative',
+            'type_mandat_vente' => 'nullable|in:exclusif,simple,semi_exclusif',
             'conditions_particulieres' => 'nullable|string',
         ]);
+
+        // Validation conditionnelle pour la mise à jour
+        if (isset($validated['type_mandat']) && $validated['type_mandat'] === 'vente' && empty($validated['type_mandat_vente'])) {
+            return back()->withErrors([
+                'type_mandat_vente' => 'Le type de mandat de vente est requis pour un mandat de vente.'
+            ])->withInput();
+        }
 
         DB::beginTransaction();
 
@@ -392,6 +406,11 @@ class BienController extends Controller
                 if (isset($validated['type_mandat'])) {
                     $mandatData['type_mandat'] = $validated['type_mandat'];
                 }
+
+                if (isset($validated['type_mandat_vente'])) {
+                    $mandatData['type_mandat_vente'] = $validated['type_mandat_vente'];
+                }
+
                 if (isset($validated['conditions_particulieres'])) {
                     $mandatData['conditions_particulieres'] = $validated['conditions_particulieres'];
                 }

@@ -58,7 +58,6 @@ Route::middleware('authenticate')->group(function () {
     Route::get('/proprietaire/demande', [ProprietaireController::class, 'create'])->name('proprietaire.demande');
     Route::post('/proprietaire/store', [ProprietaireController::class, 'store'])->name('proprietaire.store');
 
-
     // Routes pour les catégories
     Route::prefix('/categories')->controller(CategorieController::class)->name('categories.')->group(function () {
         Route::get('/', 'index')->name('index');
@@ -79,25 +78,36 @@ Route::middleware('authenticate')->group(function () {
         Route::delete('/{user}', 'destroy')->name('destroy');
     });
 
-    // Routes Réservations
-        Route::get('/reservations/create/{bien}', [ReservationController::class, 'create'])->name('reservations.create');
-        Route::post('/reservations', [ReservationController::class, 'store'])->name('reservations.store');
-        Route::get('/reservations/{reservation}', [ReservationController::class, 'show'])->name('reservations.show');
-        Route::get('/reservations/{reservation}/edit', [ReservationController::class, 'edit'])->name('reservations.edit');
-        Route::get('/reservations', [ReservationController::class, 'index'])->name('reservations.index');
+    // Routes pour les réservations clients
+    Route::prefix('reservations')->name('reservations.')->group(function () {
+        Route::get('/', [ReservationController::class, 'index'])->name('index');
+        Route::get('/create/{bien_id}', [ReservationController::class, 'create'])->name('create');
+        Route::post('/', [ReservationController::class, 'store'])->name('store');
+        Route::get('/{id}', [ReservationController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [ReservationController::class, 'edit'])->name('edit');
+        Route::post('/{id}', [ReservationController::class, 'update'])->name('update');
+        Route::post('/{id}/annuler', [ReservationController::class, 'annuler'])->name('annuler');
+        Route::get('/{reservation}/initier-paiement', [ReservationController::class, 'initierPaiement'])->name('initier-paiement');
+    });
+
+    // Routes spécifiques pour l'admin - Gestion des réservations
+    Route::prefix('/admin')->name('admin.')->group(function () {
+        // Liste de toutes les réservations pour l'admin
+        Route::get('/reservations', [ReservationController::class, 'adminIndex'])->name('reservations.index');
+
+        // Actions de validation/rejet des réservations
         Route::post('/reservations/{reservation}/valider', [ReservationController::class, 'valider'])->name('reservations.valider');
-        Route::post('/reservations/{reservation}/annuler', [ReservationController::class, 'annuler'])->name('reservations.annuler');
-        Route::get('/reservations/{reservation}/initier-paiement', [ReservationController::class, 'initierPaiement'])->name('reservations.initier-paiement');
+        Route::post('/reservations/{reservation}/rejeter', [ReservationController::class, 'rejeter'])->name('reservations.rejeter');
+    });
 
-
+    // Routes Documents clients
     Route::post('/client-documents', [ClientDocumentController::class, 'store'])->name('client-documents.store');
-        Route::get('/client-documents', [ClientDocumentController::class, 'index'])->name('client-documents.index');
-        Route::get('/client-documents/{document}', [ClientDocumentController::class, 'show'])->name('client-documents.show');
-        Route::delete('/client-documents/{document}', [ClientDocumentController::class, 'destroy'])->name('client-documents.destroy');
-        Route::get('/client-documents/{document}/download', [ClientDocumentController::class, 'download'])->name('client-documents.download');
-        Route::post('/client-documents/{document}/valider', [ClientDocumentController::class, 'valider'])->name('client-documents.valider');
-        Route::post('/client-documents/{document}/refuser', [ClientDocumentController::class, 'refuser'])->name('client-documents.refuser');
-
+    Route::get('/client-documents', [ClientDocumentController::class, 'index'])->name('client-documents.index');
+    Route::get('/client-documents/{document}', [ClientDocumentController::class, 'show'])->name('client-documents.show');
+    Route::delete('/client-documents/{document}', [ClientDocumentController::class, 'destroy'])->name('client-documents.destroy');
+    Route::get('/client-documents/{document}/download', [ClientDocumentController::class, 'download'])->name('client-documents.download');
+    Route::post('/client-documents/{document}/valider', [ClientDocumentController::class, 'valider'])->name('client-documents.valider');
+    Route::post('/client-documents/{document}/refuser', [ClientDocumentController::class, 'refuser'])->name('client-documents.refuser');
 
     // Routes protégées pour les paiements
     Route::prefix('/paiement')->controller(PaiementController::class)->name('paiement.')->group(function () {
@@ -123,7 +133,6 @@ Route::middleware('authenticate')->group(function () {
         Route::get('/retour/{paiement_id}', 'retour')->name('retour')->withoutMiddleware(['authenticate']);
     });
 });
-
 
 // Route de fallback pour les erreurs 404 (optionnelle)
 Route::fallback(function () {

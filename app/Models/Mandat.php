@@ -12,11 +12,11 @@ class Mandat extends Model
     protected $fillable = [
         'bien_id',
         'type_mandat',
+        'type_mandat_vente',
         'date_debut',
         'date_fin',
         'commission_pourcentage',
         'commission_fixe',
-        'conditions_particulieres',
         'statut'
     ];
 

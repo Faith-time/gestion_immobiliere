@@ -9,7 +9,7 @@
 
                         <ul class="js-clone-nav d-none d-lg-inline-block text-start site-menu float-end">
                             <!-- Accueil - Visible pour tous -->
-                            <li v-if="hasRole('proprietaire') || hasRole('client')">
+                            <li v-if="!hasRole('admin')">
                                 <Link
                                     :href="route('home')"
                                     :class="{ 'active': route().current('home') }"
@@ -20,7 +20,7 @@
                             </li>
 
                             <!-- Catalogue - Visible pour tous -->
-                            <li class="has-children" v-if="hasRole('proprietaire') || hasRole('client')">
+                            <li class="has-children" v-if="!hasRole('admin')">
                                 <a href="#" @click.prevent>Catalogue</a>
                                 <ul class="dropdown filter-dropdown">
                                     <li class="filter-section">
@@ -65,7 +65,7 @@
                             </li>
 
                             <!-- Mes réservations - Visible pour tous (client potentiel) -->
-                            <li v-if="hasRole('proprietaire') || hasRole('client')">
+                            <li v-if="!hasRole('admin')">
                                 <Link
                                     :href="route('reservations.index')"
                                     :class="{ 'active': route().current('reservations.*') }"
@@ -75,8 +75,19 @@
                                 </Link>
                             </li>
 
+                            <!-- Toutes les réservations - Visible uniquement pour admin -->
+                            <li v-if="hasRole('admin')">
+                                <Link
+                                    :href="route('admin.reservations.index')"
+                                    :class="{ 'active': route().current('admin.reservations.*') }"
+                                    @click="handleNavClick"
+                                >
+                                    Toutes les réservations
+                                </Link>
+                            </li>
+
                             <!-- Mes Biens - Visible pour proprietaire et admin -->
-                            <li v-if="hasRole('proprietaire') || hasRole('admin')  || hasRole('client')">
+                            <li v-if="hasRole('proprietaire') || hasRole('admin')">
                                 <Link
                                     :href="route('biens.index')"
                                     :class="{ 'active': route().current('biens.*') }"
@@ -107,8 +118,6 @@
                                     Utilisateurs
                                 </Link>
                             </li>
-
-                            <!-- Tableau de bord Admin - Visible uniquement pour admin -->
 
                             <!-- Badge de rôle actuel -->
                             <li class="role-badge">
@@ -773,5 +782,4 @@ const formatFilterDisplay = () => {
         margin-top: 0.5rem;
     }
 }
-
 </style>

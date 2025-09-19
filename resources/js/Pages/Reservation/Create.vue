@@ -9,7 +9,7 @@
                 </div>
 
                 <!-- Récapitulatif du bien -->
-                <div class="card mb-4 shadow-sm">
+                script<div class="card mb-4 shadow-sm">
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-3">

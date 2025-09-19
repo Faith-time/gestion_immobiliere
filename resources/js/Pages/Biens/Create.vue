@@ -1,75 +1,3 @@
-<script setup>
-import { useForm, router } from '@inertiajs/vue3'
-import { ref } from 'vue'
-import { route } from 'ziggy-js'
-
-const props = defineProps({
-    categories: Array,
-})
-
-const form = useForm({
-    // Données du bien
-    title: '',
-    property_title: null,
-    description: '',
-    image: null,
-    rooms: '',
-    floors: '',
-    bathrooms: '',
-    city: '',
-    address: '',
-    superficy: '',
-    price: '',
-    categorie_id: '',
-
-    // Données du mandat
-    type_mandat: '',
-    conditions_particulieres: ''
-})
-
-const imagePreview = ref(null)
-const documentFileName = ref(null)
-
-const statusOptions = [
-    { value: 'disponible', label: 'Disponible' },
-    { value: 'loue', label: 'Loué' },
-    { value: 'vendu', label: 'Vendu' },
-    { value: 'reserve', label: 'Réservé' },
-]
-
-const typeMandatOptions = [
-    { value: 'vente', label: 'Mandat de Vente' },
-    { value: 'gestion_locative', label: 'Mandat de Gérance (Location)' },
-]
-
-const handleImageChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-        form.image = file
-        imagePreview.value = URL.createObjectURL(file)
-    }
-}
-
-const handlePropertyTitleChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-        form.property_title = file
-        documentFileName.value = file.name
-    }
-}
-
-const submit = () => {
-    form.post(route('biens.store'), {
-        forceFormData: true,
-        preserveScroll: true
-    })
-}
-
-const cancel = () => {
-    router.visit(route('biens.index'))
-}
-</script>
-
 <template>
     <div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         <!-- Header avec animation -->
@@ -144,6 +72,7 @@ const cancel = () => {
                                         </div>
                                     </div>
                                 </div>
+                                <div v-if="form.errors.property_title" class="text-red-500 text-sm mt-1">{{ form.errors.property_title }}</div>
                             </div>
                         </div>
                     </div>
@@ -167,6 +96,7 @@ const cancel = () => {
                                     v-model="form.type_mandat"
                                     class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm appearance-none cursor-pointer"
                                     required
+                                    @change="onTypeMandatChange"
                                 >
                                     <option value="">-- Sélectionner un type de mandat --</option>
                                     <option v-for="type in typeMandatOptions" :key="type.value" :value="type.value">
@@ -176,8 +106,46 @@ const cancel = () => {
                                 <div v-if="form.errors.type_mandat" class="text-red-500 text-sm mt-1">{{ form.errors.type_mandat }}</div>
                             </div>
 
+                            <!-- Type de mandat de vente (conditionnel) -->
+                            <div v-if="form.type_mandat === 'vente'" class="group">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                    Type de mandat de vente <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <select
+                                        v-model="form.type_mandat_vente"
+                                        class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm appearance-none cursor-pointer"
+                                        required
+                                    >
+                                        <option value="">-- Sélectionner un type de mandat de vente --</option>
+                                        <option
+                                            v-for="type in typeMandatVenteOptions"
+                                            :key="type.value"
+                                            :value="type.value"
+                                            :title="type.description"
+                                        >
+                                            {{ type.label }}
+                                        </option>
+                                    </select>
+
+                                    <!-- Tooltip d'information -->
+                                    <div
+                                        v-if="form.type_mandat_vente"
+                                        class="mt-3 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-lg"
+                                    >
+                                        <h4 class="font-semibold text-blue-800 mb-2">
+                                            {{ getSelectedMandatLabel() }}
+                                        </h4>
+                                        <p class="text-sm text-blue-700 leading-relaxed">
+                                            {{ getSelectedMandatDescription() }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div v-if="form.errors.type_mandat_vente" class="text-red-500 text-sm mt-1">{{ form.errors.type_mandat_vente }}</div>
+                            </div>
+
                             <!-- Conditions particulières -->
-                            <div class="group md:col-span-2">
+                            <div class="group" :class="form.type_mandat === 'vente' ? 'md:col-span-2' : 'md:col-span-1'">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                                     Conditions particulières
                                 </label>
@@ -437,6 +405,107 @@ const cancel = () => {
     </div>
 </template>
 
+<script setup>
+import { useForm, router } from '@inertiajs/vue3'
+import { ref } from 'vue'
+import { route } from 'ziggy-js'
+
+const props = defineProps({
+    categories: Array,
+})
+
+const form = useForm({
+    // Données du bien
+    title: '',
+    property_title: null,
+    description: '',
+    image: null,
+    rooms: '',
+    floors: '',
+    bathrooms: '',
+    city: '',
+    address: '',
+    superficy: '',
+    price: '',
+    categorie_id: '',
+
+    // Données du mandat
+    type_mandat: '',
+    type_mandat_vente: '',
+    conditions_particulieres: ''
+})
+
+const imagePreview = ref(null)
+const documentFileName = ref(null)
+
+const typeMandatOptions = [
+    { value: 'vente', label: 'Mandat de Vente' },
+    { value: 'gestion_locative', label: 'Mandat de Gérance (Location)' },
+]
+
+const typeMandatVenteOptions = [
+    {
+        value: 'exclusif',
+        label: 'Mandat Exclusif',
+        description: 'Le propriétaire confie la vente uniquement à une seule agence. Il ne peut ni vendre par lui-même, ni mandater une autre agence. L\'agence a l\'assurance d\'être rémunérée si la vente se réalise pendant la durée du mandat. Avantage : plus d\'implication et d\'efforts marketing de l\'agence.'
+    },
+    {
+        value: 'simple',
+        label: 'Mandat Simple',
+        description: 'Le propriétaire peut confier le bien à plusieurs agences et vendre également par ses propres moyens. L\'agence qui réalise la vente perçoit la commission. Avantage : plus de visibilité, mais moins d\'engagement des agences.'
+    },
+    {
+        value: 'semi_exclusif',
+        label: 'Mandat Semi-Exclusif',
+        description: 'Le propriétaire confie son bien à une seule agence mais garde la possibilité de vendre par lui-même. L\'agence est rémunérée uniquement si elle trouve l\'acquéreur. C\'est un compromis entre exclusif et simple.'
+    }
+]
+
+const handleImageChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+        form.image = file
+        imagePreview.value = URL.createObjectURL(file)
+    }
+}
+
+const handlePropertyTitleChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+        form.property_title = file
+        documentFileName.value = file.name
+    }
+}
+
+const onTypeMandatChange = () => {
+    // Réinitialiser le type de mandat de vente quand on change le type de mandat
+    if (form.type_mandat !== 'vente') {
+        form.type_mandat_vente = ''
+    }
+}
+
+const getSelectedMandatLabel = () => {
+    const selected = typeMandatVenteOptions.find(option => option.value === form.type_mandat_vente)
+    return selected ? selected.label : ''
+}
+
+const getSelectedMandatDescription = () => {
+    const selected = typeMandatVenteOptions.find(option => option.value === form.type_mandat_vente)
+    return selected ? selected.description : ''
+}
+
+const submit = () => {
+    form.post(route('biens.store'), {
+        forceFormData: true,
+        preserveScroll: true
+    })
+}
+
+const cancel = () => {
+    router.visit(route('biens.index'))
+}
+</script>
+
 <style scoped>
 /* Animation pour les inputs */
 .group input:focus, .group select:focus, .group textarea:focus {
@@ -459,5 +528,10 @@ select {
 /* Transition fluide pour tous les éléments */
 * {
     transition: all 0.3s ease;
+}
+
+/* Style spécial pour la boîte d'information */
+.bg-blue-50 {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
 }
 </style>
