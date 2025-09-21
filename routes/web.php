@@ -46,7 +46,6 @@ Route::middleware('authenticate')->group(function () {
         Route::put('/{bien}', 'update')->name('update');
         Route::delete('/{bien}', 'destroy')->name('destroy');
     });
-
     // Route pour valider un bien
     Route::post('biens/{bien}/valider', [BienController::class, 'valider'])
         ->name('biens.valider');
@@ -54,6 +53,27 @@ Route::middleware('authenticate')->group(function () {
     // Route pour rejeter un bien
     Route::post('biens/{bien}/rejeter', [BienController::class, 'rejeter'])
         ->name('biens.rejeter');
+
+    // Routes pour les PDFs de mandats
+    Route::get('/biens/{bien}/mandat/download', [BienController::class, 'downloadMandatPdf'])
+        ->name('biens.download-mandat-pdf');
+
+    Route::get('/biens/{bien}/mandat/preview', [BienController::class, 'previewMandatPdf'])
+        ->name('biens.preview-mandat-pdf');
+
+    Route::post('/biens/{bien}/mandat/regenerate', [BienController::class, 'regenerateMandatPdf'])
+        ->name('biens.regenerate-mandat-pdf');
+
+    Route::get('/biens/{bien}/mandat/sign', [BienController::class, 'showSignaturePage'])->name('biens.mandat.sign');
+    Route::post('/biens/{bien}/mandat/sign/proprietaire', [BienController::class, 'signByProprietaire'])->name('biens.mandat.sign-proprietaire');
+    Route::post('/biens/{bien}/mandat/sign/agence', [BienController::class, 'signByAgence'])->name('biens.mandat.sign-agence');
+    Route::delete('/biens/{bien}/mandat/sign/{signatoryType}', [BienController::class, 'cancelSignature'])->name('biens.mandat.cancel-signature');
+    Route::get('/biens/{bien}/mandat/signature-status', [BienController::class, 'getSignatureStatus'])->name('biens.mandat.signature-status');
+    Route::get('/biens/{bien}/mandat/download-signed', [BienController::class, 'downloadSignedMandatPdf'])->name('biens.mandat.download-signed');
+    Route::get('/biens/{bien}/mandat/preview-signed', [BienController::class, 'previewSignedMandatPdf'])->name('biens.mandat.preview-signed');
+
+    Route::get('/debug/signature/{bien}', [BienController::class, 'debugSignatureData'])->name('debug.signature');
+
 
     Route::get('/proprietaire/demande', [ProprietaireController::class, 'create'])->name('proprietaire.demande');
     Route::post('/proprietaire/store', [ProprietaireController::class, 'store'])->name('proprietaire.store');

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Bien;
 use App\Models\Categorie;
 use App\Models\Mandat;
+use App\Services\ElectronicSignatureService;
+use App\Services\MandatPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +15,15 @@ use Spatie\Permission\Models\Role;
 
 class BienController extends Controller
 {
+    protected $mandatPdfService;
+    protected $signatureService;
+
+    public function __construct(MandatPdfService $mandatPdfService, ElectronicSignatureService $signatureService)
+    {
+        $this->mandatPdfService = $mandatPdfService;
+        $this->signatureService = $signatureService;
+    }
+
     // Pourcentage de commission fixe
     const COMMISSION_PERCENTAGE = 10;
 
@@ -45,6 +56,8 @@ class BienController extends Controller
         return Inertia::render('Biens/Index', [
             'biens' => $biens,
             'userRoles' => $user->roles->pluck('name'),
+            'isAdmin' => $user->hasRole('admin'),
+            'isProprietaire' => $user->hasRole('proprietaire'),
         ]);
     }
 
@@ -123,7 +136,7 @@ class BienController extends Controller
             $bien = Bien::create($bienData);
 
             // Calculer la commission automatiquement
-            $commissionMontant = ($validated['price'] * self::COMMISSION_PERCENTAGE) / 100;
+            $commissionFixe = ($validated['price'] * self::COMMISSION_PERCENTAGE) / 100;
 
             // Dates automatiques du mandat : aujourd'hui + 1 an
             $dateDebut = now()->format('Y-m-d');
@@ -137,8 +150,7 @@ class BienController extends Controller
                 'date_debut' => $dateDebut,
                 'date_fin' => $dateFin,
                 'commission_pourcentage' => self::COMMISSION_PERCENTAGE,
-                'commission_montant' => $commissionMontant,
-                'conditions_particulieres' => $validated['conditions_particulieres'] ?? '',
+                'commission_fixe' => $commissionFixe,
                 'statut' => 'en_attente', // En attente de validation du bien
             ];
 
@@ -160,7 +172,7 @@ class BienController extends Controller
                 'Bien immobilier soumis avec succès avec un ' . $typeMessage . '. ' .
                 'Il sera visible une fois validé par l\'administration. ' .
                 'Commission calculée automatiquement à ' . self::COMMISSION_PERCENTAGE . '% (' .
-                number_format($commissionMontant, 0, ',', ' ') . ' FCFA).'
+                number_format($commissionFixe, 0, ',', ' ') . ' FCFA).'
             );
 
         } catch (\Exception $e) {
@@ -190,7 +202,7 @@ class BienController extends Controller
         return $labels[$type] ?? $type;
     }
 
-    // POST /biens/{bien}/valider - Méthode pour valider un bien
+    // POST /biens/{bien}/valider - Méthode pour valider un bien avec génération automatique du PDF
     public function valider(Bien $bien)
     {
         $user = auth()->user();
@@ -220,17 +232,40 @@ class BienController extends Controller
                 $bien->mandat->update([
                     'statut' => 'actif'
                 ]);
+
+                // **GÉNÉRATION AUTOMATIQUE DU PDF DU MANDAT**
+                $pdfPath = $this->mandatPdfService->generatePdf($bien->mandat);
+
+                if ($pdfPath) {
+                    \Log::info("PDF du mandat généré avec succès", [
+                        'bien_id' => $bien->id,
+                        'mandat_id' => $bien->mandat->id,
+                        'pdf_path' => $pdfPath
+                    ]);
+                } else {
+                    \Log::warning("Échec de génération du PDF du mandat", [
+                        'bien_id' => $bien->id,
+                        'mandat_id' => $bien->mandat->id
+                    ]);
+                }
             }
 
             DB::commit();
 
-            return redirect()->route('biens.index')->with('success', 'Bien "' . $bien->title . '" validé avec succès. Il est maintenant visible publiquement.');
+            $message = 'Bien "' . $bien->title . '" validé avec succès. Il est maintenant visible publiquement.';
+
+            if ($bien->mandat && $bien->mandat->hasPdf()) {
+                $message .= ' Le mandat PDF a été généré automatiquement.';
+            }
+
+            return redirect()->route('biens.index')->with('success', $message);
 
         } catch (\Exception $e) {
             DB::rollback();
             \Log::error('Erreur lors de la validation du bien:', [
                 'bien_id' => $bien->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             return redirect()->back()->with('error', 'Erreur lors de la validation du bien.');
@@ -277,6 +312,29 @@ class BienController extends Controller
             DB::rollback();
             return redirect()->back()->with('error', 'Erreur lors du rejet du bien.');
         }
+    }
+
+    // Nouvelle méthode pour télécharger le PDF du mandat
+    public function downloadMandatPdf(Bien $bien)
+    {
+        $user = auth()->user();
+
+        // Vérifier les permissions
+        if ($bien->proprietaire_id !== $user->id && !$user->hasRole('admin')) {
+            abort(403, 'Vous n\'êtes pas autorisé à télécharger ce mandat.');
+        }
+
+        if (!$bien->mandat) {
+            abort(404, 'Aucun mandat trouvé pour ce bien.');
+        }
+
+        $response = $this->mandatPdfService->downloadPdf($bien->mandat);
+
+        if (!$response) {
+            return redirect()->back()->with('error', 'Impossible de générer ou télécharger le PDF du mandat.');
+        }
+
+        return $response;
     }
 
     // GET /biens/{bien}
@@ -394,34 +452,46 @@ class BienController extends Controller
 
             // Mettre à jour le mandat si les données sont fournies
             $mandat = $bien->mandat;
+            $mandatUpdated = false;
+
             if ($mandat) {
                 $mandatData = [];
 
                 // Recalculer la commission si le prix a changé
                 if ($validated['price'] != $bien->getOriginal('price')) {
-                    $mandatData['commission_montant'] = ($validated['price'] * self::COMMISSION_PERCENTAGE) / 100;
+                    $mandatData['commission_fixe'] = ($validated['price'] * self::COMMISSION_PERCENTAGE) / 100;
+                    $mandatUpdated = true;
                 }
 
                 // Mettre à jour les autres champs du mandat si fournis
                 if (isset($validated['type_mandat'])) {
                     $mandatData['type_mandat'] = $validated['type_mandat'];
+                    $mandatUpdated = true;
                 }
 
                 if (isset($validated['type_mandat_vente'])) {
                     $mandatData['type_mandat_vente'] = $validated['type_mandat_vente'];
+                    $mandatUpdated = true;
                 }
 
                 if (isset($validated['conditions_particulieres'])) {
                     $mandatData['conditions_particulieres'] = $validated['conditions_particulieres'];
+                    $mandatUpdated = true;
                 }
 
                 // Si le bien repasse en validation, le mandat aussi
                 if (isset($data['status']) && $data['status'] === 'en_validation') {
                     $mandatData['statut'] = 'en_attente';
+                    $mandatUpdated = true;
                 }
 
                 if (!empty($mandatData)) {
                     $mandat->update($mandatData);
+                }
+
+                // Régénérer le PDF si le mandat a été modifié et qu'il est actif
+                if ($mandatUpdated && $mandat->statut === 'actif') {
+                    $this->mandatPdfService->regeneratePdf($mandat);
                 }
             }
 
@@ -447,6 +517,11 @@ class BienController extends Controller
         DB::beginTransaction();
 
         try {
+            // Supprimer le PDF du mandat s'il existe
+            if ($bien->mandat && $bien->mandat->pdf_path && Storage::disk('public')->exists($bien->mandat->pdf_path)) {
+                Storage::disk('public')->delete($bien->mandat->pdf_path);
+            }
+
             // Supprimer les fichiers associés
             if ($bien->image && Storage::disk('public')->exists($bien->image)) {
                 Storage::disk('public')->delete($bien->image);
@@ -483,5 +558,438 @@ class BienController extends Controller
             'biens' => $biens,
             'userRoles' => auth()->user()->roles->pluck('name'),
         ]);
+    }
+
+    /**
+     * Prévisualiser le PDF du mandat dans le navigateur
+     */
+    public function previewMandatPdf(Bien $bien)
+    {
+        $user = auth()->user();
+
+        if ($bien->proprietaire_id !== $user->id && !$user->hasRole('admin')) {
+            abort(403, 'Vous n\'êtes pas autorisé à prévisualiser ce mandat.');
+        }
+
+        if (!$bien->mandat) {
+            abort(404, 'Aucun mandat trouvé pour ce bien.');
+        }
+
+        $response = $this->mandatPdfService->previewMandatPdf($bien->mandat);
+
+        if (!$response) {
+            return redirect()->back()->with('error', 'Impossible de prévisualiser le PDF.');
+        }
+
+        return $response;
+    }
+    /**
+     * Générer le contenu PDF sans le sauvegarder
+     */
+    private function generatePdfContent(Mandat $mandat)
+    {
+        $data = $mandat->getPdfData();
+
+        // Sélectionner le bon template
+        $template = $mandat->type_mandat === 'vente' ? 'mandats.vente' : 'mandats.gerance';
+
+        // Générer le PDF avec Dompdf ou votre système de PDF
+        $pdf = app('dompdf.wrapper');
+        $pdf->loadView($template, $data);
+        $pdf->setPaper('A4', 'portrait');
+
+        return $pdf->output();
+    }
+
+    /**
+     * Régénérer le PDF du mandat
+     */
+    public function regenerateMandatPdf(Bien $bien)
+    {
+        $user = auth()->user();
+
+        // Seuls les admins peuvent régénérer
+        if (!$user->hasRole('admin')) {
+            abort(403, 'Vous n\'êtes pas autorisé à régénérer ce PDF.');
+        }
+
+        if (!$bien->mandat) {
+            abort(404, 'Aucun mandat trouvé pour ce bien.');
+        }
+
+        try {
+            $pdfPath = $this->mandatPdfService->regeneratePdf($bien->mandat);
+
+            if ($pdfPath) {
+                return redirect()->back()->with('success', 'PDF du mandat régénéré avec succès.');
+            } else {
+                return redirect()->back()->with('error', 'Erreur lors de la régénération du PDF.');
+            }
+        } catch (\Exception $e) {
+            \Log::error('Erreur régénération PDF:', [
+                'bien_id' => $bien->id,
+                'mandat_id' => $bien->mandat->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->back()->with('error', 'Erreur lors de la régénération du PDF du mandat.');
+        }
+    }
+
+
+    /**
+     * Afficher la page de signature du mandat
+     */
+    public function showSignaturePage(Bien $bien)
+    {
+        $user = auth()->user();
+
+        // Vérifier les permissions
+        if ($bien->proprietaire_id !== $user->id && !$user->hasRole('admin')) {
+            abort(403, 'Vous n\'êtes pas autorisé à signer ce mandat.');
+        }
+
+        if (!$bien->mandat) {
+            abort(404, 'Aucun mandat trouvé pour ce bien.');
+        }
+
+        if ($bien->mandat->statut !== 'actif') {
+            return redirect()->route('biens.index')
+                ->with('error', 'Ce mandat n\'est pas actif et ne peut pas être signé.');
+        }
+
+        $signatureStats = $this->signatureService->getSignatureStats($bien->mandat);
+
+        return Inertia::render('Biens/Signature', [
+            'bien' => $bien->load(['category', 'mandat', 'proprietaire']),
+            'signatureStats' => $signatureStats,
+            'userRoles' => $user->roles->pluck('name'),
+            'isProprietaire' => $bien->proprietaire_id === $user->id,
+            'isAdmin' => $user->hasRole('admin'),
+        ]);
+    }
+
+    /**
+     * Signature par le propriétaire - VERSION CORRIGÉE
+     */
+    public function signByProprietaire(Request $request, Bien $bien)
+    {
+        $user = auth()->user();
+
+        // Vérifier que c'est le propriétaire du bien
+        if ($bien->proprietaire_id !== $user->id) {
+            abort(403, 'Vous n\'êtes pas autorisé à signer ce mandat.');
+        }
+
+        if (!$bien->mandat) {
+            abort(404, 'Aucun mandat trouvé pour ce bien.');
+        }
+
+        // CORRECTION : Vérifier si le propriétaire PEUT signer, pas l'agence
+        if (!$bien->mandat->canBeSignedByProprietaire()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ce mandat ne peut pas être signé par le propriétaire actuellement.'
+            ], 400);
+        }
+
+        $request->validate([
+            'signature_data' => 'required|string',
+        ]);
+
+        try {
+            // CORRECTION : Appeler signByProprietaire, pas signByAgence
+            $this->signatureService->signByProprietaire($bien->mandat, $request->signature_data);
+
+            $message = 'Mandat signé avec succès !';
+            if ($bien->mandat->fresh()->isFullySigned()) {
+                $message .= ' Le document est maintenant entièrement signé.';
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'signature_stats' => $this->signatureService->getSignatureStats($bien->mandat->fresh()),
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur signature propriétaire:', [
+                'bien_id' => $bien->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la signature : ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Signature par l'agence (admin seulement) - VERSION COMPLÈTE
+     */
+    public function signByAgence(Request $request, Bien $bien)
+    {
+        $user = auth()->user();
+
+        // Seuls les admins peuvent signer pour l'agence
+        if (!$user->hasRole('admin')) {
+            abort(403, 'Vous n\'êtes pas autorisé à signer pour l\'agence.');
+        }
+
+        if (!$bien->mandat) {
+            abort(404, 'Aucun mandat trouvé pour ce bien.');
+        }
+
+        if (!$bien->mandat->canBeSignedByAgence()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ce mandat ne peut pas être signé par l\'agence actuellement.'
+            ], 400);
+        }
+
+        $request->validate([
+            'signature_data' => 'required|string',
+        ]);
+
+        try {
+            $this->signatureService->signByAgence($bien->mandat, $request->signature_data);
+
+            $message = 'Mandat signé par l\'agence avec succès !';
+            if ($bien->mandat->fresh()->isFullySigned()) {
+                $message .= ' Le document est maintenant entièrement signé.';
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'signature_stats' => $this->signatureService->getSignatureStats($bien->mandat->fresh()),
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur signature agence:', [
+                'bien_id' => $bien->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la signature : ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Annuler une signature
+     */
+    public function cancelSignature(Request $request, Bien $bien, $signatoryType)
+    {
+        $user = auth()->user();
+
+        // Vérifier les permissions
+        if ($signatoryType === 'proprietaire' && $bien->proprietaire_id !== $user->id) {
+            abort(403, 'Vous ne pouvez annuler que votre propre signature.');
+        }
+
+        if ($signatoryType === 'agence' && !$user->hasRole('admin')) {
+            abort(403, 'Seuls les administrateurs peuvent annuler la signature de l\'agence.');
+        }
+
+        if (!$bien->mandat) {
+            abort(404, 'Aucun mandat trouvé pour ce bien.');
+        }
+
+        try {
+            $this->signatureService->cancelSignature($bien->mandat, $signatoryType);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Signature annulée avec succès.',
+                'signature_stats' => $this->signatureService->getSignatureStats($bien->mandat->fresh()),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de l\'annulation : ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtenir le statut de signature (AJAX)
+     */
+    public function getSignatureStatus(Bien $bien)
+    {
+        $user = auth()->user();
+
+        if ($bien->proprietaire_id !== $user->id && !$user->hasRole('admin')) {
+            abort(403, 'Accès non autorisé.');
+        }
+
+        if (!$bien->mandat) {
+            abort(404, 'Aucun mandat trouvé pour ce bien.');
+        }
+
+        return response()->json([
+            'signature_stats' => $this->signatureService->getSignatureStats($bien->mandat)
+        ]);
+    }
+
+    /**
+     * Télécharger le PDF signé
+     */
+    public function downloadSignedMandatPdf(Bien $bien)
+    {
+        $user = auth()->user();
+
+        if ($bien->proprietaire_id !== $user->id && !$user->hasRole('admin')) {
+            abort(403, 'Vous n\'êtes pas autorisé à télécharger ce mandat.');
+        }
+
+        if (!$bien->mandat) {
+            abort(404, 'Aucun mandat trouvé pour ce bien.');
+        }
+
+        $response = $this->signatureService->downloadSignedPdf($bien->mandat);
+
+        if (!$response) {
+            return redirect()->back()->with('error', 'Impossible de télécharger le PDF du mandat.');
+        }
+
+        return $response;
+    }
+
+    /**
+     * Prévisualiser le PDF signé
+     */
+    public function previewSignedMandatPdf(Bien $bien)
+    {
+        $user = auth()->user();
+
+        if ($bien->proprietaire_id !== $user->id && !$user->hasRole('admin')) {
+            abort(403, 'Vous n\'êtes pas autorisé à prévisualiser ce mandat.');
+        }
+
+        if (!$bien->mandat) {
+            abort(404, 'Aucun mandat trouvé pour ce bien.');
+        }
+
+        // PROBLÈME : Vous appelez probablement l'ancienne méthode
+        $response = $this->signatureService->previewSignedPdf($bien->mandat);
+
+        if (!$response) {
+            return redirect()->back()->with('error', 'Impossible de prévisualiser le PDF.');
+        }
+
+        return $response;
+    }
+
+    public function debugSignatureData(Bien $bien)
+    {
+        $mandat = $bien->mandat;
+
+        if (!$mandat) {
+            return response()->json(['error' => 'Pas de mandat trouvé']);
+        }
+
+        // Test direct des données PDF
+        $pdfData = $mandat->getPdfDataWithSignatures();
+
+        // CORRECTION : Méthode améliorée pour tester le base64
+        $proprietaireBase64Valid = $this->testBase64Validity($mandat->proprietaire_signature_data);
+        $agenceBase64Valid = $this->testBase64Validity($mandat->agence_signature_data);
+
+        $debug = [
+            'mandat_id' => $mandat->id,
+            'signature_status' => $mandat->signature_status,
+
+            // Données brutes
+            'raw_proprietaire_data' => $mandat->proprietaire_signature_data ? 'EXISTS' : 'NULL',
+            'raw_proprietaire_length' => $mandat->proprietaire_signature_data ? strlen($mandat->proprietaire_signature_data) : 0,
+            'raw_agence_data' => $mandat->agence_signature_data ? 'EXISTS' : 'NULL',
+            'raw_agence_length' => $mandat->agence_signature_data ? strlen($mandat->agence_signature_data) : 0,
+
+            // Méthodes de vérification
+            'proprietaire_signed' => $mandat->isSignedByProprietaire(),
+            'agence_signed' => $mandat->isSignedByAgence(),
+
+            // Données préparées pour PDF
+            'pdf_proprietaire_signature' => $pdfData['proprietaire_signature'] ?? 'NOT_SET',
+            'pdf_agence_signature' => [
+                'is_signed' => $pdfData['agence_signature']['is_signed'] ?? false,
+                'has_data' => !empty($pdfData['agence_signature']['data']),
+                'data_length' => !empty($pdfData['agence_signature']['data']) ? strlen($pdfData['agence_signature']['data']) : 0,
+            ],
+            'pdf_signature_status' => $pdfData['signature_status'] ?? 'NOT_SET',
+
+            // Test de validité corrigé
+            'proprietaire_base64_valid' => $proprietaireBase64Valid,
+            'agence_base64_valid' => $agenceBase64Valid,
+
+            // Test de décodage des données préparées
+            'pdf_agence_data_can_decode' => $this->testImageData($pdfData['agence_signature']['data'] ?? null),
+        ];
+
+        return response()->json($debug, 200, [], JSON_PRETTY_PRINT);
+    }
+
+// NOUVELLE MÉTHODE pour tester correctement la validité base64
+    private function testBase64Validity($data)
+    {
+        if (!$data) {
+            return 'NULL';
+        }
+
+        try {
+            // Si c'est au format data:image, extraire le base64
+            if (strpos($data, 'data:image/') === 0) {
+                $base64Data = substr($data, strpos($data, ',') + 1);
+            } else {
+                $base64Data = $data;
+            }
+
+            // Nettoyer et tester
+            $base64Data = trim(str_replace([' ', '\n', '\r'], '', $base64Data));
+            $decoded = base64_decode($base64Data, true);
+
+            if ($decoded === false) {
+                return 'INVALID_BASE64';
+            }
+
+            // Tester si c'est une image valide
+            $imageInfo = @getimagesizefromstring($decoded);
+            if ($imageInfo === false) {
+                return 'VALID_BASE64_BUT_NOT_IMAGE';
+            }
+
+            return 'VALID_IMAGE';
+
+        } catch (\Exception $e) {
+            return 'ERROR: ' . $e->getMessage();
+        }
+    }
+
+// NOUVELLE MÉTHODE pour tester les données d'image préparées
+    private function testImageData($data)
+    {
+        if (!$data) {
+            return 'NO_DATA';
+        }
+
+        if (strpos($data, 'data:image/') === 0) {
+            $base64Data = substr($data, strpos($data, ',') + 1);
+            $decoded = base64_decode($base64Data, true);
+
+            if ($decoded === false) {
+                return 'CANNOT_DECODE';
+            }
+
+            return @getimagesizefromstring($decoded) !== false ? 'VALID_IMAGE' : 'INVALID_IMAGE';
+        }
+
+        return 'NOT_DATA_URL';
     }
 }

@@ -2,6 +2,7 @@
 import { router } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
 import { route } from 'ziggy-js'
+import { usePage } from '@inertiajs/vue3'
 
 const props = defineProps({
     biens: Array,
@@ -38,7 +39,12 @@ const filteredBiens = computed(() => {
 
 // Vérifier si l'utilisateur est admin
 const isAdmin = computed(() => {
-    return props.userRoles.includes('admin')
+    return props.userRoles && props.userRoles.includes('admin')
+})
+
+// Vérifier si l'utilisateur est propriétaire
+const isProprietaire = computed(() => {
+    return props.userRoles && props.userRoles.includes('proprietaire')
 })
 
 // Compter les biens par statut
@@ -52,6 +58,30 @@ const biensStats = computed(() => {
         rejete: props.biens.filter(b => b.status === 'rejete').length,
     }
 })
+
+// Fonction pour vérifier si l'utilisateur peut voir les boutons PDF
+const canAccessPdf = (bien) => {
+    if (!bien.mandat || bien.mandat.statut !== 'actif') {
+        return false
+    }
+
+    // Admin peut toujours accéder
+    if (isAdmin.value) {
+        return true
+    }
+
+    // Propriétaire peut accéder à ses propres biens
+    if (isProprietaire.value && bien.proprietaire_id === getCurrentUserId()) {
+        return true
+    }
+
+    return false
+}
+
+// Fonction pour obtenir l'ID de l'utilisateur actuel
+const getCurrentUserId = () => {
+    return usePage().props.auth?.user?.id || null
+}
 
 const getStatusColor = (status) => {
     const colors = {
@@ -149,12 +179,10 @@ const validateBien = () => {
         router.post(route('biens.valider', selectedBien.value.id), {}, {
             onSuccess: () => {
                 closeValidationModal()
-                // Forcer le rechargement de la page pour avoir les données à jour
                 router.reload()
             },
             onError: (errors) => {
                 console.error('Erreur lors de la validation:', errors)
-                // Optionnel : afficher les erreurs à l'utilisateur
                 alert('Erreur lors de la validation du bien')
             }
         })
@@ -168,7 +196,6 @@ const rejectBien = () => {
         }, {
             onSuccess: () => {
                 closeRejectionModal()
-                // Forcer le rechargement de la page pour avoir les données à jour
                 router.reload()
             },
             onError: (errors) => {
@@ -191,9 +218,99 @@ const closeRejectionModal = () => {
     rejectionReason.value = ''
 }
 
-
 const filterByStatus = (status) => {
     selectedStatus.value = selectedStatus.value === status ? '' : status
+}
+
+// Fonctions PDF corrigées
+const downloadMandatPdf = (bien) => {
+    if (!bien.mandat) {
+        alert('Aucun mandat trouvé pour ce bien')
+        return
+    }
+
+    if (!canAccessPdf(bien)) {
+        alert('Vous n\'êtes pas autorisé à télécharger ce mandat')
+        return
+    }
+
+    window.open(route('biens.download-mandat-pdf', bien.id), '_blank')
+}
+
+const previewMandatPdf = (bien) => {
+    if (!bien.mandat) {
+        alert('Aucun mandat trouvé pour ce bien')
+        return
+    }
+
+    if (!canAccessPdf(bien)) {
+        alert('Vous n\'êtes pas autorisé à prévisualiser ce mandat')
+        return
+    }
+
+    window.open(route('biens.preview-mandat-pdf', bien.id), '_blank')
+}
+
+const regenerateMandatPdf = (bien) => {
+    if (!bien.mandat) {
+        alert('Aucun mandat trouvé pour ce bien')
+        return
+    }
+
+    if (!isAdmin.value) {
+        alert('Seuls les administrateurs peuvent régénérer les PDFs')
+        return
+    }
+
+    if (confirm('Êtes-vous sûr de vouloir régénérer le PDF du mandat ? L\'ancien fichier sera remplacé.')) {
+        router.post(route('biens.regenerate-mandat-pdf', bien.id), {}, {
+            onSuccess: () => {
+                router.reload()
+            },
+            onError: (errors) => {
+                console.error('Erreur lors de la régénération:', errors)
+                alert('Erreur lors de la régénération du PDF du mandat')
+            }
+        })
+    }
+}
+
+const showSignaturePage = (bien) => {
+    router.visit(route('biens.mandat.sign', bien.id))
+}
+
+// Fonction pour vérifier si l'utilisateur peut signer
+const canSignMandat = (bien) => {
+    if (!bien.mandat || bien.mandat.statut !== 'actif') {
+        return false
+    }
+
+    // Propriétaire peut toujours signer son mandat
+    if (isProprietaire.value && bien.proprietaire_id === getCurrentUserId()) {
+        return true
+    }
+
+    // Admin peut signer pour l'agence
+    if (isAdmin.value) {
+        return true
+    }
+
+    return false
+}
+
+// Fonction pour obtenir le statut de signature
+const getSignatureStatusBadge = (mandat) => {
+    if (!mandat.signature_status) {
+        return { text: 'Non signé', color: 'bg-gray-100 text-gray-800 border-gray-200' }
+    }
+
+    const statusMap = {
+        'non_signe': { text: 'Non signé', color: 'bg-red-100 text-red-800 border-red-200' },
+        'partiellement_signe': { text: 'Partiellement signé', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+        'entierement_signe': { text: 'Entièrement signé', color: 'bg-green-100 text-green-800 border-green-200' }
+    }
+
+    return statusMap[mandat.signature_status] || statusMap['non_signe']
 }
 </script>
 
@@ -411,6 +528,7 @@ const filterByStatus = (status) => {
                                         </svg>
                                     </button>
                                 </template>
+
                                 <!-- Actions communes -->
                                 <button
                                     @click="showBien(bien)"
@@ -438,6 +556,53 @@ const filterByStatus = (status) => {
                                 >
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+
+                                <!-- BOUTONS PDF -->
+                                <template v-if="canAccessPdf(bien)">
+                                    <button
+                                        @click="downloadMandatPdf(bien)"
+                                        class="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200 shadow-lg"
+                                        title="Télécharger le mandat PDF"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </button>
+
+                                    <button
+                                        @click="previewMandatPdf(bien)"
+                                        class="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200 shadow-lg"
+                                        title="Prévisualiser le mandat PDF"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
+
+                                    <button
+                                        v-if="isAdmin"
+                                        @click="regenerateMandatPdf(bien)"
+                                        class="p-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors duration-200 shadow-lg"
+                                        title="Régénérer le mandat PDF"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                    </button>
+                                </template>
+
+                                <!-- BOUTON DE SIGNATURE -->
+                                <button
+                                    v-if="canSignMandat(bien)"
+                                    @click="showSignaturePage(bien)"
+                                    class="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200 shadow-lg"
+                                    title="Signer le mandat"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                 </button>
                             </div>
@@ -501,6 +666,87 @@ const filterByStatus = (status) => {
                                 </span>
                             </div>
 
+                            <!-- SECTION PDF DANS LE CONTENU -->
+                            <div v-if="canAccessPdf(bien)" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div class="text-xs text-blue-800 mb-2 font-medium flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Mandat PDF disponible
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button
+                                        @click="downloadMandatPdf(bien)"
+                                        class="flex-1 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs transition-colors duration-200 flex items-center justify-center"
+                                    >
+                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3" />
+                                        </svg>
+                                        Télécharger
+                                    </button>
+                                    <button
+                                        @click="previewMandatPdf(bien)"
+                                        class="flex-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs transition-colors duration-200 flex items-center justify-center"
+                                    >
+                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        Voir
+                                    </button>
+                                    <button
+                                        v-if="isAdmin"
+                                        @click="regenerateMandatPdf(bien)"
+                                        class="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs transition-colors duration-200 flex items-center justify-center"
+                                        title="Régénérer"
+                                    >
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- SECTION SIGNATURE ÉLECTRONIQUE - UNE SEULE FOIS -->
+                            <div v-if="bien.mandat && bien.mandat.statut === 'actif'" class="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                                <div class="text-xs text-indigo-800 mb-2 font-medium flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                    Signature électronique
+                                </div>
+
+                                <!-- Statut de signature -->
+                                <div v-if="bien.mandat.signature_status" class="mb-2">
+                                    <span :class="`text-xs px-2 py-1 rounded-full border ${getSignatureStatusBadge(bien.mandat).color}`">
+                                        {{ getSignatureStatusBadge(bien.mandat).text }}
+                                    </span>
+                                </div>
+
+                                <div class="flex space-x-2">
+                                    <button
+                                        v-if="canSignMandat(bien)"
+                                        @click="showSignaturePage(bien)"
+                                        class="flex-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs transition-colors duration-200 flex items-center justify-center"
+                                    >
+                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                        Signer
+                                    </button>
+
+                                    <button
+                                        v-if="bien.mandat.signature_status && bien.mandat.signature_status !== 'non_signe'"
+                                        @click="previewMandatPdf(bien)"
+                                        class="flex-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors duration-200 flex items-center justify-center"
+                                    >
+                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        Voir signé
+                                    </button>
+                                </div>
+                            </div>
+
                             <!-- Informations mandat pour admin -->
                             <div v-if="isAdmin && bien.mandat" class="mb-4 p-3 bg-gray-50 rounded-lg">
                                 <div class="text-xs text-gray-600 mb-2">
@@ -508,7 +754,7 @@ const filterByStatus = (status) => {
                                 </div>
                                 <div class="flex justify-between items-center text-xs">
                                     <span>Commission: {{ bien.mandat.commission_pourcentage }}%</span>
-                                    <span>{{ formatPrice(bien.mandat.commission_montant) }} FCFA</span>
+                                    <span>{{ formatPrice(bien.mandat.commission_fixe) }} FCFA</span>
                                 </div>
                                 <div class="flex justify-between items-center text-xs mt-1">
                                     <span>Fin: {{ formatDate(bien.mandat.date_fin) }}</span>
