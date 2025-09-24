@@ -150,11 +150,17 @@
                                     <i class="fas fa-calendar-check me-2"></i>
                                     {{ reservationEnCours ? 'Réservation en cours...' : 'Réserver maintenant' }}
                                 </button>
+
+                                <!-- AJOUT : Afficher le type de mandat sur la page du bien -->
+                                <div v-if="bien.mandat" class="small text-muted text-center">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    {{ bien.mandat.type_mandat === 'vente' ? 'Disponible à la vente' : 'Disponible en location' }}
+                                </div>
+
                                 <button class="btn btn-outline-primary" @click="contacterAgent">
                                     <i class="fas fa-phone me-2"></i>Contacter l'agent
                                 </button>
                             </div>
-
                             <div v-else-if="bien.status === 'reserve'" class="text-center">
                                 <div class="alert alert-warning mb-3">
                                     <i class="fas fa-clock me-2"></i>Cette propriété est réservée

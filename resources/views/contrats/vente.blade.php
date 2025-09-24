@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $titre_mandat }}</title>
+    <title>{{ $titre_contrat }}</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -29,7 +29,7 @@
             margin: 20px 0;
             padding: 10px;
             background: #f8f9fa;
-            border-left: 4px solid #28a745;
+            border-left: 4px solid #007bff;
         }
         .partie h3 {
             margin: 0 0 10px 0;
@@ -56,7 +56,7 @@
         }
         .prix {
             font-weight: bold;
-            color: #28a745;
+            color: #d9534f;
         }
         .signatures {
             margin-top: 40px;
@@ -125,9 +125,6 @@
         .text-center {
             text-align: center;
         }
-        .font-bold {
-            font-weight: bold;
-        }
         .signature-status {
             margin: 20px 0;
             padding: 15px;
@@ -154,7 +151,7 @@
 </head>
 <body>
 <div class="header">
-    <h1>{{ $titre_mandat }}</h1>
+    <h1>{{ $titre_contrat }}</h1>
     @if(isset($signature_status))
         <div class="signature-status {{ $signature_status === 'entierement_signe' ? 'fully-signed' : ($signature_status === 'partiellement_signe' ? 'partially-signed' : 'not-signed') }}">
             @if($signature_status === 'entierement_signe')
@@ -169,12 +166,17 @@
 </div>
 
 <div class="partie">
-    <h3>Le Mandant :</h3>
-    <p><strong>{{ $proprietaire->name }}</strong>, propriétaire du bien situé au {{ $bien->address }}, {{ $bien->city }}</p>
+    <h3>Le Vendeur :</h3>
+    <p><strong>{{ $vendeur->name }}</strong>, propriétaire du bien situé au {{ $bien->address }}, {{ $bien->city }}</p>
 </div>
 
 <div class="partie">
-    <h3>Et Le Mandataire :</h3>
+    <h3>L'Acheteur :</h3>
+    <p><strong>{{ $acheteur->name }}</strong>, domicilié {{ $acheteur->email }}</p>
+</div>
+
+<div class="partie">
+    <h3>L'Agence Immobilière :</h3>
     <p><strong>{{ $agence['nom'] }}</strong>, {{ $agence['adresse'] }}, {{ $agence['ville'] }}, représentée par {{ $agence['representant'] }}</p>
 </div>
 
@@ -183,14 +185,7 @@
 </div>
 
 <div class="article">
-    <div class="article-title">Article 1 – Objet du mandat</div>
-    <div class="article-content">
-        {{ $objet }}
-    </div>
-</div>
-
-<div class="article">
-    <div class="article-title">Article 2 – Désignation du bien</div>
+    <div class="article-title">Article 1 – Désignation du bien</div>
     <div class="article-content">
         <div class="bien-details">
             <strong>{{ $bien->title }}</strong><br>
@@ -205,54 +200,35 @@
 </div>
 
 <div class="article">
-    <div class="article-title">Article 3 – Loyer et charges</div>
+    <div class="article-title">Article 2 – Prix de vente</div>
     <div class="article-content">
-        Le loyer mensuel est fixé à <span class="prix">{{ number_format($bien->price, 0, ',', ' ') }} FCFA</span> hors charges.
+        Le prix est fixé à <span class="prix">{{ number_format($vente->prix_vente, 0, ',', ' ') }} FCFA</span>.
+        @if($bien->mandat)
+            Commission d'agence incluse : {{ number_format($bien->mandat->commission_fixe, 0, ',', ' ') }} FCFA.
+        @endif
     </div>
 </div>
 
 <div class="article">
-    <div class="article-title">Article 4 – Durée du mandat</div>
+    <div class="article-title">Article 3 – Date de vente</div>
     <div class="article-content">
-        Le présent mandat de gérance est conclu pour une durée de 12 mois
-        à compter du {{ \Carbon\Carbon::parse($mandat->date_debut)->format('d/m/Y') }}
-        jusqu'au {{ \Carbon\Carbon::parse($mandat->date_fin)->format('d/m/Y') }}.
+        La vente est effectuée en date du {{ \Carbon\Carbon::parse($vente->date_vente)->format('d/m/Y') }}.
     </div>
 </div>
 
 <div class="article">
-    <div class="article-title">Article 5 – Rémunération</div>
+    <div class="article-title">Article 4 – Paiement</div>
     <div class="article-content">
-        La commission de gérance du mandataire est de {{ $mandat->commission_pourcentage }}% TTC du loyer mensuel,
-        soit <span class="prix">{{ number_format($mandat->commission_fixe, 0, ',', ' ') }} FCFA</span> par mois.
+        Le paiement est effectué selon les modalités convenues entre les parties.
+        La propriété sera transférée à la signature de l'acte authentique.
     </div>
 </div>
 
 <div class="article">
-    <div class="article-title">Article 6 – Obligations du mandataire</div>
+    <div class="article-title">Article 5 – Transfert de propriété</div>
     <div class="article-content">
-        Le mandataire s'engage à :
-        <ul style="margin-left: 20px; margin-top: 8px;">
-            <li>Rechercher des locataires solvables</li>
-            <li>Encaisser les loyers et charges</li>
-            <li>Suivre les éventuels impayés</li>
-            <li>Effectuer les réparations courantes</li>
-            <li>Tenir une comptabilité détaillée</li>
-            <li>Rendre compte périodiquement au propriétaire</li>
-        </ul>
-    </div>
-</div>
-
-<div class="article">
-    <div class="article-title">Article 7 – Obligations du mandant</div>
-    <div class="article-content">
-        Le mandant s'engage à :
-        <ul style="margin-left: 20px; margin-top: 8px;">
-            <li>Fournir tous les documents nécessaires</li>
-            <li>Assurer le bien contre les risques locatifs</li>
-            <li>Prendre en charge les grosses réparations</li>
-            <li>Respecter la réglementation en vigueur</li>
-        </ul>
+        La propriété sera transférée à l'acheteur dès la signature du présent contrat et
+        l'accomplissement de toutes les formalités administratives nécessaires.
     </div>
 </div>
 
@@ -260,46 +236,44 @@
     Fait à {{ $ville_signature }}, le {{ $date_creation }}.
 </div>
 
-{{-- Section signatures électroniques --}}
+{{-- Section signatures --}}
 <div class="signatures">
     <table>
         <tr>
             <td>
-                <div><strong>Le Mandant</strong></div>
+                <div><strong>Le Vendeur</strong></div>
                 <div class="signature-box">
-                    @if(isset($proprietaire_signature) && $proprietaire_signature['is_signed'] && $proprietaire_signature['data'])
-                        <img src="{{ $proprietaire_signature['data'] }}" alt="Signature propriétaire" class="signature-image" />
+                    @if(isset($vendeur_signature) && $vendeur_signature['is_signed'] && $vendeur_signature['data'])
+                        <img src="{{ $vendeur_signature['data'] }}" alt="Signature vendeur" class="signature-image" />
                         <div class="signature-info">
-                            {{ $proprietaire->name }}<br>
+                            {{ $vendeur->name }}<br>
                             <div class="signature-date">
-                                Signé le {{ \Carbon\Carbon::parse($proprietaire_signature['signed_at'])->format('d/m/Y à H:i') }}
+                                Signé le {{ \Carbon\Carbon::parse($vendeur_signature['signed_at'])->format('d/m/Y à H:i') }}
                             </div>
                         </div>
                     @else
                         <div class="signature-placeholder">
                             Aucune signature<br>
-                            {{ $proprietaire->name }}
+                            {{ $vendeur->name }}
                         </div>
                     @endif
                 </div>
             </td>
             <td>
-                <div><strong>Le Mandataire</strong></div>
+                <div><strong>L'Acheteur</strong></div>
                 <div class="signature-box">
-                    @if(isset($agence_signature) && $agence_signature['is_signed'] && $agence_signature['data'])
-                        <img src="{{ $agence_signature['data'] }}" alt="Signature agence" class="signature-image" />
+                    @if(isset($acheteur_signature) && $acheteur_signature['is_signed'] && $acheteur_signature['data'])
+                        <img src="{{ $acheteur_signature['data'] }}" alt="Signature acheteur" class="signature-image" />
                         <div class="signature-info">
-                            {{ $agence['representant'] }}<br>
-                            <small>{{ $agence['nom'] }}</small>
+                            {{ $acheteur->name }}<br>
                             <div class="signature-date">
-                                Signé le {{ \Carbon\Carbon::parse($agence_signature['signed_at'])->format('d/m/Y à H:i') }}
+                                Signé le {{ \Carbon\Carbon::parse($acheteur_signature['signed_at'])->format('d/m/Y à H:i') }}
                             </div>
                         </div>
                     @else
                         <div class="signature-placeholder">
                             Aucune signature<br>
-                            {{ $agence['representant'] }}<br>
-                            <small>{{ $agence['nom'] }}</small>
+                            {{ $acheteur->name }}
                         </div>
                     @endif
                 </div>
@@ -311,6 +285,7 @@
 <div class="footer">
     <p>Document généré automatiquement le {{ now()->format('d/m/Y à H:i') }}</p>
     <p>{{ $agence['nom'] }} - {{ $agence['adresse'] }}, {{ $agence['ville'] }}</p>
+    <p>Téléphone: {{ $agence['telephone'] }} - Email: {{ $agence['email'] }}</p>
     @if(isset($signature_status) && $signature_status === 'entierement_signe')
         <p><strong>Document certifié avec signatures électroniques horodatées</strong></p>
     @endif

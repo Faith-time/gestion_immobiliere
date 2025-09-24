@@ -237,7 +237,7 @@
 <div class="date-lieu">
     Fait à {{ $ville_signature }}, le {{ $date_creation }}.
 </div>
-{{-- Section signatures FINALE - remplacez dans mandats/vente.blade.php --}}
+{{-- Section signatures CORRIGÉE --}}
 <div class="signatures">
     <table>
         <tr>
@@ -245,7 +245,7 @@
                 <div><strong>Le Mandant</strong></div>
                 <div class="signature-box">
                     @if(isset($proprietaire_signature) && $proprietaire_signature['is_signed'] && $proprietaire_signature['data'])
-                        <img src="{{ $proprietaire_signature['data'] }}" class="signature-image" />
+                        <img src="{{ $proprietaire_signature['data'] }}" alt="Signature propriétaire" class="signature-image" />
                         <div class="signature-info">
                             {{ $proprietaire->name }}<br>
                             <div class="signature-date">
@@ -260,8 +260,6 @@
                     @endif
                 </div>
             </td>
-            <td>
-            {{-- SECTION SIGNATURE AGENCE - VERSION DEBUG --}}
             <td>
                 <div><strong>Le Mandataire</strong></div>
                 <div class="signature-box">
@@ -283,7 +281,6 @@
                     @endif
                 </div>
             </td>
-            </td>
         </tr>
     </table>
 </div>
@@ -292,13 +289,12 @@
     .signature-image {
         max-width: 200px;
         max-height: 80px;
-        width: auto;
-        height: auto;
+        object-fit: contain;
         display: block;
         margin: 10px auto;
-        border: 1px solid #ccc;
+        border: 1px solid #ddd;
         background: white;
-        object-fit: contain;
+        align-self: center;
     }
 
     .signature-box {
@@ -331,80 +327,6 @@
         font-size: 9px;
         color: #666;
         margin-top: 3px;
-    }
-</style>
-
-<style>
-    .signature-image {
-        max-width: 200px;
-        max-height: 80px;
-        object-fit: contain;
-        display: block;
-        margin: 10px auto;
-        border: 1px solid #ddd;
-        background: white;
-    }
-
-    .signature-box {
-        border: 1px solid #ddd;
-        min-height: 120px;
-        position: relative;
-        background: #fafafa;
-        padding: 5px;
-    }
-
-    .signature-placeholder {
-        color: #999;
-        font-style: italic;
-        padding: 40px 10px;
-        text-align: center;
-    }
-
-    .signature-info {
-        position: absolute;
-        bottom: 5px;
-        left: 0;
-        right: 0;
-        text-align: center;
-        font-size: 10px;
-        color: #666;
-    }
-
-    .signature-date {
-        font-size: 10px;
-        color: #666;
-        margin-top: 5px;
-    }
-</style>
-
-<style>
-    .signature-image {
-        max-width: 200px;
-        max-height: 80px;
-        object-fit: contain;
-        display: block;
-        margin: 10px auto;
-        border: 1px solid #ddd;
-        background: white; /* Ajouté pour un meilleur contraste */
-    }
-
-    .signature-box {
-        border: 1px solid #ddd;
-        min-height: 120px;
-        position: relative;
-        background: #fafafa;
-        padding: 5px; /* Ajouté pour un meilleur espacement */
-    }
-</style>
-
-<style>
-    .signature-image {
-        max-width: 200px;
-        max-height: 80px;
-        object-fit: contain;
-        display: block;
-        margin: 10px auto;
-        border: 1px solid #ddd;
     }
 </style>
 <div class="footer">

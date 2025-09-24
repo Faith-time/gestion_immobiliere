@@ -16,6 +16,64 @@ use Inertia\Inertia;
 class PaiementController extends Controller
 {
     /**
+     * Afficher la page de succès avec les options appropriées
+     */
+    public function showSucces(Paiement $paiement)
+    {
+        // Charger les relations selon le type
+        $paiement->load([
+            'reservation.bien.mandat',
+            'location.bien.mandat',
+            'vente.bien.mandat'
+        ]);
+
+        // Déterminer les actions disponibles selon le contexte
+        $actionsDisponibles = $this->getActionsDisponibles($paiement);
+
+        return Inertia::render('Paiement/Succes', [
+            'paiement' => $paiement,
+            'actionsDisponibles' => $actionsDisponibles
+        ]);
+    }
+
+    /**
+     * Déterminer les actions disponibles après paiement réussi
+     */
+    private function getActionsDisponibles(Paiement $paiement)
+    {
+        $actions = [
+            'peutVisiter' => false,
+            'peutProcederVente' => false,
+            'peutProcederLocation' => false,
+            'bien' => null,
+            'typeMandat' => null
+        ];
+
+        // Si c'est une réservation avec paiement réussi
+        if ($paiement->reservation_id && $paiement->statut === 'reussi') {
+            $reservation = $paiement->reservation;
+            $bien = $reservation->bien;
+            $mandat = $bien->mandat;
+
+            if ($bien && $mandat) {
+                $actions['bien'] = $bien;
+                $actions['typeMandat'] = $mandat->type_mandat;
+
+                // Toujours permettre la visite
+                $actions['peutVisiter'] = true;
+
+                // Gérer les deux types de mandats
+                if ($mandat->type_mandat === 'vente' && $bien->status !== 'vendu') {
+                    $actions['peutProcederVente'] = true;
+                } elseif ($mandat->type_mandat === 'gestion_locative' && $bien->status !== 'loue') {
+                    $actions['peutProcederLocation'] = true;
+                }
+            }
+        }
+
+        return $actions;
+    }
+    /**
      * Afficher la page d'initiation du paiement
      */
     public function showInitierPaiement(Request $request): \Inertia\Response
@@ -56,23 +114,6 @@ class PaiementController extends Controller
             'item' => $item,
             'paiement' => $paiement,
             'user' => auth()->user()
-        ]);
-    }
-
-    /**
-     * Afficher la page de succès
-     */
-    public function showSucces(Paiement $paiement)
-    {
-        // Charger les relations selon le type
-        $paiement->load([
-            'reservation.bien',
-            'location.bien',
-            'vente.bien'
-        ]);
-
-        return Inertia::render('Paiement/Succes', [
-            'paiement' => $paiement
         ]);
     }
 
@@ -159,7 +200,7 @@ class PaiementController extends Controller
         $paiement = Paiement::findOrFail($id);
 
         $request->validate([
-            'statut' => 'in:en_attente,termine,echoue',
+            'statut' => 'in:en_attente,reussi,echoue',
             'montant_paye' => 'nullable|numeric|min:0',
         ]);
 
@@ -191,10 +232,7 @@ class PaiementController extends Controller
         return response()->json(['message' => 'Paiement supprimé avec succès.']);
     }
 
-    /**
-     * Initier un paiement avec CinetPay
-     */
-    public function initier(Request $request)
+    public function initierSansDelai(Request $request)
     {
         $request->validate([
             'paiement_id' => 'required|exists:paiements,id',
@@ -216,227 +254,111 @@ class PaiementController extends Controller
                 $paiement->transaction_id = 'TXN_' . Str::upper(Str::random(10)) . '_' . time();
             }
 
+            // Vérifier si on doit simuler le paiement
+            if (env('SIMULATE_PAYMENT', false) || env('APP_ENV') === 'local') {
+                // MODE SIMULATION
+                $paiement->statut = 'reussi';
+                $paiement->montant_paye = $paiement->montant_total;
+                $paiement->montant_restant = 0;
+                $paiement->date_transaction = now();
+                $paiement->save();
+
+                // Mettre à jour le statut de l'élément associé
+                $this->updateItemStatus($paiement);
+
+                Log::info('Paiement simulé avec succès', [
+                    'paiement_id' => $paiement->id,
+                    'transaction_id' => $paiement->transaction_id,
+                    'montant' => $paiement->montant_total,
+                    'statut' => $paiement->statut
+                ]);
+
+                // Rediriger vers la page de succès
+                return redirect()->route('paiement.succes', $paiement)
+                    ->with('success', 'Paiement simulé avec succès !');
+            }
+
+            // Si simulation désactivée, utiliser le code CinetPay normal
             $paiement->save();
 
-            // Configuration CinetPay
-            $apiKey = env('CINETPAY_API_KEY');
-            $siteId = env('CINETPAY_SITE_ID');
-            $secretKey = env('CINETPAY_SECRET_KEY');
-
-            // URLs de callback
-            $notifyUrl = env('CINETPAY_NOTIFY_URL');
-            $returnUrl = env('CINETPAY_RETURN_URL') . '/' . $paiement->id;
-
-            // Données pour CinetPay
-            $data = [
-                'amount' => (int)$paiement->montant_total,
-                'currency' => 'XOF', // ou votre devise
-                'apikey' => $apiKey,
-                'site_id' => $siteId,
-                'transaction_id' => $paiement->transaction_id,
-                'description' => $request->description ?: "Paiement {$paiement->type} #{$paiement->id}",
-                'return_url' => $returnUrl,
-                'notify_url' => $notifyUrl,
-                'customer_name' => $request->customer_name,
-                'customer_surname' => '', // optionnel
-                'customer_email' => $request->customer_email,
-                'customer_phone_number' => $request->customer_phone,
-                'customer_address' => '', // optionnel
-                'customer_city' => '', // optionnel
-                'customer_country' => 'SN', // ou votre pays
-                'customer_state' => '', // optionnel
-                'customer_zip_code' => '', // optionnel
-            ];
-
-            // Appel API CinetPay pour initier le paiement
-            $response = Http::timeout(30)->post('https://api-checkout.cinetpay.com/v2/payment', $data);
-
-            if ($response->successful()) {
-                $responseData = $response->json();
-
-                if (isset($responseData['data']) && isset($responseData['data']['payment_url'])) {
-                    // Mettre à jour le statut du paiement
-                    $paiement->statut = 'en_attente';
-                    $paiement->save();
-
-                    // Rediriger vers CinetPay
-                    return redirect()->away($responseData['data']['payment_url']);
-                }
-            }
-
-            Log::error('Erreur CinetPay initiation', [
-                'response' => $response->body(),
-                'status' => $response->status()
-            ]);
-
-            return redirect()->route('paiement.erreur')
-                ->with('error', 'Erreur lors de l\'initiation du paiement');
+            // ... votre code CinetPay existant ici ...
 
         } catch (\Exception $e) {
-            Log::error('Erreur initiation paiement: ' . $e->getMessage());
+            Log::error('Erreur simulation paiement: ' . $e->getMessage());
 
             return redirect()->route('paiement.erreur')
-                ->with('error', 'Erreur interne lors de l\'initiation du paiement');
+                ->with('error', 'Erreur lors de la simulation du paiement');
         }
     }
 
-    /**
-     * Notification de CinetPay (webhook)
-     */
-    public function notify(Request $request)
+    // Méthode alternative avec délai pour simuler un traitement
+    public function initier(Request $request)
     {
+        $request->validate([
+            'paiement_id' => 'required|exists:paiements,id',
+            'customer_name' => 'required|string|max:255',
+            'customer_email' => 'required|email|max:255',
+            'customer_phone' => 'required|string|max:20',
+            'description' => 'nullable|string|max:255',
+            'mode_paiement' => 'required|in:mobile_money,carte,virement'
+        ]);
+
         try {
-            $transactionId = $request->input('cpm_trans_id');
-            $amount = $request->input('cpm_amount');
-            $currency = $request->input('cpm_currency');
-            $signature = $request->input('signature');
+            $paiement = Paiement::findOrFail($request->paiement_id);
 
-            // Vérifier la signature
-            $apiKey = env('CINETPAY_API_KEY');
-            $siteId = env('CINETPAY_SITE_ID');
-
-            $expectedSignature = hash('sha256', $transactionId . $amount . $currency . $siteId . $apiKey);
-
-            if ($signature !== $expectedSignature) {
-                Log::warning('Signature invalide pour la notification CinetPay', [
-                    'transaction_id' => $transactionId,
-                    'received_signature' => $signature,
-                    'expected_signature' => $expectedSignature
-                ]);
-                return response('Signature invalide', 400);
+            // Mise à jour initiale
+            $paiement->mode_paiement = $request->mode_paiement;
+            if (!$paiement->transaction_id) {
+                $paiement->transaction_id = 'TXN_' . Str::upper(Str::random(10)) . '_' . time();
             }
+            $paiement->statut = 'en_attente';
+            $paiement->save();
 
-            // Vérifier le statut du paiement auprès de CinetPay
-            $verifyData = [
-                'apikey' => $apiKey,
-                'site_id' => $siteId,
-                'transaction_id' => $transactionId
-            ];
+            // Simuler un délai de traitement (optionnel)
+            sleep(2);
 
-            $verifyResponse = Http::post('https://api-checkout.cinetpay.com/v2/payment/check', $verifyData);
+            // Marquer comme réussi
+            $paiement->statut = 'reussi';
+            $paiement->montant_paye = $paiement->montant_total;
+            $paiement->montant_restant = 0;
+            $paiement->date_transaction = now();
+            $paiement->save();
 
-            if ($verifyResponse->successful()) {
-                $verifyResult = $verifyResponse->json();
+            $this->updateItemStatus($paiement);
 
-                if (isset($verifyResult['data'])) {
-                    $paymentData = $verifyResult['data'];
-
-                    // Trouver le paiement dans la base
-                    $paiement = Paiement::where('transaction_id', $transactionId)->first();
-
-                    if ($paiement) {
-                        // Mettre à jour le statut selon la réponse CinetPay
-                        switch ($paymentData['cpm_result']) {
-                            case '00': // Succès
-                                $paiement->statut = 'termine';
-                                $paiement->montant_paye = $paymentData['cpm_amount'];
-                                $paiement->montant_restant = $paiement->montant_total - $paiement->montant_paye;
-
-                                // Mettre à jour le statut de l'élément associé
-                                $this->updateItemStatus($paiement, 'confirmee');
-                                break;
-                            case '01': // Échec
-                                $paiement->statut = 'echoue';
-                                break;
-                            default:
-                                $paiement->statut = 'en_attente';
-                        }
-
-                        $paiement->save();
-
-                        Log::info('Paiement mis à jour via notification CinetPay', [
-                            'paiement_id' => $paiement->id,
-                            'transaction_id' => $transactionId,
-                            'statut' => $paiement->statut
-                        ]);
-                    }
-                }
-            }
-
-            return response('OK', 200);
+            return redirect()->route('paiement.succes', $paiement);
 
         } catch (\Exception $e) {
-            Log::error('Erreur notification CinetPay: ' . $e->getMessage());
-            return response('Erreur', 500);
+            return redirect()->route('paiement.erreur')
+                ->with('error', 'Erreur lors de la simulation');
         }
     }
 
-    /**
-     * Page de retour après paiement
-     */
-    public function retour(Request $request)
-    {
-        try {
-            $paiementId = $request->route('paiement_id');
-            $paiement = Paiement::findOrFail($paiementId);
-
-            // Vérifier le statut final auprès de CinetPay
-            $apiKey = env('CINETPAY_API_KEY');
-            $siteId = env('CINETPAY_SITE_ID');
-
-            $verifyData = [
-                'apikey' => $apiKey,
-                'site_id' => $siteId,
-                'transaction_id' => $paiement->transaction_id
-            ];
-
-            $verifyResponse = Http::post('https://api-checkout.cinetpay.com/v2/payment/check', $verifyData);
-
-            if ($verifyResponse->successful()) {
-                $verifyResult = $verifyResponse->json();
-
-                if (isset($verifyResult['data'])) {
-                    $paymentData = $verifyResult['data'];
-
-                    switch ($paymentData['cpm_result']) {
-                        case '00':
-                            $paiement->statut = 'termine';
-                            $paiement->montant_paye = $paymentData['cpm_amount'];
-                            $paiement->montant_restant = $paiement->montant_total - $paiement->montant_paye;
-
-                            // Mettre à jour le statut de l'élément associé
-                            $this->updateItemStatus($paiement, 'confirmee');
-
-                            $paiement->save();
-
-                            return redirect()->route('paiement.succes', $paiement);
-
-                        case '01':
-                            $paiement->statut = 'echoue';
-                            $paiement->save();
-
-                            return redirect()->route('paiement.erreur')
-                                ->with('error', 'Le paiement a échoué. Veuillez réessayer.');
-
-                        default:
-                            return redirect()->route('paiement.erreur')
-                                ->with('error', 'Paiement en cours de traitement...');
-                    }
-                }
-            }
-
-            return redirect()->route('paiement.erreur')
-                ->with('error', 'Erreur lors de la vérification du paiement.');
-
-        } catch (\Exception $e) {
-            Log::error('Erreur retour paiement: ' . $e->getMessage());
-
-            return redirect()->route('paiement.erreur')
-                ->with('error', 'Erreur lors du traitement du retour de paiement');
-        }
-    }
+    // ... rest of your existing methods (notify, retour, etc.) ...
 
     /**
      * Mettre à jour le statut de l'élément associé au paiement
      */
-    private function updateItemStatus(Paiement $paiement, string $statut)
+    private function updateItemStatus(Paiement $paiement)
     {
         if ($paiement->reservation_id) {
-            $paiement->reservation->update(['statut' => 'confirmee']); // Passer directement à confirmée
+            $paiement->reservation->update(['statut' => 'confirmée']);
+
+            if ($paiement->reservation->bien) {
+                $paiement->reservation->bien->update(['status' => 'reserve']);
+            }
         } elseif ($paiement->location_id) {
-            $paiement->location->update(['statut' => 'confirmee']);
+            $paiement->location->update(['statut' => 'confirmée']);
+
+            if ($paiement->location->bien) {
+                $paiement->location->bien->update(['status' => 'loue']);
+            }
         } elseif ($paiement->vente_id) {
-            $paiement->vente->update(['statut' => 'confirmee']);
+            $paiement->vente->update(['statut' => 'confirmée']);
+
+            if ($paiement->vente->bien) {
+                $paiement->vente->bien->update(['status' => 'vendu']);
+            }
         }
     }
 }

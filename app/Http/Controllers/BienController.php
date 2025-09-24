@@ -377,19 +377,19 @@ class BienController extends Controller
         }
 
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
+            'title' => 'string|max:255',
             'property_title' => 'nullable|file',
             'description' => 'nullable|string',
             'image' => 'nullable|image',
             'rooms' => 'nullable|integer|min:0',
             'floors' => 'nullable|integer|min:0',
             'bathrooms' => 'nullable|integer|min:0',
-            'city' => 'required|string|max:255',
-            'address' => 'required|string|max:255',
-            'superficy' => 'required|numeric|min:1',
-            'price' => 'required|numeric|min:1',
+            'city' => 'string|max:255',
+            'address' => 'string|max:255',
+            'superficy' => 'numeric|min:1',
+            'price' => 'numeric|min:1',
             'status' => 'nullable|in:disponible,loue,vendu,reserve',
-            'categorie_id' => 'required|exists:categories,id',
+            'categorie_id' => 'exists:categories,id',
 
             // Données du mandat (optionnelles pour la mise à jour)
             'type_mandat' => 'nullable|in:vente,gestion_locative',

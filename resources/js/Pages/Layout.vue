@@ -49,7 +49,7 @@
                                         <h6 class="filter-title">Navigation rapide</h6>
                                     </li>
                                     <li>
-                                        <Link :href="route('categories.index')" class="filter-option" @click="handleNavClick">
+                                        <Link class="filter-option" @click="handleNavClick">
                                             <i class="fas fa-list me-2"></i>
                                             Tous les biens disponibles
                                         </Link>
@@ -74,6 +74,30 @@
                                     Mes réservations
                                 </Link>
                             </li>
+
+                            <!-- Mes Locations - Visible pour les clients -->
+                            <li v-if="!hasRole('admin')">
+                                <Link
+                                    :href="route('locations.index')"
+                                    :class="{ 'active': route().current('locations.client.*') }"
+                                    @click="handleNavClick"
+                                >
+                                    Mes Locations
+                                </Link>
+                            </li>
+
+                            <!-- Mes Achats - Visible pour les clients -->
+                            <li class="nav-item" v-if="$page.props.auth.user">
+                                <Link
+                                    :href="route('ventes.index')"
+                                    class="nav-link"
+                                    :class="{ active: $page.component === 'Ventes/Index' }"
+                                >
+                                    <i class="fas fa-handshake me-1"></i>
+                                    {{ userHasMultipleRoles ? 'Mes Transactions' : (userIsOnlyBuyer ? 'Mes Achats' : 'Mes Ventes') }}
+                                </Link>
+                            </li>
+
 
                             <!-- Toutes les réservations - Visible uniquement pour admin -->
                             <li v-if="hasRole('admin')">
@@ -338,7 +362,7 @@
                         <h5 class="mb-3">Navigation</h5>
                         <ul class="list-unstyled">
                             <li><Link :href="route('home')" class="text-white">Accueil</Link></li>
-                            <li><Link :href="route('categories.index')" class="text-white">Catalogue</Link></li>
+                            <li><Link class="text-white">Catalogue</Link></li>
                             <li><a href="#" class="text-white">Services</a></li>
                             <li><a href="#" class="text-white">Contact</a></li>
                         </ul>
@@ -364,7 +388,7 @@
 </template>
 
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3'
+import {Link, router, usePage} from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import { ref, computed, provide } from 'vue'
 
@@ -415,7 +439,11 @@ const handleLogout = () => {
     if (confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
         console.log('Logout initiated')
     } else {
-        event.preventDefault()
+        router.post(route('home'), {}, {
+            onSuccess: () => {
+                // Succès géré automatiquement par Inertia
+            }
+        })
     }
 }
 

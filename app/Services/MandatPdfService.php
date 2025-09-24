@@ -65,43 +65,28 @@ class MandatPdfService
         return Storage::disk('public')->download($mandat->pdf_path, $mandat->getPdfFileName());
     }
 
+// Dans MandatPdfService::previewMandatPdf()
     public function previewMandatPdf(Mandat $mandat)
     {
         try {
-            // CORRECTION : Utiliser getPdfDataWithSignatures() au lieu de getPdfData()
             $data = $mandat->getPdfDataWithSignatures();
-
-            // DEBUG : Ajouter des logs pour vérifier les données de signature
-            \Log::info('=== DEBUG PREVIEW PDF ===', [
-                'mandat_id' => $mandat->id,
-                'signature_status' => $data['signature_status'] ?? 'non_defini',
-                'proprietaire_signed' => $data['proprietaire_signature']['is_signed'] ?? false,
-                'proprietaire_data_exists' => !empty($data['proprietaire_signature']['data']),
-                'agence_signed' => $data['agence_signature']['is_signed'] ?? false,
-                'agence_data_exists' => !empty($data['agence_signature']['data']),
-            ]);
-
             $template = $mandat->type_mandat === 'vente' ? 'mandats.vente' : 'mandats.gerance';
 
+            // CORRIGÉ : Sans les options qui cassent le PDF
             $pdf = Pdf::loadView($template, $data);
             $pdf->setPaper('A4', 'portrait');
+
+            // PAS d'options supplémentaires - elles cassent le PDF
 
             return response($pdf->output())
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', 'inline; filename="' . $mandat->getPdfFileName() . '"');
 
         } catch (\Exception $e) {
-            \Log::error('Erreur prévisualisation PDF:', [
-                'mandat_id' => $mandat->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
+            \Log::error('Erreur PDF:', ['error' => $e->getMessage()]);
             return false;
         }
-    }
-
-    /**
+    }    /**
      * Régénérer le PDF du mandat avec les signatures actuelles
      */
     public function regeneratePdf(Mandat $mandat)

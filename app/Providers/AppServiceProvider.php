@@ -4,7 +4,10 @@ namespace App\Providers;
 
 use App\Services\ElectronicSignatureService;
 use App\Services\MandatPdfService;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Request;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,6 +27,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-       Paginator::useBootstrapFive();
+        // ✅ Définir le rate limiter 'api' manquant
+        RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // ✅ Rate limiter spécial pour les webhooks (plus permissif)
+        RateLimiter::for('webhooks', function (Request $request) {
+            return Limit::perMinute(100)->by($request->ip());
+        });
+
+        Paginator::useBootstrapFive();
+
     }
 }

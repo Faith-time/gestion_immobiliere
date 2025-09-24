@@ -290,63 +290,17 @@ class ElectronicSignatureService
     {
         $signatures = [];
 
-        // Traiter la signature propriétaire
-        if ($mandat->proprietaire_signature_data && $mandat->isSignedByProprietaire()) {
-            // DEBUG : Vérifier les données brutes
-            \Log::info('Données signature propriétaire:', [
-                'mandat_id' => $mandat->id,
-                'data_length' => strlen($mandat->proprietaire_signature_data),
-                'data_start' => substr($mandat->proprietaire_signature_data, 0, 50),
-                'signed_at' => $mandat->proprietaire_signed_at
-            ]);
-
-            $proprietaireBase64 = $this->prepareBase64ForPdf($mandat->proprietaire_signature_data);
-
-            if ($proprietaireBase64) {
-                $signatures['proprietaire_signature'] = [
-                    'data' => $proprietaireBase64,
-                    'signed_at' => $mandat->proprietaire_signed_at,
-                    'is_signed' => true,
-                ];
-
-                \Log::info('Signature propriétaire préparée avec succès');
-            } else {
-                \Log::error('Échec préparation signature propriétaire');
-                $signatures['proprietaire_signature'] = [
-                    'data' => null,
-                    'signed_at' => null,
-                    'is_signed' => false,
-                ];
-            }
-        } else {
-            $signatures['proprietaire_signature'] = [
-                'data' => null,
-                'signed_at' => null,
-                'is_signed' => false,
-            ];
-        }
-
-        // Traiter la signature agence
+        // Signature agence - sauvegarde fichier
         if ($mandat->agence_signature_data && $mandat->isSignedByAgence()) {
-            \Log::info('Données signature agence:', [
-                'mandat_id' => $mandat->id,
-                'data_length' => strlen($mandat->agence_signature_data),
-                'data_start' => substr($mandat->agence_signature_data, 0, 50),
-                'signed_at' => $mandat->agence_signed_at
-            ]);
+            $imageUrl = $this->saveSignatureAsFile($mandat->agence_signature_data, 'agence_' . $mandat->id);
 
-            $agenceBase64 = $this->prepareBase64ForPdf($mandat->agence_signature_data);
-
-            if ($agenceBase64) {
+            if ($imageUrl) {
                 $signatures['agence_signature'] = [
-                    'data' => $agenceBase64,
+                    'data' => $imageUrl,
                     'signed_at' => $mandat->agence_signed_at,
                     'is_signed' => true,
                 ];
-
-                \Log::info('Signature agence préparée avec succès');
             } else {
-                \Log::error('Échec préparation signature agence');
                 $signatures['agence_signature'] = [
                     'data' => null,
                     'signed_at' => null,
@@ -361,7 +315,77 @@ class ElectronicSignatureService
             ];
         }
 
+        // Même chose pour propriétaire
+        if ($mandat->proprietaire_signature_data && $mandat->isSignedByProprietaire()) {
+            $imageUrl = $this->saveSignatureAsFile($mandat->proprietaire_signature_data, 'proprietaire_' . $mandat->id);
+
+            if ($imageUrl) {
+                $signatures['proprietaire_signature'] = [
+                    'data' => $imageUrl,
+                    'signed_at' => $mandat->proprietaire_signed_at,
+                    'is_signed' => true,
+                ];
+            } else {
+                $signatures['proprietaire_signature'] = [
+                    'data' => null,
+                    'signed_at' => null,
+                    'is_signed' => false,
+                ];
+            }
+        } else {
+            $signatures['proprietaire_signature'] = [
+                'data' => null,
+                'signed_at' => null,
+                'is_signed' => false,
+            ];
+        }
+
         return $signatures;
+    }
+
+    private function saveSignatureAsFile($signatureData, $filename)
+    {
+        try {
+            // Créer le dossier
+            $dir = public_path('storage/temp/signatures');
+            if (!file_exists($dir)) {
+                mkdir($dir, 0755, true);
+            }
+
+            // Extraire l'image
+            if (strpos($signatureData, 'data:image/') === 0) {
+                $base64Data = substr($signatureData, strpos($signatureData, ',') + 1);
+            } else {
+                $base64Data = $signatureData;
+            }
+
+            $imageData = base64_decode($base64Data, true);
+            if (!$imageData) {
+                \Log::error('Impossible de décoder base64 pour ' . $filename);
+                return null;
+            }
+
+            // Sauvegarder le fichier
+            $filePath = $dir . '/' . $filename . '.png';
+            $saved = file_put_contents($filePath, $imageData);
+
+            if (!$saved) {
+                \Log::error('Impossible de sauvegarder fichier ' . $filePath);
+                return null;
+            }
+
+            // CORRECTION : Retourner le chemin local au lieu de l'URL
+            \Log::info('Signature sauvée:', ['file' => $filename, 'path' => $filePath]);
+
+            return $filePath;  // Chemin local au lieu d'URL
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur sauvegarde signature:', [
+                'filename' => $filename,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
     }
     /**
      * Préparer une chaîne base64 optimisée pour DomPDF

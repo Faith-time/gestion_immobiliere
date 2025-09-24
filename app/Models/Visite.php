@@ -12,9 +12,10 @@ class Visite extends Model
     protected $fillable = [
         'statut',
         'bien_id',
-        'agent_id',
         'client_id',
         'date_visite',
+        'message',
+
     ];
 
     protected $casts = [
@@ -26,13 +27,9 @@ class Visite extends Model
     // Relations
     public function bien()
     {
-        return $this->belongsTo(Bien::class);
+        return $this->belongsTo(Bien::class,'bien_id');
     }
 
-    public function agent()
-    {
-        return $this->belongsTo(User::class, 'agent_id');
-    }
 
     public function client()
     {

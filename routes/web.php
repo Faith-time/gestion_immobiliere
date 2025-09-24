@@ -5,39 +5,54 @@ use App\Http\Controllers\BienController;
 use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\ClientDocumentController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\LocationController;
 use App\Http\Controllers\PaiementController;
 use App\Http\Controllers\ProprietaireController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\UtilisateurController;
+use App\Http\Controllers\VenteController;
+use App\Http\Controllers\VisiteController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-// Routes d'authentification
+/*
+|--------------------------------------------------------------------------
+| Routes d'Authentification (Publiques)
+|--------------------------------------------------------------------------
+*/
+
+// Routes d'authentification POST
 Route::prefix('/auth')->controller(AuthentificationController::class)->name('auth.')->group(function () {
     Route::post('/login', 'login')->name('login');
     Route::post('/register', 'register')->name('register');
     Route::post('/logout', 'logout')->name('logout');
 });
 
+// Pages d'authentification GET
 Route::get('auth/showLogin', [AuthentificationController::class, 'showLogin'])->name('login');
 Route::get('auth/showRegister', [AuthentificationController::class, 'showRegister'])->name('register');
 
-// Routes publiques pour les paiements (webhooks et retours)
-Route::prefix('/paiement')->controller(PaiementController::class)->name('paiement.')->group(function () {
-    // Webhook de notification CinetPay (doit être accessible publiquement)
-    Route::post('/notify', 'notify')->name('notify');
+/*
+|--------------------------------------------------------------------------
+| Routes Protégées
+|--------------------------------------------------------------------------
+*/
 
-    // Page de retour après paiement (doit être accessible publiquement)
-    Route::get('/retour/{paiement_id}', 'retour')->name('retour');
-});
-
-// Routes protégées
 Route::middleware('authenticate')->group(function () {
 
+    /*
+    |--------------------------------------------------------------------------
+    | Route d'Accueil
+    |--------------------------------------------------------------------------
+    */
     Route::get('/', [HomeController::class, 'index'])->name('home');
 
-    // Routes pour les biens
+    /*
+    |--------------------------------------------------------------------------
+    | Routes des Biens Immobiliers
+    |--------------------------------------------------------------------------
+    */
     Route::prefix('/biens')->controller(BienController::class)->name('biens.')->group(function () {
+        // CRUD des biens
         Route::get('/', 'index')->name('index');
         Route::get('/create', 'create')->name('create');
         Route::post('/', 'store')->name('store');
@@ -45,40 +60,49 @@ Route::middleware('authenticate')->group(function () {
         Route::get('/{bien}/edit', 'edit')->name('edit');
         Route::put('/{bien}', 'update')->name('update');
         Route::delete('/{bien}', 'destroy')->name('destroy');
+
+        // Actions administratives
+        Route::post('/{bien}/valider', 'valider')->name('valider');
+        Route::post('/{bien}/rejeter', 'rejeter')->name('rejeter');
+
+        // Gestion des mandats
+        Route::prefix('/{bien}/mandat')->name('mandat.')->group(function () {
+            // PDF du mandat
+            Route::get('/download', 'downloadMandatPdf')->name('download');
+            Route::get('/preview', 'previewMandatPdf')->name('preview');
+            Route::post('/regenerate', 'regenerateMandatPdf')->name('regenerate');
+
+            // Signature du mandat
+            Route::get('/sign', 'showSignaturePage')->name('sign');
+            Route::post('/sign/proprietaire', 'signByProprietaire')->name('sign-proprietaire');
+            Route::post('/sign/agence', 'signByAgence')->name('sign-agence');
+            Route::delete('/sign/{signatoryType}', 'cancelSignature')->name('cancel-signature');
+            Route::get('/signature-status', 'getSignatureStatus')->name('signature-status');
+
+            // PDF signé du mandat
+            Route::get('/download-signed', 'downloadSignedMandatPdf')->name('download-signed');
+            Route::get('/preview-signed', 'previewSignedMandatPdf')->name('preview-signed');
+        });
     });
-    // Route pour valider un bien
-    Route::post('biens/{bien}/valider', [BienController::class, 'valider'])
-        ->name('biens.valider');
 
-    // Route pour rejeter un bien
-    Route::post('biens/{bien}/rejeter', [BienController::class, 'rejeter'])
-        ->name('biens.rejeter');
-
-    // Routes pour les PDFs de mandats
-    Route::get('/biens/{bien}/mandat/download', [BienController::class, 'downloadMandatPdf'])
-        ->name('biens.download-mandat-pdf');
-
-    Route::get('/biens/{bien}/mandat/preview', [BienController::class, 'previewMandatPdf'])
-        ->name('biens.preview-mandat-pdf');
-
-    Route::post('/biens/{bien}/mandat/regenerate', [BienController::class, 'regenerateMandatPdf'])
-        ->name('biens.regenerate-mandat-pdf');
-
-    Route::get('/biens/{bien}/mandat/sign', [BienController::class, 'showSignaturePage'])->name('biens.mandat.sign');
-    Route::post('/biens/{bien}/mandat/sign/proprietaire', [BienController::class, 'signByProprietaire'])->name('biens.mandat.sign-proprietaire');
-    Route::post('/biens/{bien}/mandat/sign/agence', [BienController::class, 'signByAgence'])->name('biens.mandat.sign-agence');
-    Route::delete('/biens/{bien}/mandat/sign/{signatoryType}', [BienController::class, 'cancelSignature'])->name('biens.mandat.cancel-signature');
-    Route::get('/biens/{bien}/mandat/signature-status', [BienController::class, 'getSignatureStatus'])->name('biens.mandat.signature-status');
-    Route::get('/biens/{bien}/mandat/download-signed', [BienController::class, 'downloadSignedMandatPdf'])->name('biens.mandat.download-signed');
-    Route::get('/biens/{bien}/mandat/preview-signed', [BienController::class, 'previewSignedMandatPdf'])->name('biens.mandat.preview-signed');
-
+    // Route de debug (à retirer en production)
     Route::get('/debug/signature/{bien}', [BienController::class, 'debugSignatureData'])->name('debug.signature');
 
+    /*
+    |--------------------------------------------------------------------------
+    | Routes des Propriétaires
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('/proprietaire')->controller(ProprietaireController::class)->name('proprietaire.')->group(function () {
+        Route::get('/demande', 'create')->name('demande');
+        Route::post('/store', 'store')->name('store');
+    });
 
-    Route::get('/proprietaire/demande', [ProprietaireController::class, 'create'])->name('proprietaire.demande');
-    Route::post('/proprietaire/store', [ProprietaireController::class, 'store'])->name('proprietaire.store');
-
-    // Routes pour les catégories
+    /*
+    |--------------------------------------------------------------------------
+    | Routes des Catégories
+    |--------------------------------------------------------------------------
+    */
     Route::prefix('/categories')->controller(CategorieController::class)->name('categories.')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/create', 'create')->name('create');
@@ -88,7 +112,11 @@ Route::middleware('authenticate')->group(function () {
         Route::delete('/{category}', 'destroy')->name('destroy');
     });
 
-    // Routes pour les utilisateurs
+    /*
+    |--------------------------------------------------------------------------
+    | Routes des Utilisateurs
+    |--------------------------------------------------------------------------
+    */
     Route::prefix('/users')->controller(UtilisateurController::class)->name('users.')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/create', 'create')->name('create');
@@ -98,63 +126,158 @@ Route::middleware('authenticate')->group(function () {
         Route::delete('/{user}', 'destroy')->name('destroy');
     });
 
-    // Routes pour les réservations clients
-    Route::prefix('reservations')->name('reservations.')->group(function () {
-        Route::get('/', [ReservationController::class, 'index'])->name('index');
-        Route::get('/create/{bien_id}', [ReservationController::class, 'create'])->name('create');
-        Route::post('/', [ReservationController::class, 'store'])->name('store');
-        Route::get('/{id}', [ReservationController::class, 'show'])->name('show');
-        Route::get('/{id}/edit', [ReservationController::class, 'edit'])->name('edit');
-        Route::post('/{id}', [ReservationController::class, 'update'])->name('update');
-        Route::post('/{id}/annuler', [ReservationController::class, 'annuler'])->name('annuler');
-        Route::get('/{reservation}/initier-paiement', [ReservationController::class, 'initierPaiement'])->name('initier-paiement');
+    /*
+    |--------------------------------------------------------------------------
+    | Routes des Visites
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('/visites')->controller(VisiteController::class)->name('visites.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{visite}', 'show')->name('show');
+        Route::get('/{visite}/edit', 'edit')->name('edit');
+        Route::put('/{visite}', 'update')->name('update');
+        Route::delete('/{visite}', 'destroy')->name('destroy');
     });
 
-    // Routes spécifiques pour l'admin - Gestion des réservations
-    Route::prefix('/admin')->name('admin.')->group(function () {
-        // Liste de toutes les réservations pour l'admin
-        Route::get('/reservations', [ReservationController::class, 'adminIndex'])->name('reservations.index');
+    /*
+    |--------------------------------------------------------------------------
+    | Routes des Réservations
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('/reservations')->controller(ReservationController::class)->name('reservations.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create/{bien_id}', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{id}', 'show')->name('show');
+        Route::get('/{id}/edit', 'edit')->name('edit');
+        Route::post('/{id}', 'update')->name('update');
+        Route::post('/{id}/annuler', 'annuler')->name('annuler');
+        Route::get('/{reservation}/initier-paiement', 'initierPaiement')->name('initier-paiement');
+    });
 
-        // Actions de validation/rejet des réservations
+    // Routes admin pour les réservations
+    Route::prefix('/admin')->name('admin.')->group(function () {
+        Route::get('/reservations', [ReservationController::class, 'adminIndex'])->name('reservations.index');
         Route::post('/reservations/{reservation}/valider', [ReservationController::class, 'valider'])->name('reservations.valider');
         Route::post('/reservations/{reservation}/rejeter', [ReservationController::class, 'rejeter'])->name('reservations.rejeter');
     });
 
-    // Routes Documents clients
-    Route::post('/client-documents', [ClientDocumentController::class, 'store'])->name('client-documents.store');
-    Route::get('/client-documents', [ClientDocumentController::class, 'index'])->name('client-documents.index');
-    Route::get('/client-documents/{document}', [ClientDocumentController::class, 'show'])->name('client-documents.show');
-    Route::delete('/client-documents/{document}', [ClientDocumentController::class, 'destroy'])->name('client-documents.destroy');
-    Route::get('/client-documents/{document}/download', [ClientDocumentController::class, 'download'])->name('client-documents.download');
-    Route::post('/client-documents/{document}/valider', [ClientDocumentController::class, 'valider'])->name('client-documents.valider');
-    Route::post('/client-documents/{document}/refuser', [ClientDocumentController::class, 'refuser'])->name('client-documents.refuser');
+    /*
+    |--------------------------------------------------------------------------
+    | Routes des Ventes
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('/ventes')->controller(VenteController::class)->name('ventes.')->group(function () {
+        // CRUD des ventes
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{vente}', 'show')->name('show');
+        Route::get('/{vente}/edit', 'edit')->name('edit');
+        Route::put('/{vente}', 'update')->name('update');
+        Route::delete('/{vente}', 'destroy')->name('destroy');
 
-    // Routes protégées pour les paiements
+        // Contrats et signatures de vente
+        Route::prefix('/{vente}')->group(function () {
+            // Gestion des contrats
+            Route::get('/contrat/download', 'downloadContract')->name('contract.download');
+            Route::get('/contrat/preview', 'previewContract')->name('contract.preview');
+
+            // Page de signature
+            Route::get('/signature', 'showSignaturePage')->name('signature.show');
+
+            // Actions de signature
+            Route::post('/signature/vendeur', 'signByVendeur')->name('signature.vendeur');
+            Route::post('/signature/acheteur', 'signByAcheteur')->name('signature.acheteur');
+
+            // Annulation de signature
+            Route::delete('/signature/{signatoryType}', 'cancelSignature')
+                ->name('signature.cancel')
+                ->where('signatoryType', 'vendeur|acheteur');
+        });
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Routes des Locations
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('/locations')->controller(LocationController::class)->name('locations.')->group(function () {
+        // CRUD des locations
+        Route::get('/', 'index')->name('index');
+
+        Route::get('/create', [LocationController::class, 'create'])
+            ->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{location}', 'show')->name('show');
+        Route::get('/{location}/edit', 'edit')->name('edit');
+        Route::put('/{location}', 'update')->name('update');
+        Route::delete('/{location}', 'destroy')->name('destroy');
+
+        // Contrats et signatures de location
+        Route::prefix('/{location}')->group(function () {
+            // Gestion des contrats
+            Route::get('/contrat/download', 'downloadContract')->name('contract.download');
+            Route::get('/contrat/preview', 'previewContract')->name('contract.preview');
+
+            // Page de signature
+            Route::get('/signature', 'showSignaturePage')->name('signature.show');
+
+            // Actions de signature
+            Route::post('/signature/bailleur', 'signByBailleur')->name('signature.bailleur');
+            Route::post('/signature/locataire', 'signByLocataire')->name('signature.locataire');
+
+            // Annulation de signature
+            Route::delete('/signature/{signatoryType}', 'cancelSignature')
+                ->name('signature.cancel')
+                ->where('signatoryType', 'bailleur|locataire');
+        });
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Routes des Documents Clients
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('/client-documents')->controller(ClientDocumentController::class)->name('client-documents.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{document}', 'show')->name('show');
+        Route::delete('/{document}', 'destroy')->name('destroy');
+        Route::get('/{document}/download', 'download')->name('download');
+        Route::post('/{document}/valider', 'valider')->name('valider');
+        Route::post('/{document}/refuser', 'refuser')->name('refuser');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Routes des Paiements
+    |--------------------------------------------------------------------------
+    */
     Route::prefix('/paiement')->controller(PaiementController::class)->name('paiement.')->group(function () {
-        Route::get('/', 'index')->name('index');           // Liste tous les paiements
-        Route::post('/', 'store')->name('store');          // Créer un nouveau paiement
-
-        // IMPORTANT: Routes spécifiques AVANT les routes avec paramètres
+        // Routes sans paramètres (à placer AVANT les routes avec paramètres)
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
         Route::get('/initier', 'showInitierPaiement')->name('initier');
-        Route::get('/succes/{paiement}', 'showSucces')->name('succes');
+        Route::post('/initier', 'initier')->name('traiter');
         Route::get('/erreur', 'showErreur')->name('erreur');
 
-        // Routes avec paramètres à la fin
-        Route::get('/{paiement}', 'show')->name('show');   // Afficher un paiement spécifique
-        Route::put('/{paiement}', 'update')->name('update'); // Mettre à jour un paiement
-        Route::delete('/{paiement}', 'destroy')->name('destroy'); // Supprimer un paiement
-
-        // Traitement de l'initiation du paiement (POST)
-        Route::post('/initier', 'initier')->name('traiter');
-
-        // Webhook de notification CinetPay (doit être accessible publiquement)
-        Route::post('/notify', 'notify')->name('notify')->withoutMiddleware(['authenticate']);
-        // Page de retour après paiement (doit être accessible publiquement)
-        Route::get('/retour/{paiement_id}', 'retour')->name('retour')->withoutMiddleware(['authenticate']);
+        // Routes avec paramètres (à placer APRÈS)
+        Route::get('/succes/{paiement}', 'showSucces')->name('succes');
+        Route::get('/{paiement}', 'show')->name('show');
+        Route::put('/{paiement}', 'update')->name('update');
+        Route::delete('/{paiement}', 'destroy')->name('destroy');
     });
+
 });
 
-// Route de fallback pour les erreurs 404 (optionnelle)
+/*
+|--------------------------------------------------------------------------
+| Route de Fallback
+|--------------------------------------------------------------------------
+*/
 Route::fallback(function () {
     return response()->json([
         'message' => 'Route non trouvée'

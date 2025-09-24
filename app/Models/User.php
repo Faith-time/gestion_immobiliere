@@ -50,6 +50,11 @@ class User extends Authenticatable
         return $this->hasMany(Vente::class, 'acheteur_id');
     }
 
+    public function locations()
+    {
+        return $this->hasMany(Location::class, 'client_id');
+    }
+
     public function reservations()
     {
         return $this->hasMany(Reservation::class, 'client_id');

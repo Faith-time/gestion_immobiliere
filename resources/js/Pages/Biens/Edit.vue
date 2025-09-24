@@ -458,9 +458,11 @@
     </div>
 </template>
 
+// Remplacez la section script setup dans votre composant Vue par ceci :
+
 <script setup>
 import { useForm, router } from '@inertiajs/vue3'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { route } from 'ziggy-js'
 
 const props = defineProps({
@@ -469,26 +471,27 @@ const props = defineProps({
     mandat: Object
 })
 
+// Initialiser le formulaire directement avec les données des props
 const form = useForm({
-    // Données du bien
-    title: '',
+    // Données du bien - Initialisées directement avec les props
+    title: props.bien?.title || '',
     property_title: null,
-    description: '',
+    description: props.bien?.description || '',
     image: null,
-    rooms: '',
-    floors: '',
-    bathrooms: '',
-    city: '',
-    address: '',
-    superficy: '',
-    price: '',
-    categorie_id: '',
-    status: '',
+    rooms: Number(props.bien?.rooms) || 0,
+    floors: Number(props.bien?.floors) || 0,
+    bathrooms: Number(props.bien?.bathrooms) || 0,
+    city: props.bien?.city || '',
+    address: props.bien?.address || '',
+    superficy: Number(props.bien?.superficy) || 0,
+    price: Number(props.bien?.price) || 0,
+    categorie_id: Number(props.bien?.categorie_id) || null,
+    status: props.bien?.status || 'disponible',
 
-    // Données du mandat
-    type_mandat: '',
-    type_mandat_vente: '',
-    conditions_particulieres: ''
+    // Données du mandat - Initialisées directement avec les props
+    type_mandat: props.bien?.mandat?.type_mandat || '',
+    type_mandat_vente: props.bien?.mandat?.type_mandat_vente || '',
+    conditions_particulieres: props.bien?.mandat?.conditions_particulieres || ''
 })
 
 const imagePreview = ref(null)
@@ -517,28 +520,30 @@ const typeMandatVenteOptions = [
     }
 ]
 
-// Initialisation des données au montage
-onMounted(() => {
-    // Pré-remplir le formulaire avec les données du bien existant
-    form.title = props.bien.title || ''
-    form.description = props.bien.description || ''
-    form.rooms = props.bien.rooms || ''
-    form.floors = props.bien.floors || ''
-    form.bathrooms = props.bien.bathrooms || ''
-    form.city = props.bien.city || ''
-    form.address = props.bien.address || ''
-    form.superficy = props.bien.superficy || ''
-    form.price = props.bien.price || ''
-    form.categorie_id = props.bien.categorie_id || ''
-    form.status = props.bien.status || 'disponible'
+// Watcher pour s'assurer que les données sont bien chargées si elles arrivent après
+watch(() => props.bien, (newBien) => {
+    if (newBien && Object.keys(form.data()).some(key => !form[key] && newBien[key])) {
+        // Réinitialiser les données du formulaire si elles n'étaient pas disponibles au moment de la création
+        form.title = newBien.title || ''
+        form.description = newBien.description || ''
+        form.rooms = newBien.rooms || ''
+        form.floors = newBien.floors || ''
+        form.bathrooms = newBien.bathrooms || ''
+        form.city = newBien.city || ''
+        form.address = newBien.address || ''
+        form.superficy = newBien.superficy || ''
+        form.price = newBien.price || ''
+        form.categorie_id = newBien.categorie_id || ''
+        form.status = newBien.status || 'disponible'
 
-    // Pré-remplir les données du mandat si elles existent
-    if (props.mandat) {
-        form.type_mandat = props.mandat.type_mandat || ''
-        form.type_mandat_vente = props.mandat.type_mandat_vente || ''
-        form.conditions_particulieres = props.mandat.conditions_particulieres || ''
+        // Données du mandat
+        if (newBien.mandat) {
+            form.type_mandat = newBien.mandat.type_mandat || ''
+            form.type_mandat_vente = newBien.mandat.type_mandat_vente || ''
+            form.conditions_particulieres = newBien.mandat.conditions_particulieres || ''
+        }
     }
-})
+}, { immediate: true, deep: true })
 
 const handleImageChange = (e) => {
     const file = e.target.files[0]
@@ -574,7 +579,7 @@ const getSelectedMandatDescription = () => {
 }
 
 const getCurrentImageUrl = () => {
-    if (props.bien.image) {
+    if (props.bien?.image) {
         return props.bien.image.startsWith('/') ? props.bien.image : `/storage/${props.bien.image}`
     }
     return '/images/placeholder-house.jpg'
@@ -589,14 +594,76 @@ const formatDate = (dateString) => {
 }
 
 const submit = () => {
-    form.put(route('biens.update', props.bien.id), {
-        forceFormData: true,
-        preserveScroll: true
-    })
-}
+    // Debug pour vérifier les données
+    console.log('Données avant envoi:', {
+        title: form.title,
+        city: form.city,
+        address: form.address,
+        superficy: form.superficy,
+        price: form.price,
+        categorie_id: form.categorie_id
+    });
 
+    // Vérifier que les données essentielles sont présentes
+    if (!form.title || !form.city || !form.address || !form.superficy || !form.price || !form.categorie_id) {
+        alert('Certains champs requis sont manquants. Vérifiez le formulaire.');
+        return;
+    }
+
+    // Utiliser router.post avec _method au lieu de form.put
+    const formData = new FormData();
+
+    // Ajouter la méthode PUT
+    formData.append('_method', 'PUT');
+
+    // Ajouter tous les champs
+    formData.append('title', form.title || '');
+    formData.append('city', form.city || '');
+    formData.append('address', form.address || '');
+    formData.append('superficy', form.superficy || '0');
+    formData.append('price', form.price || '0');
+    formData.append('categorie_id', form.categorie_id || '');
+    formData.append('description', form.description || '');
+    formData.append('rooms', form.rooms || '0');
+    formData.append('floors', form.floors || '0');
+    formData.append('bathrooms', form.bathrooms || '0');
+    formData.append('status', form.status || 'disponible');
+
+    // Données du mandat
+    if (form.type_mandat) formData.append('type_mandat', form.type_mandat);
+    if (form.type_mandat_vente) formData.append('type_mandat_vente', form.type_mandat_vente);
+    if (form.conditions_particulieres) formData.append('conditions_particulieres', form.conditions_particulieres);
+
+    // Fichiers (seulement s'ils sont sélectionnés)
+    if (form.image) {
+        formData.append('image', form.image);
+    }
+    if (form.property_title) {
+        formData.append('property_title', form.property_title);
+    }
+
+    // Envoyer avec router.post
+    router.post(route('biens.update', props.bien.id), formData, {
+        preserveScroll: true,
+        onBefore: () => {
+            form.processing = true;
+        },
+        onFinish: () => {
+            form.processing = false;
+        },
+        onSuccess: () => {
+            console.log('Mise à jour réussie');
+        },
+        onError: (errors) => {
+            console.log('Erreurs de validation:', errors);
+            // Assigner les erreurs au formulaire
+            Object.keys(errors).forEach(key => {
+                form.setError(key, errors[key]);
+            });
+        }
+    });
+}
 const cancel = () => {
     router.visit(route('biens.show', props.bien.id))
 }
-
 </script>

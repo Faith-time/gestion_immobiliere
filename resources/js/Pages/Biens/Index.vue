@@ -55,7 +55,7 @@ const biensStats = computed(() => {
         disponible: props.biens.filter(b => b.status === 'disponible').length,
         loue: props.biens.filter(b => b.status === 'loue').length,
         vendu: props.biens.filter(b => b.status === 'vendu').length,
-        rejete: props.biens.filter(b => b.status === 'rejete').length,
+        reserve: props.biens.filter(b => b.status === 'reserve').length,
     }
 })
 
@@ -90,7 +90,6 @@ const getStatusColor = (status) => {
         'loue': 'bg-blue-100 text-blue-800 border-blue-200',
         'vendu': 'bg-red-100 text-red-800 border-red-200',
         'reserve': 'bg-purple-100 text-purple-800 border-purple-200',
-        'rejete': 'bg-gray-100 text-gray-800 border-gray-200'
     }
     return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200'
 }
@@ -102,7 +101,6 @@ const getStatusLabel = (status) => {
         'loue': 'Loué',
         'vendu': 'Vendu',
         'reserve': 'Réservé',
-        'rejete': 'Rejeté'
     }
     return labels[status] || status
 }
@@ -360,7 +358,7 @@ const getSignatureStatusBadge = (mandat) => {
                     </div>
                     <div
                         @click="filterByStatus('loue')"
-                        :class="{'ring-2 ring-white': selectedStatus === 'loue'}"
+                        :class="{'ring-2 ring-white': selectedStatus === 'loué'}"
                         class="bg-blue-500/20 backdrop-blur-sm rounded-xl p-4 text-center cursor-pointer hover:bg-blue-500/30 transition-all duration-300"
                     >
                         <div class="text-2xl font-bold text-white">{{ biensStats.loue }}</div>
@@ -368,19 +366,19 @@ const getSignatureStatusBadge = (mandat) => {
                     </div>
                     <div
                         @click="filterByStatus('vendu')"
-                        :class="{'ring-2 ring-white': selectedStatus === 'vendu'}"
+                        :class="{'ring-2 ring-white': selectedStatus === 'Vendu'}"
                         class="bg-red-500/20 backdrop-blur-sm rounded-xl p-4 text-center cursor-pointer hover:bg-red-500/30 transition-all duration-300"
                     >
                         <div class="text-2xl font-bold text-white">{{ biensStats.vendu }}</div>
                         <div class="text-sm text-red-100">Vendu</div>
                     </div>
                     <div
-                        @click="filterByStatus('rejete')"
-                        :class="{'ring-2 ring-white': selectedStatus === 'rejete'}"
+                        @click="filterByStatus('reserve')"
+                        :class="{'ring-2 ring-white': selectedStatus === 'reserve'}"
                         class="bg-gray-500/20 backdrop-blur-sm rounded-xl p-4 text-center cursor-pointer hover:bg-gray-500/30 transition-all duration-300"
                     >
-                        <div class="text-2xl font-bold text-white">{{ biensStats.rejete }}</div>
-                        <div class="text-sm text-gray-100">Rejeté</div>
+                        <div class="text-2xl font-bold text-white">{{ biensStats.reserve }}</div>
+                        <div class="text-sm text-gray-100">Réservé</div>
                     </div>
                 </div>
 
