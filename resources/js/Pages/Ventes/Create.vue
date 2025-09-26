@@ -226,8 +226,7 @@ const formatDate = (dateString) => {
 const getInitials = (name) => {
     return name.split(' ').map(word => word.charAt(0).toUpperCase()).join('').substring(0, 2)
 }
-
-// Finalisation automatique de l'achat
+// Finalisation avec redirection vers paiement
 const finaliserAchat = () => {
     processing.value = true
 
@@ -241,19 +240,24 @@ const finaliserAchat = () => {
     // Données automatiquement mappées
     const venteData = {
         biens_id: props.bien.id,
-        prix_vente: props.bien.price,  // Utiliser le prix du bien
+        prix_vente: props.bien.price,
         date_vente: today
     }
 
     router.post(route('ventes.store'), venteData, {
-        onSuccess: (page) => {
+        onSuccess: (response) => {
             processing.value = false
-            router.visit(route('ventes.index'))
+            // NOUVEAU : Redirection vers l'interface de paiement
+            if (response.props?.redirect_url) {
+                window.location.href = response.props.redirect_url
+            } else {
+                // Fallback si pas de redirection
+                router.visit(route('ventes.index'))
+            }
         },
         onError: (errors) => {
             processing.value = false
             console.error('Erreur lors de la finalisation:', errors)
-            // Afficher les erreurs à l'utilisateur
             if (errors.message) {
                 alert(errors.message)
             } else {

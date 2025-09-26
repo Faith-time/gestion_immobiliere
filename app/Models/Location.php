@@ -56,6 +56,11 @@ class Location extends Model
         return $this->hasMany(Paiement::class, 'location_id');
     }
 
+    public function avisRetards()
+    {
+        return $this->hasMany(AvisRetard::class);
+    }
+
     // Méthodes de signature
     public function isSignedByBailleur()
     {

@@ -42,10 +42,10 @@ class Vente extends Model
     ];
 
     // Statuts possibles
+    public const STATUT_EN_ATTENTE_PAIEMENT = 'en_attente_paiement'; // NOUVEAU
     public const STATUT_EN_COURS = 'en_cours';
     public const STATUT_CONFIRMEE = 'confirmée';
     public const STATUT_ANNULEE = 'annulée';
-
     // Relations
     public function bien()
     {

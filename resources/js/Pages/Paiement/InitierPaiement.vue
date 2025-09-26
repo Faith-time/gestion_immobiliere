@@ -230,6 +230,7 @@ export default { layout: Layout }
 import { Link } from '@inertiajs/vue3'
 import { router } from '@inertiajs/vue3'
 import { ref, onMounted } from 'vue'
+import axios from 'axios'
 
 const props = defineProps({
     type: { type: String, required: true },
@@ -252,9 +253,12 @@ const form = ref({
 
 // Initialiser le formulaire
 onMounted(() => {
-    form.value.customer_name = props.user.name
-    form.value.customer_email = props.user.email
-    form.value.customer_phone = props.user.telephone || ''
+    // Gérer les différentes structures de nom d'utilisateur
+    const fullName = props.user.name
+
+    form.value.customer_name = fullName || ''
+    form.value.customer_email = props.user.email || ''
+    form.value.customer_phone = props.user.telephone || props.user.phone || ''
     form.value.description = `Paiement ${getTypeLabel(props.type).toLowerCase()} - ${props.item.bien?.title}`
 })
 
@@ -302,7 +306,7 @@ const getPreviousPageRoute = () => {
     }
 }
 
-const submitPaiement = () => {
+const submitPaiement = async () => {
     if (!form.value.acceptConditions) {
         alert('Veuillez accepter les conditions générales')
         return
@@ -311,69 +315,21 @@ const submitPaiement = () => {
     loading.value = true
 
     try {
-        // Créer un formulaire HTML classique pour la soumission
-        const formElement = document.createElement('form')
-        formElement.method = 'POST'
-        formElement.action = route('paiement.initier')
+        const response = await axios.post(route('paiement.initier'), form.value)
 
-        // Méthode 1: Essayer de récupérer le token CSRF depuis la balise meta
-        let csrfToken = null
-        const csrfMeta = document.querySelector('meta[name="csrf-token"]')
-
-        if (csrfMeta) {
-            csrfToken = csrfMeta.getAttribute('content')
+        if (response.data.success && response.data.payment_url) {
+            console.log('Paiement initié avec succès, redirection...')
+            window.location.href = response.data.payment_url
+        } else {
+            alert(response.data.message || "Erreur lors de l'initiation du paiement")
+            loading.value = false
         }
-
-        // Méthode 2: Si pas trouvé, essayer depuis le document Inertia
-        if (!csrfToken && window?.Laravel?.csrfToken) {
-            csrfToken = window.Laravel.csrfToken
-        }
-
-        // Méthode 3: Si toujours pas trouvé, essayer depuis la page Inertia
-        if (!csrfToken && window?.document?.head?.querySelector) {
-            const altCsrf = window.document.head.querySelector('meta[name="csrf-token"]')
-            if (altCsrf) {
-                csrfToken = altCsrf.content
-            }
-        }
-
-        if (!csrfToken) {
-            throw new Error('Token CSRF introuvable. Veuillez actualiser la page.')
-        }
-
-        // Ajouter le token CSRF
-        const csrfInput = document.createElement('input')
-        csrfInput.type = 'hidden'
-        csrfInput.name = '_token'
-        csrfInput.value = csrfToken
-        formElement.appendChild(csrfInput)
-
-        // Ajouter tous les champs du formulaire
-        Object.keys(form.value).forEach(key => {
-            if (form.value[key] !== null && form.value[key] !== undefined && form.value[key] !== '') {
-                const input = document.createElement('input')
-                input.type = 'hidden'
-                input.name = key
-                input.value = form.value[key]
-                formElement.appendChild(input)
-            }
-        })
-
-        // Ajouter le formulaire au DOM et le soumettre
-        document.body.appendChild(formElement)
-
-        // Petite pause pour s'assurer que le formulaire est bien dans le DOM
-        setTimeout(() => {
-            formElement.submit()
-        }, 100)
-
     } catch (error) {
-        console.error('Erreur lors de la soumission:', error)
-        alert('Erreur: ' + error.message)
+        console.error('Erreur Axios:', error)
+        alert("Erreur lors de l’initiation du paiement")
         loading.value = false
     }
 }
-
 </script>
 
 <style scoped>

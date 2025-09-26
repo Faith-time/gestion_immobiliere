@@ -1,4 +1,4 @@
-<!-- resources/js/Pages/Visites/Create.vue -->
+<!-- resources/js/Pages/Visites/Index.vue -->
 <template>
     <div class="container py-5">
         <div class="row justify-content-center">

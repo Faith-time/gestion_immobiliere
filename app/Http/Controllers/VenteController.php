@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Paiement;
 use App\Models\Vente;
 use App\Models\Bien;
 use App\Models\Reservation;
@@ -11,6 +12,7 @@ use App\Services\PropertyTransferService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class VenteController extends Controller
@@ -112,7 +114,7 @@ class VenteController extends Controller
     }
 
     /**
-     * Enregistrer une nouvelle vente avec génération automatique du contrat
+     * Enregistrer une nouvelle vente avec paiement préalable
      */
     public function store(Request $request)
     {
@@ -125,7 +127,7 @@ class VenteController extends Controller
         $user = Auth::user();
         $bien = Bien::with(['mandat', 'proprietaire'])->findOrFail($request->biens_id);
 
-        // AJOUT : Vérifier que l'utilisateur n'est pas le propriétaire
+        // Vérifier que l'utilisateur n'est pas le propriétaire
         if ($bien->proprietaire_id === $user->id) {
             return response()->json([
                 'success' => false,
@@ -161,42 +163,44 @@ class VenteController extends Controller
         }
 
         try {
-            $vente = DB::transaction(function () use ($request, $user, $bien, $reservationConfirmee) {
-                // Créer la vente
-                $vente = Vente::create([
+            // NOUVEAU : Créer d'abord la vente avec statut 'en_attente_paiement'
+            $vente = DB::transaction(function () use ($request, $user) {
+                return Vente::create([
                     'biens_id' => $request->biens_id,
                     'acheteur_id' => $user->id,
                     'prix_vente' => $request->prix_vente,
                     'date_vente' => $request->date_vente,
-                    'status' => 'en_cours',
+                    'status' => 'en_attente_paiement', // NOUVEAU statut
                 ]);
-
-                // Générer automatiquement le contrat PDF
-                $pdfPath = $this->contractPdfService->generatePdf($vente, 'vente');
-
-                if ($pdfPath) {
-                    \Log::info("Contrat de vente généré automatiquement", [
-                        'vente_id' => $vente->id,
-                        'pdf_path' => $pdfPath
-                    ]);
-                }
-
-                // Mettre à jour le statut du bien
-                $bien->update(['status' => 'vendu']);
-
-                // Marquer le mandat comme terminé
-                if ($bien->mandat) {
-                    $bien->mandat->update(['statut' => 'expire']);
-                }
-
-                return $vente;
             });
 
-            return redirect()->route('ventes.show', $vente)
-                ->with('success', 'Vente finalisée avec succès ! Le contrat a été généré automatiquement.');
+            // NOUVEAU : Créer l'enregistrement de paiement
+            $paiement = Paiement::create([
+                'type' => 'vente',
+                'vente_id' => $vente->id,
+                'montant_total' => $request->prix_vente,
+                'montant_paye' => 0,
+                'montant_restant' => $request->prix_vente,
+                'commission_agence' => $request->prix_vente * 0.05,
+                'mode_paiement' => 'carte', // Par défaut
+                'transaction_id' => 'TXN_' . Str::upper(Str::random(10)) . '_' . time(),
+                'statut' => 'reussi',
+                'date_transaction' => now(),
+            ]);
+
+            // NOUVEAU : Rediriger vers l'interface de paiement
+            return response()->json([
+                'success' => true,
+                'message' => 'Vente créée. Redirection vers le paiement...',
+                'redirect_url' => route('paiement.initier.show', [
+                    'type' => 'vente',
+                    'id' => $vente->id,
+                    'paiement_id' => $paiement->id
+                ])
+            ]);
 
         } catch (\Exception $e) {
-            \Log::error('Erreur finalisation vente:', [
+            \Log::error('Erreur création vente:', [
                 'error' => $e->getMessage(),
                 'user_id' => $user->id,
                 'bien_id' => $request->biens_id
@@ -204,7 +208,7 @@ class VenteController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la finalisation de la vente : ' . $e->getMessage()
+                'message' => 'Erreur lors de la création de la vente : ' . $e->getMessage()
             ], 500);
         }
     }

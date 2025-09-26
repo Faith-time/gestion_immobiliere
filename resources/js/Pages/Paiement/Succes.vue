@@ -93,7 +93,7 @@
                                     Procéder à l'achat du bien
                                 </button>
 
-                                <!-- AJOUT : Bouton Procéder à la location (seulement si mandat de gestion locative) -->
+                                <!-- Bouton Procéder à la location (seulement si mandat de gestion locative) -->
                                 <button
                                     v-if="actionsDisponibles.peutProcederLocation"
                                     @click="procederLocation"
@@ -108,6 +108,35 @@
                                     <strong>Type de mandat :</strong>
                                     <span class="text-capitalize">{{ getTypeMandatLabel(actionsDisponibles.typeMandat) }}</span>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Actions spécifiques après paiement réussi pour une vente -->
+                        <div v-if="showVenteActions" class="mb-4">
+                            <h5 class="text-success mb-3">Vente Finalisée avec Succès !</h5>
+                            <div class="d-grid gap-3">
+                                <!-- Information sur la vente -->
+                                <div class="alert alert-success mb-3" v-if="actionsDisponibles.vente">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-check-circle me-3 text-success fs-4"></i>
+                                        <div>
+                                            <h6 class="mb-1">Achat confirmé</h6>
+                                            <p class="mb-0 small">
+                                                Votre achat a été enregistré avec succès.
+                                                Le contrat de vente a été généré automatiquement.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Bouton pour voir les détails de la vente -->
+                                <button
+                                    v-if="actionsDisponibles.peutVoirVente"
+                                    @click="voirVente"
+                                    class="btn btn-success btn-lg d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-file-contract me-2"></i>
+                                    Voir les détails de mon achat et signer le contrat
+                                </button>
                             </div>
                         </div>
                         <!-- Actions standards -->
@@ -157,7 +186,7 @@ const procederLocation = () => {
 
 const procederVente = () => {
     if (props.actionsDisponibles.bien && props.actionsDisponibles.bien.id) {
-        router.visit(route('ventes.create', { bien_id: props.actionsDisponibles.bien.id }))
+         router.visit(route('ventes.create', { bien_id: props.actionsDisponibles.bien.id }))
     } else {
         console.error("Aucun bien sélectionné")
     }
@@ -211,6 +240,22 @@ const getDetailsRoute = () => {
 const planifierVisite = () => {
     if (props.actionsDisponibles.bien) {
         router.visit(route('visites.create', { bien_id: props.actionsDisponibles.bien.id }))
+    }
+}
+
+// Vérifier si on doit afficher les actions de vente
+const showVenteActions = computed(() => {
+    return props.paiement.vente_id &&
+        props.paiement.statut === 'reussi' &&
+        props.actionsDisponibles.peutVoirVente
+})
+
+// Nouvelle méthode pour la vente
+const voirVente = () => {
+    if (props.actionsDisponibles.vente && props.actionsDisponibles.vente.id) {
+        router.visit(route('ventes.show', props.actionsDisponibles.vente.id))
+    } else {
+        console.error("Aucune vente trouvée")
     }
 }
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthentificationController;
+use App\Http\Controllers\AvisRetardController;
 use App\Http\Controllers\BienController;
 use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\ClientDocumentController;
@@ -252,25 +253,47 @@ Route::middleware('authenticate')->group(function () {
     });
 
     /*
-    |--------------------------------------------------------------------------
-    | Routes des Paiements
-    |--------------------------------------------------------------------------
-    */
+   /*
+|--------------------------------------------------------------------------
+| Routes des Paiements
+|--------------------------------------------------------------------------
+*/
     Route::prefix('/paiement')->controller(PaiementController::class)->name('paiement.')->group(function () {
         // Routes sans paramètres (à placer AVANT les routes avec paramètres)
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');
-        Route::get('/initier', 'showInitierPaiement')->name('initier');
-        Route::post('/initier', 'initier')->name('traiter');
+        Route::get('/initier', 'showInitierPaiement')->name('initier.show');
+        Route::post('/initier', 'initier')->name('initier');
         Route::get('/erreur', 'showErreur')->name('erreur');
+
+        // Routes de simulation (mode test uniquement)
+        Route::get('/simulation/{paiement}/page', 'simulationPage')->name('simulation.page');
+        Route::get('/simulation/{paiement}/process', 'simulationProcess')->name('simulation.process');
+        Route::get('/simulation/{paiement}', 'simulation')->name('simulation'); // Route existante conservée
+
+        // Routes utilitaires
+        Route::get('/debug-cinetpay', 'debugCinetPay')->name('debug');
+        Route::get('/options', 'getPaiementOptions')->name('options');
+
+        // Webhooks CinetPay (sans middleware auth)
+        Route::post('/notify', 'notify')->name('notify')->withoutMiddleware(['auth']);
 
         // Routes avec paramètres (à placer APRÈS)
         Route::get('/succes/{paiement}', 'showSucces')->name('succes');
+        Route::get('/retour/{paiement}', 'retour')->name('retour');
         Route::get('/{paiement}', 'show')->name('show');
         Route::put('/{paiement}', 'update')->name('update');
         Route::delete('/{paiement}', 'destroy')->name('destroy');
     });
 
+    Route::prefix('/avis-retard')->controller(AvisRetardController::class)->name('avis-retard.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/{avisRetard}', 'show')->name('show');
+        Route::post('/rappels', 'envoyerRappels')->name('rappels');
+        Route::post('/retards', 'envoyerAvisRetards')->name('retards');
+        Route::post('/traiter-automatique', 'traiterNotificationsAutomatiques')->name('traiter');
+        Route::post('/{avisRetard}/paye', 'marquerPaye')->name('paye');
+    });
 });
 
 /*
