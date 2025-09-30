@@ -297,4 +297,43 @@ class AvisRetardController extends Controller
             'avisRetard' => $avisRetard
         ]);
     }
+
+    /**
+     * Tester l'envoi d'emails via Mailtrap
+     */
+    public function testMailtrap(Request $request)
+    {
+        $request->validate([
+            'type' => 'required|in:connexion,rappel,retard',
+            'location_id' => 'nullable|exists:locations,id',
+            'jours_retard' => 'nullable|integer|min:1|max:365'
+        ]);
+
+        $mailtrapService = new \App\Services\MailtrapEmailService();
+
+        try {
+            switch ($request->type) {
+                case 'connexion':
+                    $result = $mailtrapService->testerConnexion();
+                    break;
+
+                case 'rappel':
+                    $result = $mailtrapService->testerRappelPaiement($request->location_id);
+                    break;
+
+                case 'retard':
+                    $joursRetard = $request->jours_retard ?: 7;
+                    $result = $mailtrapService->testerAvisRetard($request->location_id, $joursRetard);
+                    break;
+            }
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors du test: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

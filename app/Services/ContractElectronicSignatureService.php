@@ -5,87 +5,18 @@ namespace App\Services;
 use App\Models\Vente;
 use App\Models\Location;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ContractElectronicSignatureService
 {
     protected $contractPdfService;
+    protected $contractNotificationService;
 
-    public function __construct(ContractPdfService $contractPdfService)
-    {
+    public function __construct(
+        ContractPdfService $contractPdfService,
+        ContractNotificationService $contractNotificationService
+    ) {
         $this->contractPdfService = $contractPdfService;
-    }
-
-    /**
-     * Signer un contrat de vente par le vendeur
-     */
-    public function signVenteByVendeur(Vente $vente, $signatureData)
-    {
-        try {
-            if (!$this->validateSignatureData($signatureData)) {
-                throw new \Exception('Données de signature invalides');
-            }
-
-            $vente->update([
-                'vendeur_signature_data' => $signatureData,
-                'vendeur_signed_at' => now(),
-                'vendeur_signature_ip' => request()->ip(),
-            ]);
-
-            $this->updateVenteSignatureStatus($vente);
-            $this->generateSignedPdf($vente, 'vente');
-
-            Log::info('Contrat de vente signé par vendeur', [
-                'vente_id' => $vente->id,
-                'vendeur_id' => $vente->bien->proprietaire_id,
-                'signature_status' => $vente->fresh()->signature_status
-            ]);
-
-            return true;
-
-        } catch (\Exception $e) {
-            Log::error('Erreur signature vendeur', [
-                'vente_id' => $vente->id,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * Signer un contrat de vente par l'acheteur
-     */
-    public function signVenteByAcheteur(Vente $vente, $signatureData)
-    {
-        try {
-            if (!$this->validateSignatureData($signatureData)) {
-                throw new \Exception('Données de signature invalides');
-            }
-
-            $vente->update([
-                'acheteur_signature_data' => $signatureData,
-                'acheteur_signed_at' => now(),
-                'acheteur_signature_ip' => request()->ip(),
-            ]);
-
-            $this->updateVenteSignatureStatus($vente);
-            $this->generateSignedPdf($vente, 'vente');
-
-            Log::info('Contrat de vente signé par acheteur', [
-                'vente_id' => $vente->id,
-                'acheteur_id' => $vente->acheteur_id,
-                'signature_status' => $vente->fresh()->signature_status
-            ]);
-
-            return true;
-
-        } catch (\Exception $e) {
-            Log::error('Erreur signature acheteur', [
-                'vente_id' => $vente->id,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
-        }
+        $this->contractNotificationService = $contractNotificationService;
     }
 
     /**
@@ -107,10 +38,15 @@ class ContractElectronicSignatureService
             $this->updateLocationSignatureStatus($location);
             $this->generateSignedPdf($location, 'location');
 
+            // NOUVEAU: Vérifier si le contrat est maintenant entièrement signé
+            $location->refresh();
+            $wasJustFullySigned = $this->checkAndHandleFullSignature($location, 'bailleur');
+
             Log::info('Contrat de location signé par bailleur', [
                 'location_id' => $location->id,
                 'bailleur_id' => $location->bien->proprietaire_id,
-                'signature_status' => $location->fresh()->signature_status
+                'signature_status' => $location->signature_status,
+                'just_fully_signed' => $wasJustFullySigned
             ]);
 
             return true;
@@ -143,10 +79,15 @@ class ContractElectronicSignatureService
             $this->updateLocationSignatureStatus($location);
             $this->generateSignedPdf($location, 'location');
 
+            // NOUVEAU: Vérifier si le contrat est maintenant entièrement signé
+            $location->refresh();
+            $wasJustFullySigned = $this->checkAndHandleFullSignature($location, 'locataire');
+
             Log::info('Contrat de location signé par locataire', [
                 'location_id' => $location->id,
                 'locataire_id' => $location->client_id,
-                'signature_status' => $location->fresh()->signature_status
+                'signature_status' => $location->signature_status,
+                'just_fully_signed' => $wasJustFullySigned
             ]);
 
             return true;
@@ -161,24 +102,25 @@ class ContractElectronicSignatureService
     }
 
     /**
-     * Mettre à jour le statut de signature d'une vente
+     * NOUVEAU: Vérifier si le contrat vient d'être entièrement signé et déclencher les notifications
      */
-    private function updateVenteSignatureStatus(Vente $vente)
+    private function checkAndHandleFullSignature(Location $location, string $lastSigner)
     {
-        $vente->refresh();
+        if ($location->signature_status === 'entierement_signe') {
+            Log::info('Contrat entièrement signé détecté', [
+                'location_id' => $location->id,
+                'last_signer' => $lastSigner,
+                'bailleur_signed_at' => $location->bailleur_signed_at,
+                'locataire_signed_at' => $location->locataire_signed_at
+            ]);
 
-        $vendeurSigned = $this->isVenteSignedByVendeur($vente);
-        $acheteurSigned = $this->isVenteSignedByAcheteur($vente);
+            // Programmer les notifications de test dans 5 et 10 minutes
+            $this->contractNotificationService->programmerNotificationsApresSignature($location);
 
-        if ($vendeurSigned && $acheteurSigned) {
-            $status = 'entierement_signe';
-        } elseif ($vendeurSigned || $acheteurSigned) {
-            $status = 'partiellement_signe';
-        } else {
-            $status = 'non_signe';
+            return true;
         }
 
-        $vente->update(['signature_status' => $status]);
+        return false;
     }
 
     /**
@@ -203,131 +145,12 @@ class ContractElectronicSignatureService
     }
 
     /**
-     * Vérifier si une vente est signée par le vendeur
-     */
-    public function isVenteSignedByVendeur(Vente $vente)
-    {
-        return !is_null($vente->vendeur_signed_at) && !is_null($vente->vendeur_signature_data);
-    }
-
-    /**
-     * Vérifier si une vente est signée par l'acheteur
-     */
-    public function isVenteSignedByAcheteur(Vente $vente)
-    {
-        return !is_null($vente->acheteur_signed_at) && !is_null($vente->acheteur_signature_data);
-    }
-
-    /**
-     * Vérifier si une location est signée par le bailleur
-     */
-    public function isLocationSignedByBailleur(Location $location)
-    {
-        return !is_null($location->bailleur_signed_at) && !is_null($location->bailleur_signature_data);
-    }
-
-    /**
-     * Vérifier si une location est signée par le locataire
-     */
-    public function isLocationSignedByLocataire(Location $location)
-    {
-        return !is_null($location->locataire_signed_at) && !is_null($location->locataire_signature_data);
-    }
-
-    /**
-     * Vérifier si un contrat est entièrement signé
-     */
-    public function isFullySigned($contract)
-    {
-        return $contract->signature_status === 'entierement_signe';
-    }
-
-    /**
-     * Obtenir les statistiques de signature
-     */
-    public function getSignatureStats($contract, $type)
-    {
-        $contract->refresh();
-
-        if ($type === 'vente') {
-            return [
-                'vendeur_signed' => $this->isVenteSignedByVendeur($contract),
-                'acheteur_signed' => $this->isVenteSignedByAcheteur($contract),
-                'fully_signed' => $this->isFullySigned($contract),
-                'signature_status' => $contract->signature_status,
-                'vendeur_signed_at' => $contract->vendeur_signed_at,
-                'acheteur_signed_at' => $contract->acheteur_signed_at,
-                'can_sign_vendeur' => $this->canVenteBeSignedByVendeur($contract),
-                'can_sign_acheteur' => $this->canVenteBeSignedByAcheteur($contract),
-            ];
-        } else {
-            return [
-                'bailleur_signed' => $this->isLocationSignedByBailleur($contract),
-                'locataire_signed' => $this->isLocationSignedByLocataire($contract),
-                'fully_signed' => $this->isFullySigned($contract),
-                'signature_status' => $contract->signature_status,
-                'bailleur_signed_at' => $contract->bailleur_signed_at,
-                'locataire_signed_at' => $contract->locataire_signed_at,
-                'can_sign_bailleur' => $this->canLocationBeSignedByBailleur($contract),
-                'can_sign_locataire' => $this->canLocationBeSignedByLocataire($contract),
-            ];
-        }
-    }
-
-    /**
-     * Vérifier si une vente peut être signée par le vendeur
-     */
-    public function canVenteBeSignedByVendeur(Vente $vente)
-    {
-        return $vente->statut !== 'annulee' && !$this->isVenteSignedByVendeur($vente);
-    }
-
-    /**
-     * Vérifier si une vente peut être signée par l'acheteur
-     */
-    public function canVenteBeSignedByAcheteur(Vente $vente)
-    {
-        return $vente->statut !== 'annulee' && !$this->isVenteSignedByAcheteur($vente);
-    }
-
-    /**
-     * Vérifier si une location peut être signée par le bailleur
-     */
-    public function canLocationBeSignedByBailleur(Location $location)
-    {
-        return $location->statut !== 'terminee' && !$this->isLocationSignedByBailleur($location);
-    }
-
-    /**
-     * Vérifier si une location peut être signée par le locataire
-     */
-    public function canLocationBeSignedByLocataire(Location $location)
-    {
-        return $location->statut !== 'terminee' && !$this->isLocationSignedByLocataire($location);
-    }
-
-    /**
-     * Annuler une signature
+     * Annuler une signature - MODIFIÉ pour annuler les notifications
      */
     public function cancelSignature($contract, $signatoryType, $contractType)
     {
         try {
-            if ($contractType === 'vente') {
-                if ($signatoryType === 'vendeur') {
-                    $contract->update([
-                        'vendeur_signature_data' => null,
-                        'vendeur_signed_at' => null,
-                        'vendeur_signature_ip' => null,
-                    ]);
-                } elseif ($signatoryType === 'acheteur') {
-                    $contract->update([
-                        'acheteur_signature_data' => null,
-                        'acheteur_signed_at' => null,
-                        'acheteur_signature_ip' => null,
-                    ]);
-                }
-                $this->updateVenteSignatureStatus($contract);
-            } else {
+            if ($contractType === 'location') {
                 if ($signatoryType === 'bailleur') {
                     $contract->update([
                         'bailleur_signature_data' => null,
@@ -342,6 +165,11 @@ class ContractElectronicSignatureService
                     ]);
                 }
                 $this->updateLocationSignatureStatus($contract);
+
+                // NOUVEAU: Annuler les notifications si nécessaire
+                if ($contract->signature_status !== 'entierement_signe') {
+                    $this->contractNotificationService->annulerNotificationsProgrammees($contract);
+                }
             }
 
             // Régénérer le PDF
@@ -367,6 +195,30 @@ class ContractElectronicSignatureService
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Vérifier si une location est signée par le bailleur
+     */
+    public function isLocationSignedByBailleur(Location $location)
+    {
+        return !is_null($location->bailleur_signed_at) && !is_null($location->bailleur_signature_data);
+    }
+
+    /**
+     * Vérifier si une location est signée par le locataire
+     */
+    public function isLocationSignedByLocataire(Location $location)
+    {
+        return !is_null($location->locataire_signed_at) && !is_null($location->locataire_signature_data);
+    }
+
+    /**
+     * Vérifier si un contrat est entièrement signé
+     */
+    public function isFullySigned($contract)
+    {
+        return $contract->signature_status === 'entierement_signe';
     }
 
     /**
@@ -421,18 +273,82 @@ class ContractElectronicSignatureService
     }
 
     /**
-     * Télécharger le PDF signé
+     * Obtenir les statistiques de signature
      */
-    public function downloadSignedPdf($contract, $type)
+    public function getSignatureStats($contract, $type)
     {
-        return $this->contractPdfService->downloadPdf($contract, $type);
+        $contract->refresh();
+
+        if ($type === 'vente') {
+            return [
+                'vendeur_signed' => $this->isVenteSignedByVendeur($contract),
+                'acheteur_signed' => $this->isVenteSignedByAcheteur($contract),
+                'fully_signed' => $this->isFullySigned($contract),
+                'signature_status' => $contract->signature_status,
+                'vendeur_signed_at' => $contract->vendeur_signed_at,
+                'acheteur_signed_at' => $contract->acheteur_signed_at,
+                'can_sign_vendeur' => $this->canVenteBeSignedByVendeur($contract),
+                'can_sign_acheteur' => $this->canVenteBeSignedByAcheteur($contract),
+            ];
+        } else {
+            return [
+                'bailleur_signed' => $this->isLocationSignedByBailleur($contract),
+                'locataire_signed' => $this->isLocationSignedByLocataire($contract),
+                'fully_signed' => $this->isFullySigned($contract),
+                'signature_status' => $contract->signature_status,
+                'bailleur_signed_at' => $contract->bailleur_signed_at,
+                'locataire_signed_at' => $contract->locataire_signed_at,
+                'can_sign_bailleur' => $this->canLocationBeSignedByBailleur($contract),
+                'can_sign_locataire' => $this->canLocationBeSignedByLocataire($contract),
+            ];
+        }
     }
 
     /**
-     * Prévisualiser le PDF signé
+     * Vérifier si une location peut être signée par le bailleur
      */
-    public function previewSignedPdf($contract, $type)
+    public function canLocationBeSignedByBailleur(Location $location)
     {
-        return $this->contractPdfService->previewPdf($contract, $type);
+        return $location->statut !== 'terminee' && !$this->isLocationSignedByBailleur($location);
+    }
+
+    /**
+     * Vérifier si une location peut être signée par le locataire
+     */
+    public function canLocationBeSignedByLocataire(Location $location)
+    {
+        return $location->statut !== 'terminee' && !$this->isLocationSignedByLocataire($location);
+    }
+
+    /**
+     * Vérifier si une vente est signée par le vendeur
+     */
+    public function isVenteSignedByVendeur(Vente $vente)
+    {
+        return !is_null($vente->vendeur_signed_at) && !is_null($vente->vendeur_signature_data);
+    }
+
+    /**
+     * Vérifier si une vente est signée par l'acheteur
+     */
+    public function isVenteSignedByAcheteur(Vente $vente)
+    {
+        return !is_null($vente->acheteur_signed_at) && !is_null($vente->acheteur_signature_data);
+    }
+
+    /**
+     * Vérifier si une vente peut être signée par le vendeur
+     */
+    public function canVenteBeSignedByVendeur(Vente $vente)
+    {
+        return $vente->statut !== 'annulee' && !$this->isVenteSignedByVendeur($vente);
+    }
+
+    /**
+     * Vérifier si une vente peut être signée par l'acheteur
+     */
+    public function canVenteBeSignedByAcheteur(Vente $vente)
+    {
+        return $vente->statut !== 'annulee' && !$this->isVenteSignedByAcheteur($vente);
     }
 }

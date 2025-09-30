@@ -9,7 +9,7 @@
                 </div>
 
                 <!-- Récapitulatif du bien -->
-                script<div class="card mb-4 shadow-sm">
+                <div class="card mb-4 shadow-sm">
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-3">
@@ -28,7 +28,7 @@
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="h5 text-success mb-0">{{ formatPrice(bien.price) }} FCFA</span>
                                     <span class="badge bg-info">
-                                        Caution: {{ formatPrice(25000) }} FCFA (montant fixe)
+                                        Caution: {{ formatPrice(calculateReservationAmount()) }} FCFA
                                     </span>
                                 </div>
                             </div>
@@ -94,7 +94,9 @@
                             <h6><i class="fas fa-info-circle me-2"></i>Informations importantes :</h6>
                             <ul class="mb-0 small">
                                 <li>Un document obligatoire est requis pour valider votre réservation</li>
-                                <li>Caution fixe de 25 000 FCFA</li>
+                                <li>Caution de {{ formatPrice(calculateReservationAmount()) }} FCFA
+                                    ({{ props.bien.mandat?.type_mandat === 'vente' ? '5% du prix de vente' : '1 mois de loyer' }})
+                                </li>
                                 <li>Votre réservation sera validée par notre équipe</li>
                                 <li>Vous pourrez payer après validation</li>
                                 <li>Date de réservation: {{ formatDate(new Date()) }}</li>
@@ -152,11 +154,44 @@ const form = reactive({
     fichier: null
 })
 
-// Méthodes
+// Fonction pour calculer le montant de réservation
+const calculateReservationAmount = () => {
+    console.log('=== DEBUG Frontend ===');
+    console.log('Bien:', props.bien);
+    console.log('Mandat:', props.bien.mandat);
+    console.log('Prix:', props.bien.price);
+
+    if (!props.bien.mandat) {
+        console.log('Pas de mandat trouvé, retour 25000');
+        return 25000;
+    }
+
+    console.log('Type mandat:', props.bien.mandat.type_mandat);
+
+    switch (props.bien.mandat.type_mandat) {
+        case 'vente':
+            // 5% du prix de vente
+            const montantVente = props.bien.price * 0.05;
+            console.log('Vente - Montant calculé:', montantVente);
+            return montantVente;
+
+        case 'gestion_locative':
+            // 1 mois de loyer
+            console.log('Location - Montant calculé:', props.bien.price);
+            return props.bien.price;
+
+        default:
+            console.log('Type inconnu, retour 25000');
+            return 25000; // Montant par défaut
+    }
+}
+
+// Fonction pour formater les prix
 const formatPrice = (price) => {
     return new Intl.NumberFormat('fr-FR').format(price)
 }
 
+// Fonction pour formater les dates
 const formatDate = (date) => {
     return new Date(date).toLocaleDateString('fr-FR', {
         year: 'numeric',
@@ -165,6 +200,7 @@ const formatDate = (date) => {
     })
 }
 
+// Fonction pour gérer le changement de fichier
 const handleFileChange = (event) => {
     const file = event.target.files[0]
     if (file) {
@@ -178,6 +214,7 @@ const handleFileChange = (event) => {
     }
 }
 
+// Fonction pour soumettre la réservation
 const submitReservation = () => {
     if (!form.type_document || !form.fichier) {
         alert('Veuillez remplir tous les champs obligatoires')
@@ -213,7 +250,8 @@ const submitReservation = () => {
             processing.value = false
         }
     })
-}</script>
+}
+</script>
 
 <style scoped>
 .card {

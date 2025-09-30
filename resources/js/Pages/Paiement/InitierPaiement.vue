@@ -171,7 +171,7 @@
                                             <i class="fas fa-shield-alt me-2"></i>
                                             <div>
                                                 <strong>Paiement sécurisé</strong>
-                                                <p class="mb-0 small">Vos données sont protégées par un cryptage SSL 256 bits et traitées par CinetPay.</p>
+                                                <p class="mb-0 small">Vos données sont protégées et traitées par CinetPay.</p>
                                             </div>
                                         </div>
                                     </div>

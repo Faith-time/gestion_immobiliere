@@ -258,6 +258,9 @@ Route::middleware('authenticate')->group(function () {
 | Routes des Paiements
 |--------------------------------------------------------------------------
 */
+    // NOUVELLE: Route pour tester manuellement les notifications
+    Route::post('/locations/{location}/test-notifications', [LocationController::class, 'testNotifications'])
+        ->name('locations.test.notifications');
     Route::prefix('/paiement')->controller(PaiementController::class)->name('paiement.')->group(function () {
         // Routes sans paramètres (à placer AVANT les routes avec paramètres)
         Route::get('/', 'index')->name('index');
@@ -293,6 +296,8 @@ Route::middleware('authenticate')->group(function () {
         Route::post('/retards', 'envoyerAvisRetards')->name('retards');
         Route::post('/traiter-automatique', 'traiterNotificationsAutomatiques')->name('traiter');
         Route::post('/{avisRetard}/paye', 'marquerPaye')->name('paye');
+        Route::post('/test-mailtrap', 'testMailtrap')->name('test-mailtrap');
+
     });
 });
 

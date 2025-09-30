@@ -54,7 +54,7 @@ class RappelPaiementLoyer extends Notification implements ShouldQueue
                 ->line("Date d'échéance: " . $this->dateEcheance->format('d/m/Y'))
                 ->line("Il reste {$joursRestants} jour(s) avant l'échéance.")
                 ->line('Vous pouvez contacter votre locataire si nécessaire.')
-                ->action('Voir la location', route('locations.show', $this->location->id))
+                ->action('Voir la location', url('/locations/' . $this->location->id))
                 ->line('Merci de votre attention.');
         }
 
@@ -67,7 +67,7 @@ class RappelPaiementLoyer extends Notification implements ShouldQueue
             ->line("Montant du loyer: {$montant} FCFA")
             ->line("Date d'échéance: " . $this->dateEcheance->format('d/m/Y'))
             ->line("Il vous reste {$joursRestants} jour(s) pour effectuer le paiement.")
-            ->action('Effectuer le paiement', route('locations.show', $this->location->id))
+            ->action('Effectuer le paiement', url('/locations/' . $this->location->id))
             ->line('Merci de régler votre loyer dans les temps pour éviter les pénalités de retard.')
             ->line('Cordialement, l\'équipe de gestion immobilière.');
     }

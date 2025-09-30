@@ -15,12 +15,14 @@ class ReservationController extends Controller
     /**
      * Afficher le formulaire de réservation
      */
-    public function create(Request $request,$bien_id = null)
+    public function create(Request $request, $bien_id = null)
     {
         if (!$bien_id) {
             $bien_id = $request->input('bien_id');
         }
-        $bien = Bien::with('category')->findOrFail($bien_id);
+
+        // ✅ CORRECTION : Charger aussi la relation 'mandat'
+        $bien = Bien::with(['category', 'mandat'])->findOrFail($bien_id);
 
         if ($bien->status !== 'disponible') {
             return redirect()->back()->with('error', 'Ce bien n\'est plus disponible.');
@@ -45,8 +47,9 @@ class ReservationController extends Controller
         try {
             DB::beginTransaction();
 
-            // Vérifier la disponibilité du bien
-            $bien = Bien::findOrFail($request->bien_id);
+            // ✅ CORRECTION : Charger aussi la relation 'mandat'
+            $bien = Bien::with('mandat')->findOrFail($request->bien_id);
+
             if ($bien->status !== 'disponible') {
                 return back()->withErrors(['bien_id' => 'Ce bien n\'est plus disponible.']);
             }
@@ -55,7 +58,7 @@ class ReservationController extends Controller
             $reservation = Reservation::create([
                 'client_id' => Auth::id(),
                 'bien_id' => $request->bien_id,
-                'montant' => 25000,
+                'montant' => $this->calculateReservationAmount($bien),
                 'statut' => 'en_attente',
                 'paiement_id' => null,
                 'date_reservation' => now()
@@ -87,6 +90,42 @@ class ReservationController extends Controller
         } catch (\Exception $e) {
             DB::rollback();
             return back()->withErrors(['error' => 'Erreur: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Calculer le montant de réservation selon le type de mandat
+     */
+    private function calculateReservationAmount(Bien $bien)
+    {
+        // ✅ DEBUG : Ajouter des logs pour diagnostiquer
+        \Log::info('calculateReservationAmount - Bien ID: ' . $bien->id);
+        \Log::info('calculateReservationAmount - Prix: ' . $bien->price);
+        \Log::info('calculateReservationAmount - Mandat existe: ' . ($bien->mandat ? 'OUI' : 'NON'));
+
+        if (!$bien->mandat) {
+            \Log::info('calculateReservationAmount - Pas de mandat, retour 25000');
+            return 25000; // Montant par défaut si pas de mandat
+        }
+
+        \Log::info('calculateReservationAmount - Type mandat: ' . $bien->mandat->type_mandat);
+
+        switch ($bien->mandat->type_mandat) {
+            case 'vente':
+                // 5% du prix de vente
+                $montant = $bien->price * 0.05;
+                \Log::info('calculateReservationAmount - Vente, montant calculé: ' . $montant);
+                return $montant;
+
+            case 'gestion_locative':
+                // 1 mois de loyer (équivalent au prix du bien pour la location)
+                $montant = $bien->price;
+                \Log::info('calculateReservationAmount - Location, montant calculé: ' . $montant);
+                return $montant;
+
+            default:
+                \Log::info('calculateReservationAmount - Type inconnu, retour 25000');
+                return 25000; // Montant par défaut
         }
     }
 

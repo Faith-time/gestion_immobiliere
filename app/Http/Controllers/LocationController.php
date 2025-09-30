@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Bien;
 use App\Models\Location;
 use App\Models\Reservation;
+use App\Services\ContractNotificationService;
 use App\Services\ContractPdfService;
 use App\Services\ContractElectronicSignatureService;
 use Carbon\Carbon;
@@ -17,13 +18,145 @@ class LocationController extends Controller
 {
     protected $contractPdfService;
     protected $contractSignatureService;
+    protected $contractNotificationService; // NOUVEAU
 
     public function __construct(
         ContractPdfService $contractPdfService,
-        ContractElectronicSignatureService $contractSignatureService
+        ContractElectronicSignatureService $contractSignatureService,
+        ContractNotificationService $contractNotificationService // NOUVEAU
     ) {
         $this->contractPdfService = $contractPdfService;
         $this->contractSignatureService = $contractSignatureService;
+        $this->contractNotificationService = $contractNotificationService; // NOUVEAU
+    }
+
+    /**
+     * Signature par le bailleur (propriétaire)
+     */
+    public function signByBailleur(Request $request, Location $location)
+    {
+        $user = Auth::user();
+
+        if ($location->bien->proprietaire_id !== $user->id) {
+            abort(403, 'Non autorisé.');
+        }
+
+        if (!$this->contractSignatureService->canLocationBeSignedByBailleur($location)) {
+            return response()->json(['success' => false, 'message' => 'Impossible de signer maintenant.'], 400);
+        }
+
+        $request->validate(['signature_data' => 'required|string']);
+
+        try {
+            $this->contractSignatureService->signLocationByBailleur($location, $request->signature_data);
+
+            $location->refresh();
+            $message = 'Contrat signé avec succès par le propriétaire !';
+
+            if ($location->signature_status === 'entierement_signe') {
+                $message .= ' Le contrat est maintenant entièrement signé. Les notifications de test seront envoyées dans 5 et 10 minutes.';
+                $location->update(['statut' => 'active']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'signature_stats' => $this->contractSignatureService->getSignatureStats($location, 'location'),
+                'notifications_programmees' => $location->signature_status === 'entierement_signe'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Signature par le locataire
+     */
+    public function signByLocataire(Request $request, Location $location)
+    {
+        $user = Auth::user();
+
+        if ($location->client_id !== $user->id) {
+            abort(403, 'Non autorisé.');
+        }
+
+        if (!$this->contractSignatureService->canLocationBeSignedByLocataire($location)) {
+            return response()->json(['success' => false, 'message' => 'Impossible de signer maintenant.'], 400);
+        }
+
+        $request->validate(['signature_data' => 'required|string']);
+
+        try {
+            $this->contractSignatureService->signLocationByLocataire($location, $request->signature_data);
+
+            $location->refresh();
+            $message = 'Contrat signé avec succès par le locataire !';
+
+            if ($location->signature_status === 'entierement_signe') {
+                $message .= ' Le contrat est maintenant entièrement signé. Les notifications de test seront envoyées dans 5 et 10 minutes.';
+                $location->update(['statut' => 'active']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'signature_stats' => $this->contractSignatureService->getSignatureStats($location, 'location'),
+                'notifications_programmees' => $location->signature_status === 'entierement_signe'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * NOUVEAU: Méthode pour tester manuellement les notifications
+     */
+    public function testNotifications(Request $request, Location $location)
+    {
+        $user = Auth::user();
+
+        // Vérifier les autorisations
+        if ($location->client_id !== $user->id &&
+            $location->bien->proprietaire_id !== $user->id &&
+            !$user->hasRole('admin')) {
+            abort(403, 'Non autorisé.');
+        }
+
+        $request->validate([
+            'delai_rappel' => 'nullable|integer|min:1|max:60',
+            'delai_avis' => 'nullable|integer|min:1|max:120'
+        ]);
+
+        try {
+            $delaiRappel = $request->delai_rappel ?? 5;
+            $delaiAvis = $request->delai_avis ?? 10;
+
+            $success = $this->contractNotificationService->programmerNotificationsPersonnalisees(
+                $location,
+                $delaiRappel,
+                $delaiAvis
+            );
+
+            if ($success) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Notifications de test programmées : rappel dans {$delaiRappel} min, avis dans {$delaiAvis} min",
+                    'delai_rappel' => $delaiRappel,
+                    'delai_avis' => $delaiAvis
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Le contrat doit être entièrement signé pour programmer les notifications'
+                ], 400);
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la programmation : ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -215,78 +348,6 @@ class LocationController extends Controller
             'isBailleur' => $location->bien->proprietaire_id === $user->id,
             'isAdmin' => $user->hasRole('admin'),
         ]);
-    }
-
-    /**
-     * Signature par le bailleur (propriétaire)
-     */
-    public function signByBailleur(Request $request, Location $location)
-    {
-        $user = Auth::user();
-
-        if ($location->bien->proprietaire_id !== $user->id) {
-            abort(403, 'Non autorisé.');
-        }
-
-        if (!$this->contractSignatureService->canLocationBeSignedByBailleur($location)) {
-            return response()->json(['success' => false, 'message' => 'Impossible de signer maintenant.'], 400);
-        }
-
-        $request->validate(['signature_data' => 'required|string']);
-
-        try {
-            $this->contractSignatureService->signLocationByBailleur($location, $request->signature_data);
-
-            $message = 'Contrat signé avec succès par le propriétaire !';
-            if ($location->fresh()->isFullySigned()) {
-                $message .= ' Le contrat est maintenant entièrement signé.';
-                $location->update(['statut' => 'active']);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-                'signature_stats' => $this->contractSignatureService->getSignatureStats($location->fresh(), 'location'),
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * Signature par le locataire
-     */
-    public function signByLocataire(Request $request, Location $location)
-    {
-        $user = Auth::user();
-
-        if ($location->client_id !== $user->id) {
-            abort(403, 'Non autorisé.');
-        }
-
-        if (!$this->contractSignatureService->canLocationBeSignedByLocataire($location)) {
-            return response()->json(['success' => false, 'message' => 'Impossible de signer maintenant.'], 400);
-        }
-
-        $request->validate(['signature_data' => 'required|string']);
-
-        try {
-            $this->contractSignatureService->signLocationByLocataire($location, $request->signature_data);
-
-            $message = 'Contrat signé avec succès par le locataire !';
-            if ($location->fresh()->isFullySigned()) {
-                $message .= ' Le contrat est maintenant entièrement signé.';
-                $location->update(['statut' => 'active']);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-                'signature_stats' => $this->contractSignatureService->getSignatureStats($location->fresh(), 'location'),
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
-        }
     }
 
     /**

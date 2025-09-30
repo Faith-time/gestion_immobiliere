@@ -41,8 +41,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->withCommands([
-        // Enregistrement de votre commande personnalisée
         \App\Console\Commands\NotificationLoyerCommand::class,
+        \App\Console\Commands\SurveillerQueueNotifications::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
         // Configuration du planificateur de tâches
