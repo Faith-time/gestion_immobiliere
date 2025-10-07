@@ -313,6 +313,7 @@ const getSignatureStatusBadge = (mandat) => {
 </script>
 
 <template>
+
     <div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-green-50">
         <!-- Header avec animation -->
         <div class="relative overflow-hidden bg-gradient-to-r from-blue-600 via-green-600 to-indigo-800 py-16">

@@ -1,5 +1,36 @@
 <template>
     <div class="container py-5">
+        <!-- ✅ AJOUT : Messages Flash -->
+        <div v-if="$page.props.flash?.success" class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-check-circle me-2"></i>
+            {{ $page.props.flash.success }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div v-if="$page.props.flash?.error" class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            {{ $page.props.flash.error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div v-if="$page.props.flash?.warning" class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {{ $page.props.flash.warning }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <!-- ✅ AJOUT : Erreurs de validation -->
+        <div v-if="$page.props.errors && Object.keys($page.props.errors).length > 0"
+             class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            <strong>Erreurs de validation :</strong>
+            <ul class="mb-0 mt-2">
+                <li v-for="(error, key) in $page.props.errors" :key="key">
+                    {{ Array.isArray(error) ? error[0] : error }}
+                </li>
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
         <div class="row justify-content-center">
             <div class="col-lg-8">
                 <!-- En-tête -->
@@ -95,6 +126,7 @@
                             <ul class="mb-0 small">
                                 <li>Un document obligatoire est requis pour valider votre réservation</li>
                                 <li>Caution de {{ formatPrice(calculateReservationAmount()) }} FCFA
+                                    <!-- ✅ AJOUT : Clarifier le calcul -->
                                     ({{ props.bien.mandat?.type_mandat === 'vente' ? '5% du prix de vente' : '1 mois de loyer' }})
                                 </li>
                                 <li>Votre réservation sera validée par notre équipe</li>

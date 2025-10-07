@@ -102,6 +102,99 @@ class ContractElectronicSignatureService
     }
 
     /**
+     * Signer un contrat de vente par le vendeur
+     */
+    public function signVenteByVendeur(Vente $vente, $signatureData)
+    {
+        try {
+            if (!$this->validateSignatureData($signatureData)) {
+                throw new \Exception('Données de signature invalides');
+            }
+
+            $vente->update([
+                'vendeur_signature_data' => $signatureData,
+                'vendeur_signed_at' => now(),
+                'vendeur_signature_ip' => request()->ip(),
+            ]);
+
+            $this->updateVenteSignatureStatus($vente);
+            $this->generateSignedPdf($vente, 'vente');
+
+            Log::info('Contrat de vente signé par vendeur', [
+                'vente_id' => $vente->id,
+                'vendeur_id' => $vente->bien->proprietaire_id,
+                'signature_status' => $vente->signature_status
+            ]);
+
+            return true;
+
+        } catch (\Exception $e) {
+            Log::error('Erreur signature vendeur', [
+                'vente_id' => $vente->id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Signer un contrat de vente par l'acheteur
+     */
+    public function signVenteByAcheteur(Vente $vente, $signatureData)
+    {
+        try {
+            if (!$this->validateSignatureData($signatureData)) {
+                throw new \Exception('Données de signature invalides');
+            }
+
+            $vente->update([
+                'acheteur_signature_data' => $signatureData,
+                'acheteur_signed_at' => now(),
+                'acheteur_signature_ip' => request()->ip(),
+            ]);
+
+            $this->updateVenteSignatureStatus($vente);
+            $this->generateSignedPdf($vente, 'vente');
+
+            Log::info('Contrat de vente signé par acheteur', [
+                'vente_id' => $vente->id,
+                'acheteur_id' => $vente->acheteur_id,
+                'signature_status' => $vente->signature_status
+            ]);
+
+            return true;
+
+        } catch (\Exception $e) {
+            Log::error('Erreur signature acheteur', [
+                'vente_id' => $vente->id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Mettre à jour le statut de signature d'une vente
+     */
+    private function updateVenteSignatureStatus(Vente $vente)
+    {
+        $vente->refresh();
+
+        $vendeurSigned = $this->isVenteSignedByVendeur($vente);
+        $acheteurSigned = $this->isVenteSignedByAcheteur($vente);
+
+        if ($vendeurSigned && $acheteurSigned) {
+            $status = 'entierement_signe';
+        } elseif ($vendeurSigned || $acheteurSigned) {
+            $status = 'partiellement_signe';
+        } else {
+            $status = 'non_signe';
+        }
+
+        $vente->update(['signature_status' => $status]);
+    }
+
+    /**
      * NOUVEAU: Vérifier si le contrat vient d'être entièrement signé et déclencher les notifications
      */
     private function checkAndHandleFullSignature(Location $location, string $lastSigner)
@@ -341,7 +434,7 @@ class ContractElectronicSignatureService
      */
     public function canVenteBeSignedByVendeur(Vente $vente)
     {
-        return $vente->statut !== 'annulee' && !$this->isVenteSignedByVendeur($vente);
+        return $vente->status !== 'annulee' && !$this->isVenteSignedByVendeur($vente);
     }
 
     /**
@@ -349,6 +442,6 @@ class ContractElectronicSignatureService
      */
     public function canVenteBeSignedByAcheteur(Vente $vente)
     {
-        return $vente->statut !== 'annulee' && !$this->isVenteSignedByAcheteur($vente);
+        return $vente->status !== 'annulee' && !$this->isVenteSignedByAcheteur($vente);
     }
 }

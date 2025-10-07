@@ -303,67 +303,61 @@
                         </div>
 
                         <!-- Confirmée -->
+                        <!-- À AJOUTER dans la section "Confirmée" de Show.vue -->
                         <div v-else-if="reservation.statut === 'confirmée'">
                             <div class="mb-6">
                                 <svg class="w-16 h-16 mx-auto text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 <h3 class="text-xl font-bold text-gray-800 mb-2">Réservation confirmée</h3>
-                                <p class="text-gray-600 mb-4">Votre réservation a été validée. Vous pouvez maintenant procéder au paiement.</p>
 
-                                <div v-if="!isPaid" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                                    <div class="flex items-center justify-center mb-4">
-                                        <svg class="w-8 h-8 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                        </svg>
-                                        <div>
-                                            <div class="font-bold text-lg text-green-800">{{ formatPrice(reservation.montant) }} FCFA</div>
-                                            <div class="text-sm text-green-600">Caution de réservation</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div v-if="!isPaid" class="flex justify-center">
-                                <button @click="initiatePayment"
-                                        :disabled="processing"
-                                        class="inline-flex items-center justify-center px-8 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <span v-if="processing" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white">
-                                        <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                    </span>
-                                    <svg v-else class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                    </svg>
-                                    {{ processing ? 'Traitement...' : 'Payer maintenant' }}
-                                </button>
-                            </div>
-
-                            <div v-else class="space-y-4">
-                                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg">
+                                <!-- ✅ VÉRIFICATION SI DÉJÀ PAYÉ -->
+                                <div v-if="isPaid" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-4">
                                     <div class="flex items-center">
                                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                                         </svg>
-                                        <span class="font-semibold">Paiement effectué avec succès!</span>
+                                        <div>
+                                            <p class="font-semibold">✅ Paiement effectué avec succès!</p>
+                                            <p class="text-sm">
+                                                Montant payé: {{ formatPrice(reservation.montant) }} FCFA
+                                                <span v-if="paiement?.date_transaction">
+                            le {{ formatDate(paiement.date_transaction) }}
+                        </span>
+                                            </p>
+                                        </div>
                                     </div>
-                                    <p class="mt-2">Montant payé: {{ formatPrice(reservation.montant) }} FCFA</p>
                                 </div>
-                                <div class="flex justify-center">
-                                    <Link v-if="reservation.paiement_id"
-                                          :href="`/paiement/${reservation.paiement_id}`"
-                                          class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                        Voir le reçu
-                                    </Link>
+
+                                <div v-else>
+                                    <p class="text-gray-600 mb-4">Votre réservation a été validée. Vous pouvez maintenant procéder au paiement.</p>
+
+                                    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                                        <div class="flex items-center justify-center mb-4">
+                                            <svg class="w-8 h-8 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                            </svg>
+                                            <div>
+                                                <div class="font-bold text-lg text-green-800">{{ formatPrice(reservation.montant) }} FCFA</div>
+                                                <div class="text-sm text-green-600">Caution de réservation</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex justify-center">
+                                        <button @click="initiatePayment"
+                                                :disabled="processing"
+                                                class="inline-flex items-center justify-center px-8 py-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-lg transition-colors disabled:opacity-50">
+                                            <svg v-if="!processing" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                            </svg>
+                                            <span v-if="processing">Traitement...</span>
+                                            <span v-else>Payer maintenant</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-
                         <!-- Annulée -->
                         <div v-else-if="reservation.statut === 'annulee'">
                             <div class="mb-6">

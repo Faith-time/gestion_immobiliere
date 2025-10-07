@@ -47,11 +47,39 @@ class ReservationController extends Controller
         try {
             DB::beginTransaction();
 
-            // ✅ CORRECTION : Charger aussi la relation 'mandat'
             $bien = Bien::with('mandat')->findOrFail($request->bien_id);
 
-            if ($bien->status !== 'disponible') {
-                return back()->withErrors(['bien_id' => 'Ce bien n\'est plus disponible.']);
+            // ✅ Vérification 1: Statut du bien
+            if (!in_array($bien->status, ['disponible'])) {
+                DB::rollback();
+                return redirect()->back()
+                    ->with('error', '❌ Ce bien ne peut pas être réservé car son statut est : ' . $bien->status)
+                    ->withInput();
+            }
+
+            // ✅ Vérification 2: Réservation existante pour CE client
+            $maReservationExistante = Reservation::where('bien_id', $request->bien_id)
+                ->where('client_id', Auth::id())
+                ->whereIn('statut', ['en_attente', 'confirmée'])
+                ->first();
+
+            if ($maReservationExistante) {
+                DB::rollback();
+                return redirect()->route('reservations.show', $maReservationExistante->id)
+                    ->with('warning', '⚠️ Vous avez déjà une réservation active pour ce bien. Consultez-la ci-dessous.');
+            }
+
+            // ✅ Vérification 3: Réservation existante par un autre client
+            $reservationAutreClient = Reservation::where('bien_id', $request->bien_id)
+                ->where('client_id', '!=', Auth::id())
+                ->whereIn('statut', ['en_attente', 'confirmée'])
+                ->exists();
+
+            if ($reservationAutreClient) {
+                DB::rollback();
+                return redirect()->back()
+                    ->with('error', '❌ Ce bien est déjà réservé par un autre client.')
+                    ->withInput();
             }
 
             // Créer la réservation
@@ -64,7 +92,7 @@ class ReservationController extends Controller
                 'date_reservation' => now()
             ]);
 
-            // Uploader et créer le document
+            // Upload du document
             if ($request->hasFile('fichier')) {
                 $file = $request->file('fichier');
                 $filename = time() . '_' . Auth::id() . '_' . $request->type_document . '.' . $file->getClientOriginalExtension();
@@ -79,21 +107,21 @@ class ReservationController extends Controller
                 ]);
             }
 
-            // Mettre le bien en réservé
             $bien->update(['status' => 'reserve']);
 
             DB::commit();
 
             return redirect()->route('reservations.show', $reservation->id)
-                ->with('success', 'Réservation créée avec succès.');
+                ->with('success', '✅ Réservation créée avec succès.');
 
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->withErrors(['error' => 'Erreur: ' . $e->getMessage()]);
+            \Log::error('Erreur création réservation: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('error', '❌ Erreur: ' . $e->getMessage())
+                ->withInput();
         }
-    }
-
-    /**
+    }    /**
      * Calculer le montant de réservation selon le type de mandat
      */
     private function calculateReservationAmount(Bien $bien)
@@ -400,7 +428,15 @@ class ReservationController extends Controller
      */
     public function index()
     {
-        $reservations = Reservation::with(['bien', 'client', 'clientDocuments'])
+        $reservations = Reservation::with([
+            'bien.mandat' => function($query) {
+                $query->where('statut', 'actif');
+            },
+            'bien.category',
+            'client',
+            'clientDocuments',
+            'paiement'
+        ])
             ->where('client_id', auth()->id())
             ->orderBy('created_at', 'desc')
             ->get()
@@ -410,7 +446,14 @@ class ReservationController extends Controller
                     ->where('statut', 'valide')
                     ->isNotEmpty();
 
+                // ✅ Vérifier si déjà payée
+                $dejaPaye = \App\Models\Paiement::where('reservation_id', $reservation->id)
+                    ->where('statut', 'reussi')
+                    ->exists();
+
                 $reservation->documents_valides = $documentsValides;
+                $reservation->deja_payee = $dejaPaye;
+
                 return $reservation;
             });
 
@@ -444,75 +487,90 @@ class ReservationController extends Controller
      */
     public function initierPaiement(Reservation $reservation)
     {
-        // Debug : Ajouter des logs pour tracer l'exécution
-        \Log::info('=== DEBUG initierPaiement ===');
+        \Log::info('=== INITIER PAIEMENT RÉSERVATION ===');
         \Log::info('Reservation ID: ' . $reservation->id);
         \Log::info('Client ID: ' . auth()->id());
         \Log::info('Reservation client_id: ' . $reservation->client_id);
-        \Log::info('Reservation status: ' . $reservation->statut);
+        \Log::info('Reservation statut: ' . $reservation->statut);
 
-        // Vérification 1: Autorisation
+        // ✅ VÉRIFICATION 1: Autorisation
         if ($reservation->client_id !== auth()->id()) {
             \Log::error('Accès refusé - IDs ne correspondent pas');
             abort(403, 'Accès non autorisé');
         }
-        \Log::info('✅ Autorisation OK');
 
-        // Vérification 2: Statut de la réservation
+        // ✅ VÉRIFICATION 2: Statut de la réservation
         if ($reservation->statut !== 'confirmée') {
             \Log::error('Statut incorrect: ' . $reservation->statut);
-            return redirect()->back()->with('error', 'Cette réservation ne peut plus être payée. Statut: ' . $reservation->statut);
+            return redirect()->back()->with('error', 'Cette réservation ne peut pas être payée. Statut actuel : ' . $reservation->statut);
         }
-        \Log::info('✅ Statut OK');
 
-        // Vérification 3: Documents validés
+        // ✅ VÉRIFICATION 3: Paiement déjà effectué
+        $paiementExistant = \App\Models\Paiement::where('reservation_id', $reservation->id)
+            ->where('statut', 'reussi')
+            ->first();
+
+        if ($paiementExistant) {
+            \Log::warning('Tentative de re-paiement', [
+                'reservation_id' => $reservation->id,
+                'paiement_existant_id' => $paiementExistant->id,
+                'transaction_id' => $paiementExistant->transaction_id
+            ]);
+
+            return redirect()->route('reservations.show', $reservation->id)
+                ->with('error', '⚠️ Cette réservation a déjà été payée le ' .
+                    $paiementExistant->date_transaction->format('d/m/Y à H:i') .
+                    '. Montant : ' . number_format($paiementExistant->montant_paye, 0, '', ' ') . ' FCFA');
+        }
+
+        // ✅ VÉRIFICATION 4: Documents validés
         $documentsValides = $reservation->clientDocuments
             ->where('statut', 'valide')
             ->isNotEmpty();
 
-        \Log::info('Documents validés: ' . ($documentsValides ? 'OUI' : 'NON'));
-        \Log::info('Nombre total de documents: ' . $reservation->clientDocuments->count());
-
-        foreach ($reservation->clientDocuments as $doc) {
-            \Log::info('Document ID: ' . $doc->id . ', Statut: ' . $doc->statut);
-        }
-
         if (!$documentsValides) {
             \Log::error('Documents non validés');
-            return redirect()->back()->with('error', 'Vos documents doivent être validés avant de pouvoir effectuer le paiement.');
+            return redirect()->route('reservations.show', $reservation->id)
+                ->with('error', 'Vos documents doivent être validés par un administrateur avant de pouvoir effectuer le paiement.');
         }
-        \Log::info('✅ Documents OK');
 
-        // Vérification 4: Création/récupération du paiement
+        // ✅ TOUT EST OK - Créer ou récupérer le paiement EN ATTENTE
         try {
-            $paiement = \App\Models\Paiement::firstOrCreate([
-                'reservation_id' => $reservation->id,
+            // Chercher d'abord un paiement en attente existant
+            $paiement = \App\Models\Paiement::where('reservation_id', $reservation->id)
+                ->where('statut', 'en_attente')
+                ->first();
+
+            // Si aucun paiement en attente n'existe, en créer un nouveau
+            if (!$paiement) {
+                $paiement = \App\Models\Paiement::create([
+                    'reservation_id' => $reservation->id,
+                    'type' => 'reservation',
+                    'montant_total' => $reservation->montant,
+                    'montant_paye' => 0,
+                    'montant_restant' => $reservation->montant,
+                    'commission_agence' => $reservation->montant * 0.05,
+                    'mode_paiement' => 'mobile_money',
+                    'statut' => 'en_attente',
+                    'transaction_id' => 'RES_' . $reservation->id . '_' . time(),
+                    'date_transaction' => now(),
+                ]);
+
+                \Log::info('✅ Nouveau paiement créé - ID: ' . $paiement->id);
+            } else {
+                \Log::info('✅ Paiement en attente récupéré - ID: ' . $paiement->id);
+            }
+
+            // Redirection vers la page d'initiation du paiement
+            return redirect()->route('paiement.initier.show', [
                 'type' => 'reservation',
-            ], [
-                'montant_total' => $reservation->montant,
-                'montant_paye' => 0,
-                'montant_restant' => $reservation->montant,
-                'commission_agence' => $reservation->montant * 0.05,
-                'mode_paiement' => 'mobile_money',
-                'statut' => 'en_attente',
-                'date_transaction' => now(),
+                'id' => $reservation->id,
+                'paiement_id' => $paiement->id
             ]);
 
-            \Log::info('✅ Paiement créé/récupéré - ID: ' . $paiement->id);
         } catch (\Exception $e) {
             \Log::error('Erreur création paiement: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Erreur lors de la création du paiement: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Erreur lors de la préparation du paiement. Veuillez réessayer.');
         }
-
-        // Vérification 5: Redirection finale
-        $redirectUrl = route('paiement.initier', [
-            'type' => 'reservation',
-            'id' => $reservation->id,
-            'paiement_id' => $paiement->id
-        ]);
-
-        \Log::info('✅ URL de redirection: ' . $redirectUrl);
-
-        return redirect($redirectUrl);
     }
 }

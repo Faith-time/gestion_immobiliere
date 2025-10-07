@@ -24,6 +24,14 @@ class Paiement extends Model
         'reservation_id'
     ];
 
+    protected $casts = [
+        'date_transaction' => 'datetime',
+        'montant_total' => 'decimal:2',
+        'montant_paye' => 'decimal:2',
+        'montant_restant' => 'decimal:2',
+        'commission_agence' => 'decimal:2',
+    ];
+
     public function vente()
     {
         return $this->belongsTo(Vente::class);

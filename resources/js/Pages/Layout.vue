@@ -49,7 +49,7 @@
                                         <h6 class="filter-title">Navigation rapide</h6>
                                     </li>
                                     <li>
-                                        <Link class="filter-option" @click="handleNavClick">
+                                        <Link :href="route('home')" class="filter-option" @click="handleNavClick">
                                             <i class="fas fa-list me-2"></i>
                                             Tous les biens disponibles
                                         </Link>
@@ -86,18 +86,35 @@
                                 </Link>
                             </li>
 
-                            <!-- Mes Achats - Visible pour les clients -->
-                            <li class="nav-item" v-if="$page.props.auth.user">
-                                <Link
-                                    :href="route('ventes.index')"
-                                    class="nav-link"
-                                    :class="{ active: $page.component === 'Ventes/Index' }"
-                                >
-                                    <i class="fas fa-handshake me-1"></i>
-                                    {{ userHasMultipleRoles ? 'Mes Transactions' : (userIsOnlyBuyer ? 'Mes Achats' : 'Mes Ventes') }}
-                                </Link>
-                            </li>
+                            <!-- Section Transactions - Affichage conditionnel -->
+                            <li v-if="$page.props.auth.user && !hasRole('admin')" class="has-children">
+                                <a href="#" @click.prevent>Mes Transactions</a>
+                                <ul class="dropdown">
+                                    <!-- Si l'utilisateur a des achats -->
+                                    <li v-if="userHasAchats || !hasRole('proprietaire')">
+                                        <Link
+                                            :href="route('ventes.index')"
+                                            :class="{ 'active': route().current('ventes.*') }"
+                                            @click="handleNavClick"
+                                        >
+                                            <i class="fas fa-shopping-cart me-2"></i>
+                                            Mes Achats
+                                        </Link>
+                                    </li>
 
+                                    <!-- Si l'utilisateur est propriétaire -->
+                                    <li v-if="hasRole('proprietaire')">
+                                        <Link
+                                            :href="route('ventes.index')"
+                                            :class="{ 'active': route().current('ventes.*') }"
+                                            @click="handleNavClick"
+                                        >
+                                            <i class="fas fa-home me-2"></i>
+                                            Mes Ventes
+                                        </Link>
+                                    </li>
+                                </ul>
+                            </li>
 
                             <!-- Toutes les réservations - Visible uniquement pour admin -->
                             <li v-if="hasRole('admin')">
@@ -133,13 +150,12 @@
                             </li>
 
                             <!-- Utilisateurs - Visible uniquement pour admin -->
-                            <li v-if="hasRole('admin')">
+                            <li>
                                 <Link
-                                    :href="route('users.index')"
-                                    :class="{ 'active': route().current('users.*') }"
+                                    :href="route('conversations.index')"
                                     @click="handleNavClick"
                                 >
-                                    Utilisateurs
+                                    Conversations
                                 </Link>
                             </li>
 
@@ -362,7 +378,7 @@
                         <h5 class="mb-3">Navigation</h5>
                         <ul class="list-unstyled">
                             <li><Link :href="route('home')" class="text-white">Accueil</Link></li>
-                            <li><Link class="text-white">Catalogue</Link></li>
+                            <li><Link :href="route('home')" class="text-white">Catalogue</Link></li>
                             <li><a href="#" class="text-white">Services</a></li>
                             <li><a href="#" class="text-white">Contact</a></li>
                         </ul>
@@ -390,9 +406,27 @@
 <script setup>
 import {Link, router, usePage} from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
-import { ref, computed, provide } from 'vue'
+import { ref, computed, provide, onMounted } from 'vue'
 
 const page = usePage()
+
+const props = defineProps({
+    errors: Object,
+    auth: Object,
+    flash: Object,
+    userHasMultipleRoles: {
+        type: Boolean,
+        default: false
+    },
+    userIsOnlyBuyer: {
+        type: Boolean,
+        default: false
+    },
+    userHasAchats: {
+        type: Boolean,
+        default: false
+    }
+})
 
 // État des filtres
 const showModal = ref(false)
@@ -407,6 +441,28 @@ const filters = ref({
     floors: ''
 })
 
+// Initialiser les filtres depuis l'URL au chargement
+const initializeFiltersFromUrl = () => {
+    const urlParams = new URLSearchParams(window.location.search)
+
+    filters.value = {
+        minPrice: urlParams.get('minPrice') ? Number(urlParams.get('minPrice')) : '',
+        maxPrice: urlParams.get('maxPrice') ? Number(urlParams.get('maxPrice')) : '',
+        city: urlParams.get('city') || '',
+        address: urlParams.get('address') || '',
+        rooms: urlParams.get('rooms') || '',
+        bathrooms: urlParams.get('bathrooms') || '',
+        floors: urlParams.get('floors') || ''
+    }
+
+    console.log('Filtres chargés depuis URL:', filters.value)
+}
+
+// Charger les filtres au montage du composant
+onMounted(() => {
+    initializeFiltersFromUrl()
+})
+
 // Computed pour vérifier s'il y a des filtres actifs
 const hasActiveFilters = computed(() => {
     return Object.values(filters.value).some(value => value !== '')
@@ -418,6 +474,7 @@ const hasRole = (roleName) => {
     if (!user || !user.roles) return false
     return user.roles.includes(roleName)
 }
+
 
 // Computed pour les rôles utilisateur
 const userRoles = computed(() => {
@@ -475,8 +532,8 @@ const applyFilters = () => {
         if (value) queryParams.set(key, value)
     })
 
-    // Redirection vers le catalogue avec les filtres
-    window.location.href = route('biens.catalogue') + (queryParams.toString() ? '?' + queryParams.toString() : '')
+    // Utiliser la route 'home' au lieu de 'biens.catalogue'
+    window.location.href = route('home') + (queryParams.toString() ? '?' + queryParams.toString() : '')
     closeModal()
 }
 
@@ -494,7 +551,7 @@ const resetFilters = () => {
 
 const clearAllFilters = () => {
     resetFilters()
-    window.location.href = route('biens.catalogue')
+    window.location.href = route('home')
 }
 
 const formatFilterDisplay = () => {

@@ -11,22 +11,32 @@ class HomeController extends Controller
 {
     public function index(Request $request)
     {
-        // Récupérer tous les biens disponibles avec leurs relations
-        $biensQuery = Bien::with(['category', 'proprietaire'])
-            ->where('status', 'disponible')
-            ->orderBy('created_at', 'desc');
+        $user = auth()->user();
+        $biensQuery = Bien::with(['category', 'mandat'])
+            ->where('status', 'disponible');
+
+        // Calcul des rôles de l'utilisateur
+        $ventesAsAcheteur = \App\Models\Vente::where('acheteur_id', $user->id)->exists();
+        $ventesAsProprietaire = \App\Models\Vente::whereHas('bien', function($q) use ($user) {
+            $q->where('proprietaire_id', $user->id);
+        })->exists();
 
         // Appliquer les filtres de recherche si présents
         if ($request->filled('city')) {
             $biensQuery->where('city', 'like', '%' . $request->city . '%');
         }
 
-        if ($request->filled('min_price')) {
-            $biensQuery->where('price', '>=', $request->min_price);
+        // ✅ CORRECTION : Utiliser minPrice et maxPrice au lieu de min_price et max_price
+        if ($request->filled('minPrice')) {
+            $biensQuery->where('price', '>=', $request->minPrice);
         }
 
-        if ($request->filled('max_price')) {
-            $biensQuery->where('price', '<=', $request->max_price);
+        if ($request->filled('maxPrice')) {
+            $biensQuery->where('price', '<=', $request->maxPrice);
+        }
+
+        if ($request->filled('address')) {
+            $biensQuery->where('address', 'like', '%' . $request->address . '%');
         }
 
         if ($request->filled('category')) {
@@ -36,19 +46,23 @@ class HomeController extends Controller
         }
 
         if ($request->filled('rooms')) {
-            if ($request->rooms === '5+') {
+            if ($request->rooms === '5' || $request->rooms >= 5) {
                 $biensQuery->where('rooms', '>=', 5);
             } else {
-                $biensQuery->where('rooms', $request->rooms);
+                $biensQuery->where('rooms', '>=', $request->rooms);
             }
         }
 
         if ($request->filled('bathrooms')) {
-            if ($request->bathrooms === '4+') {
+            if ($request->bathrooms === '4' || $request->bathrooms >= 4) {
                 $biensQuery->where('bathrooms', '>=', 4);
             } else {
-                $biensQuery->where('bathrooms', $request->bathrooms);
+                $biensQuery->where('bathrooms', '>=', $request->bathrooms);
             }
+        }
+
+        if ($request->filled('floors')) {
+            $biensQuery->where('floors', '>=', $request->floors);
         }
 
         // Récupérer tous les biens correspondants aux critères
@@ -69,16 +83,17 @@ class HomeController extends Controller
 
         return Inertia::render('Home', [
             'biens' => $biens,
+            'userHasMultipleRoles' => $ventesAsAcheteur && $ventesAsProprietaire,
+            'userIsOnlyBuyer' => $ventesAsAcheteur && !$ventesAsProprietaire,
             'totalBiens' => $biens->count(),
             'stats' => $stats,
             'categories' => $categories,
             'cities' => $cities,
             'filters' => $request->only([
-                'city', 'min_price', 'max_price', 'category', 'rooms', 'bathrooms'
+                'city', 'minPrice', 'maxPrice', 'address', 'category', 'rooms', 'bathrooms', 'floors'
             ])
         ]);
     }
-
     /**
      * Calculer les statistiques des biens
      */

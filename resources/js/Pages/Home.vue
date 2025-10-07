@@ -1,4 +1,6 @@
 <template>
+    <pre>{{ JSON.stringify($page.props.debug, null, 2) }}</pre>
+
     <div>
         <!-- Menu mobile -->
         <div class="site-mobile-menu site-navbar-target">
@@ -483,18 +485,17 @@
                     <div class="col-lg-3 col-md-6">
                         <div class="service-card text-center p-4 h-100">
                             <div class="service-icon mb-3">
-                                <i class="fas fa-robot"></i>
+                                <i class="fas fa-comments"></i>
                             </div>
-                            <h3 class="service-title mb-3">Assistant IA</h3>
+                            <h3 class="service-title mb-3">Contactez-nous</h3>
                             <p class="service-description mb-3">
-                                Discutez avec notre assistant intelligent disponible 24h/24.
+                                Besoin d'aide ? Discutez directement avec notre équipe d'experts immobiliers.
                             </p>
-                            <button class="service-btn" @click="openChatAssistant">
-                                Discuter maintenant
-                            </button>
+                            <Link :href="route('conversations.index')" class="service-btn">
+                                Discuter avec l'agence
+                            </Link>
                         </div>
                     </div>
-
                     <div class="col-lg-3 col-md-6">
                         <div class="service-card text-center p-4 h-100">
                             <div class="service-icon mb-3">
@@ -666,6 +667,9 @@
                 </div>
             </div>
         </section>
+
+        <!-- Widget de Chat IA - AJOUTEZ CECI -->
+        <ChatWidget />
     </div>
 </template>
 
@@ -683,6 +687,8 @@ import { route } from 'ziggy-js'
 import { onMounted, computed, ref, watch, nextTick } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { tns } from 'tiny-slider/src/tiny-slider'
+import ChatWidget from '../Pages/ChatWidget.vue'
+
 
 // Images par défaut
 import defaultImage1 from '@/assets/images/hero_bg_3.jpg'
@@ -991,10 +997,14 @@ const toggleView = (slider) => {
     }
 }
 
-// Méthodes pour les services
+const chatWidgetRef = ref(null)
+
 const openChatAssistant = () => {
-    // Implémenter l'ouverture du chat assistant
-    console.log('Ouverture du chat assistant')
+    // Le widget s'ouvrira automatiquement au clic sur le bouton
+    // Le composant ChatWidget gère son propre état d'ouverture
+    console.log('Ouverture du chat assistant demandée')
+    // Vous pouvez aussi faire défiler vers le bas pour montrer le widget
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
 }
 
 const scheduleVisit = () => {
@@ -1710,5 +1720,34 @@ onMounted(() => {
 /* Masquer l'indicateur une fois le slider initialisé */
 .hero-slider.tns-slider::before {
     display: none;
+}
+
+/* Positionnement du widget de chat en bas à gauche */
+:deep(.fixed) {
+    position: fixed;
+}
+
+:deep(.bottom-6) {
+    bottom: 1.5rem;
+}
+
+:deep(.right-6) {
+    right: auto !important;
+    left: 1.5rem !important; /* Change de droite à gauche */
+}
+
+:deep(.z-50) {
+    z-index: 1050;
+}
+
+/* Ajustement pour mobile */
+@media (max-width: 768px) {
+    :deep(.bottom-6) {
+        bottom: 1rem;
+    }
+
+    :deep(.right-6) {
+        left: 1rem !important;
+    }
 }
 </style>

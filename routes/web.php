@@ -4,7 +4,9 @@ use App\Http\Controllers\AuthentificationController;
 use App\Http\Controllers\AvisRetardController;
 use App\Http\Controllers\BienController;
 use App\Http\Controllers\CategorieController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ClientDocumentController;
+use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\PaiementController;
@@ -20,15 +22,12 @@ use Illuminate\Support\Facades\Route;
 | Routes d'Authentification (Publiques)
 |--------------------------------------------------------------------------
 */
-
-// Routes d'authentification POST
 Route::prefix('/auth')->controller(AuthentificationController::class)->name('auth.')->group(function () {
     Route::post('/login', 'login')->name('login');
     Route::post('/register', 'register')->name('register');
     Route::post('/logout', 'logout')->name('logout');
 });
 
-// Pages d'authentification GET
 Route::get('auth/showLogin', [AuthentificationController::class, 'showLogin'])->name('login');
 Route::get('auth/showRegister', [AuthentificationController::class, 'showRegister'])->name('register');
 
@@ -37,56 +36,43 @@ Route::get('auth/showRegister', [AuthentificationController::class, 'showRegiste
 | Routes Protégées
 |--------------------------------------------------------------------------
 */
-
 Route::middleware('authenticate')->group(function () {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Route d'Accueil
-    |--------------------------------------------------------------------------
-    */
     Route::get('/', [HomeController::class, 'index'])->name('home');
 
     /*
     |--------------------------------------------------------------------------
-    | Routes des Biens Immobiliers
+    | Routes des Biens
     |--------------------------------------------------------------------------
     */
     Route::prefix('/biens')->controller(BienController::class)->name('biens.')->group(function () {
-        // CRUD des biens
         Route::get('/', 'index')->name('index');
         Route::get('/create', 'create')->name('create');
         Route::post('/', 'store')->name('store');
+        Route::get('/catalogue', 'catalogue')->name('catalogue');
         Route::get('/{bien}', 'show')->name('show');
         Route::get('/{bien}/edit', 'edit')->name('edit');
         Route::put('/{bien}', 'update')->name('update');
         Route::delete('/{bien}', 'destroy')->name('destroy');
 
-        // Actions administratives
         Route::post('/{bien}/valider', 'valider')->name('valider');
         Route::post('/{bien}/rejeter', 'rejeter')->name('rejeter');
 
-        // Gestion des mandats
         Route::prefix('/{bien}/mandat')->name('mandat.')->group(function () {
-            // PDF du mandat
             Route::get('/download', 'downloadMandatPdf')->name('download');
             Route::get('/preview', 'previewMandatPdf')->name('preview');
             Route::post('/regenerate', 'regenerateMandatPdf')->name('regenerate');
 
-            // Signature du mandat
             Route::get('/sign', 'showSignaturePage')->name('sign');
             Route::post('/sign/proprietaire', 'signByProprietaire')->name('sign-proprietaire');
             Route::post('/sign/agence', 'signByAgence')->name('sign-agence');
             Route::delete('/sign/{signatoryType}', 'cancelSignature')->name('cancel-signature');
             Route::get('/signature-status', 'getSignatureStatus')->name('signature-status');
 
-            // PDF signé du mandat
             Route::get('/download-signed', 'downloadSignedMandatPdf')->name('download-signed');
             Route::get('/preview-signed', 'previewSignedMandatPdf')->name('preview-signed');
         });
     });
 
-    // Route de debug (à retirer en production)
     Route::get('/debug/signature/{bien}', [BienController::class, 'debugSignatureData'])->name('debug.signature');
 
     /*
@@ -140,6 +126,11 @@ Route::middleware('authenticate')->group(function () {
         Route::get('/{visite}/edit', 'edit')->name('edit');
         Route::put('/{visite}', 'update')->name('update');
         Route::delete('/{visite}', 'destroy')->name('destroy');
+        Route::post('/{visite}/annuler', 'annuler')->name('annuler');
+        // Routes admin
+        Route::post('/{visite}/confirmer', 'confirmer')->name('confirmer');
+        Route::post('/{visite}/rejeter', 'rejeter')->name('rejeter');
+        Route::post('/{visite}/marquer-effectuee', 'marquerEffectuee')->name('marquer-effectuee');
     });
 
     /*
@@ -158,7 +149,6 @@ Route::middleware('authenticate')->group(function () {
         Route::get('/{reservation}/initier-paiement', 'initierPaiement')->name('initier-paiement');
     });
 
-    // Routes admin pour les réservations
     Route::prefix('/admin')->name('admin.')->group(function () {
         Route::get('/reservations', [ReservationController::class, 'adminIndex'])->name('reservations.index');
         Route::post('/reservations/{reservation}/valider', [ReservationController::class, 'valider'])->name('reservations.valider');
@@ -171,7 +161,6 @@ Route::middleware('authenticate')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('/ventes')->controller(VenteController::class)->name('ventes.')->group(function () {
-        // CRUD des ventes
         Route::get('/', 'index')->name('index');
         Route::get('/create', 'create')->name('create');
         Route::post('/', 'store')->name('store');
@@ -180,20 +169,12 @@ Route::middleware('authenticate')->group(function () {
         Route::put('/{vente}', 'update')->name('update');
         Route::delete('/{vente}', 'destroy')->name('destroy');
 
-        // Contrats et signatures de vente
         Route::prefix('/{vente}')->group(function () {
-            // Gestion des contrats
             Route::get('/contrat/download', 'downloadContract')->name('contract.download');
             Route::get('/contrat/preview', 'previewContract')->name('contract.preview');
-
-            // Page de signature
             Route::get('/signature', 'showSignaturePage')->name('signature.show');
-
-            // Actions de signature
             Route::post('/signature/vendeur', 'signByVendeur')->name('signature.vendeur');
             Route::post('/signature/acheteur', 'signByAcheteur')->name('signature.acheteur');
-
-            // Annulation de signature
             Route::delete('/signature/{signatoryType}', 'cancelSignature')
                 ->name('signature.cancel')
                 ->where('signatoryType', 'vendeur|acheteur');
@@ -206,36 +187,28 @@ Route::middleware('authenticate')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('/locations')->controller(LocationController::class)->name('locations.')->group(function () {
-        // CRUD des locations
         Route::get('/', 'index')->name('index');
-
-        Route::get('/create', [LocationController::class, 'create'])
-            ->name('create');
+        Route::get('/create', 'create')->name('create');
         Route::post('/', 'store')->name('store');
         Route::get('/{location}', 'show')->name('show');
         Route::get('/{location}/edit', 'edit')->name('edit');
         Route::put('/{location}', 'update')->name('update');
         Route::delete('/{location}', 'destroy')->name('destroy');
 
-        // Contrats et signatures de location
         Route::prefix('/{location}')->group(function () {
-            // Gestion des contrats
             Route::get('/contrat/download', 'downloadContract')->name('contract.download');
             Route::get('/contrat/preview', 'previewContract')->name('contract.preview');
-
-            // Page de signature
             Route::get('/signature', 'showSignaturePage')->name('signature.show');
-
-            // Actions de signature
             Route::post('/signature/bailleur', 'signByBailleur')->name('signature.bailleur');
             Route::post('/signature/locataire', 'signByLocataire')->name('signature.locataire');
-
-            // Annulation de signature
             Route::delete('/signature/{signatoryType}', 'cancelSignature')
                 ->name('signature.cancel')
                 ->where('signatoryType', 'bailleur|locataire');
         });
     });
+
+    Route::post('/locations/{location}/test-notifications', [LocationController::class, 'testNotifications'])
+        ->name('locations.test.notifications');
 
     /*
     |--------------------------------------------------------------------------
@@ -253,42 +226,40 @@ Route::middleware('authenticate')->group(function () {
     });
 
     /*
-   /*
-|--------------------------------------------------------------------------
-| Routes des Paiements
-|--------------------------------------------------------------------------
-*/
-    // NOUVELLE: Route pour tester manuellement les notifications
-    Route::post('/locations/{location}/test-notifications', [LocationController::class, 'testNotifications'])
-        ->name('locations.test.notifications');
+    |--------------------------------------------------------------------------
+    | Routes des Paiements (PayDunya)
+    |--------------------------------------------------------------------------
+    */
     Route::prefix('/paiement')->controller(PaiementController::class)->name('paiement.')->group(function () {
-        // Routes sans paramètres (à placer AVANT les routes avec paramètres)
+        // Routes CRUD
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');
-        Route::get('/initier', 'showInitierPaiement')->name('initier.show');
+
+        // ✅ CORRECTION : Route avec paramètres d'URL
+        Route::get('/initier/{id}/{paiement_id}', 'showInitierPaiement')->name('initier.show');
         Route::post('/initier', 'initier')->name('initier');
-        Route::get('/erreur', 'showErreur')->name('erreur');
 
-        // Routes de simulation (mode test uniquement)
-        Route::get('/simulation/{paiement}/page', 'simulationPage')->name('simulation.page');
-        Route::get('/simulation/{paiement}/process', 'simulationProcess')->name('simulation.process');
-        Route::get('/simulation/{paiement}', 'simulation')->name('simulation'); // Route existante conservée
-
-        // Routes utilitaires
-        Route::get('/debug-cinetpay', 'debugCinetPay')->name('debug');
-        Route::get('/options', 'getPaiementOptions')->name('options');
-
-        // Webhooks CinetPay (sans middleware auth)
-        Route::post('/notify', 'notify')->name('notify')->withoutMiddleware(['auth']);
-
-        // Routes avec paramètres (à placer APRÈS)
+        // Pages de résultat
         Route::get('/succes/{paiement}', 'showSucces')->name('succes');
         Route::get('/retour/{paiement}', 'retour')->name('retour');
+        Route::get('/erreur', 'showErreur')->name('erreur');
+
+        // Utilitaires
+        Route::get('/options', 'getPaiementOptions')->name('options');
+
+        // CRUD avec paramètres
         Route::get('/{paiement}', 'show')->name('show');
         Route::put('/{paiement}', 'update')->name('update');
         Route::delete('/{paiement}', 'destroy')->name('destroy');
     });
+    Route::get('/paiement/{id}/info-fractionnement', [PaiementController::class, 'getInfoPaiementFractionne'])
+        ->name('paiement.info.fractionnement');
 
+    /*
+    |--------------------------------------------------------------------------
+    | Routes des Avis de Retard
+    |--------------------------------------------------------------------------
+    */
     Route::prefix('/avis-retard')->controller(AvisRetardController::class)->name('avis-retard.')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/{avisRetard}', 'show')->name('show');
@@ -297,7 +268,46 @@ Route::middleware('authenticate')->group(function () {
         Route::post('/traiter-automatique', 'traiterNotificationsAutomatiques')->name('traiter');
         Route::post('/{avisRetard}/paye', 'marquerPaye')->name('paye');
         Route::post('/test-mailtrap', 'testMailtrap')->name('test-mailtrap');
+    });
 
+    /*
+    |--------------------------------------------------------------------------
+    | Routes du Chat
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
+    Route::post('/chat', [ChatController::class, 'store'])->name('chat.store');
+    Route::get('/chat/{chat}', [ChatController::class, 'show'])->name('chat.show');
+    Route::post('/chat/{chat}/message', [ChatController::class, 'sendMessage'])->name('chat.message');
+    Route::put('/chat/{chat}', [ChatController::class, 'update'])->name('chat.update');
+    Route::delete('/chat/{chat}', [ChatController::class, 'destroy'])->name('chat.destroy');
+    Route::put('/chat/message/{message}', [ChatController::class, 'updateMessage'])->name('chat.message.update');
+    Route::delete('/chat/message/{message}', [ChatController::class, 'destroyMessage'])->name('chat.message.destroy');
+
+    Route::prefix('/conversations')->controller(ConversationController::class)->name('conversations.')->group(function () {
+        // Liste des conversations
+        Route::get('/', 'index')->name('index');
+
+        // Créer une nouvelle conversation
+        Route::post('/', 'store')->name('store');
+
+        // Afficher une conversation
+        Route::get('/{conversation}', 'show')->name('show');
+
+        // Envoyer un message
+        Route::post('/{conversation}/message', 'sendMessage')->name('message');
+
+        // Marquer comme lu
+        Route::post('/{conversation}/mark-read', 'markAsRead')->name('mark-read');
+
+        // Mettre à jour le statut "en train d'écrire"
+        Route::post('/{conversation}/typing', 'updateTyping')->name('typing');
+
+        // Fermer une conversation
+        Route::post('/{conversation}/close', 'close')->name('close');
+
+        // Supprimer une conversation (admin uniquement)
+        Route::delete('/{conversation}', 'destroy')->name('destroy');
     });
 });
 

@@ -1,5 +1,24 @@
 <template>
     <div class="container py-5">
+        <!-- ✅ AJOUT : Messages Flash -->
+        <div v-if="$page.props.flash?.success" class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-check-circle me-2"></i>
+            {{ $page.props.flash.success }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div v-if="$page.props.flash?.error" class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            {{ $page.props.flash.error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div v-if="$page.props.flash?.warning" class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {{ $page.props.flash.warning }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h1 class="h2 text-primary">Mes réservations</h1>
@@ -21,9 +40,9 @@
                         :class="filtreActif === 'confirmée' ? 'btn-success' : 'btn-outline-success'">
                     Confirmées
                 </button>
-                <button @click="filtrerReservations('annulee')"
+                <button @click="filtrerReservations('annulée')"
                         class="btn btn-sm"
-                        :class="filtreActif === 'annulee' ? 'btn-danger' : 'btn-outline-danger'">
+                        :class="filtreActif === 'annulée' ? 'btn-danger' : 'btn-outline-danger'">
                     Annulées
                 </button>
             </div>
@@ -86,24 +105,60 @@
                                         <small><strong>Date:</strong></small>
                                         <small>{{ formatDateCourt(reservation.date_reservation) }}</small>
                                     </div>
+                                    <!-- NOUVEAU: Afficher le type de mandat -->
+                                    <div v-if="reservation.bien?.mandat" class="d-flex justify-content-between mb-1">
+                                        <small><strong>Type:</strong></small>
+                                        <small>
+                                            <span v-if="reservation.bien.mandat.type_mandat === 'vente'" class="badge bg-info">
+                                                <i class="fas fa-home me-1"></i>Vente
+                                            </span>
+                                            <span v-else class="badge bg-warning text-dark">
+                                                <i class="fas fa-key me-1"></i>Location
+                                            </span>
+                                        </small>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="card-footer bg-light d-flex justify-content-between">
+                    <div class="card-footer bg-light d-flex justify-content-between flex-wrap gap-2">
                         <Link :href="route('reservations.show', reservation.id)"
                               class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-eye me-1"></i>Voir détails
                         </Link>
 
                         <div class="btn-group" role="group">
-                            <!-- Bouton paiement si en_attente et documents validés -->
-                            <Link v-if="reservation.statut === 'en_attente' && peutPayer(reservation)"
+                            <!-- ✅ NOUVEAU: Boutons conditionnels selon le type de mandat ET le statut confirmée -->
+                            <template v-if="reservation.statut === 'confirmée' && reservation.bien?.mandat">
+                                <!-- Bouton Achat pour mandat de vente -->
+                                <Link v-if="reservation.bien.mandat.type_mandat === 'vente'"
+                                      :href="route('ventes.create', { bien_id: reservation.bien.id })"
+                                      class="btn btn-sm btn-success">
+                                    <i class="fas fa-shopping-cart me-1"></i>Procéder à l'achat
+                                </Link>
+
+                                <!-- Bouton Location pour mandat de gestion locative -->
+                                <Link v-else-if="reservation.bien.mandat.type_mandat === 'gestion_locative'"
+                                      :href="route('locations.create', { bien_id: reservation.bien.id })"
+                                      class="btn btn-sm btn-primary">
+                                    <i class="fas fa-key me-1"></i>Procéder à la location
+                                </Link>
+                            </template>
+
+                            <!-- Bouton paiement si en_attente, documents validés ET pas encore payée -->
+                            <Link v-if="reservation.statut === 'en_attente' && peutPayer(reservation) && !reservation.deja_payee"
                                   :href="route('reservations.initier-paiement', reservation.id)"
                                   class="btn btn-sm btn-success">
                                 <i class="fas fa-credit-card me-1"></i>Payer
                             </Link>
+
+                            <!-- Message si déjà payée -->
+                            <span v-else-if="reservation.deja_payee"
+                                  class="btn btn-sm btn-outline-success disabled"
+                                  title="Paiement déjà effectué">
+                                <i class="fas fa-check-circle me-1"></i>Payée
+                            </span>
 
                             <!-- Message si documents non validés -->
                             <span v-else-if="reservation.statut === 'en_attente' && !peutPayer(reservation)"
@@ -112,15 +167,15 @@
                                 <i class="fas fa-clock me-1"></i>Documents en cours
                             </span>
 
-                            <!-- Bouton édition si en attente -->
-                            <Link v-if="reservation.statut === 'en_attente'"
+                            <!-- Bouton édition si en attente et pas encore payée -->
+                            <Link v-if="reservation.statut === 'en_attente' && !reservation.deja_payee"
                                   :href="route('reservations.edit', reservation.id)"
                                   class="btn btn-sm btn-outline-secondary">
                                 <i class="fas fa-edit me-1"></i>Modifier
                             </Link>
 
-                            <!-- Bouton annulation -->
-                            <button v-if="reservation.statut === 'en_attente'"
+                            <!-- Bouton annulation si en attente et pas encore payée -->
+                            <button v-if="reservation.statut === 'en_attente' && !reservation.deja_payee"
                                     @click="annulerReservation(reservation.id)"
                                     class="btn btn-sm btn-outline-danger">
                                 <i class="fas fa-times me-1"></i>Annuler
@@ -202,7 +257,7 @@ const getStatutText = (statut) => {
     const textes = {
         'en_attente': 'En attente',
         'confirmée': 'Confirmée',
-        'annulee': 'Annulée'
+        'annulée': 'Annulée'
     }
     return textes[statut] || statut
 }
@@ -211,7 +266,7 @@ const getStatutClass = (statut) => {
     const classes = {
         'en_attente': 'bg-warning text-dark',
         'confirmée': 'bg-success',
-        'annulee': 'bg-danger'
+        'annulée': 'bg-danger'
     }
     return classes[statut] || 'bg-secondary'
 }
@@ -230,7 +285,7 @@ const getMessageVide = () => {
         'tous': 'Vous n\'avez encore aucune réservation.',
         'en_attente': 'Aucune réservation en attente.',
         'confirmée': 'Aucune réservation confirmée.',
-        'annulee': 'Aucune réservation annulée.'
+        'annulée': 'Aucune réservation annulée.'
     }
     return messages[filtreActif.value] || 'Aucune réservation trouvée.'
 }
@@ -239,9 +294,7 @@ const filtrerReservations = (filtre) => {
     filtreActif.value = filtre
 }
 
-// NOUVELLE FONCTION : Vérifier si une réservation peut être payée
 const peutPayer = (reservation) => {
-    // Vérifier si la réservation a des documents validés
     return reservation.documents_valides === true || reservation.documents_valides === 1
 }
 
@@ -294,6 +347,13 @@ const annulerReservation = (id) => {
     .btn-group {
         width: 100%;
         justify-content: space-between;
+        flex-wrap: wrap;
+    }
+
+    .btn-group .btn,
+    .btn-group a {
+        flex: 1 1 auto;
+        min-width: fit-content;
     }
 }
 </style>

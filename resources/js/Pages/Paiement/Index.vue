@@ -1,450 +1,334 @@
-<!-- resources/js/Pages/Paiement/Index.vue -->
 <template>
-    <div class="container py-5">
-        <div class="row">
-            <div class="col-12">
-                <!-- En-tête -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2 class="mb-0">
-                        <i class="fas fa-credit-card me-3 text-primary"></i>Mes paiements
-                    </h2>
-                    <div class="text-muted">
-                        {{ paiements.length }} paiement{{ paiements.length > 1 ? 's' : '' }}
-                    </div>
-                </div>
-
-                <!-- Messages de session -->
-                <div v-if="$page.props.flash?.success" class="alert alert-success alert-dismissible fade show mb-4">
-                    <i class="fas fa-check-circle me-2"></i>
-                    {{ $page.props.flash.success }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-
-                <div v-if="$page.props.flash?.error" class="alert alert-danger alert-dismissible fade show mb-4">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    {{ $page.props.flash.error }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-
-                <!-- Filtres -->
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-body">
-                        <div class="row g-3 align-items-end">
-                            <div class="col-md-3">
-                                <label for="filter_statut" class="form-label small text-muted">Statut</label>
-                                <select
-                                    id="filter_statut"
-                                    v-model="filters.statut"
-                                    class="form-select form-select-sm">
-                                    <option value="">Tous les statuts</option>
-                                    <option value="en_attente">En attente</option>
-                                    <option value="reussi">Réussi</option>
-                                    <option value="echoue">Échec</option>
-                                </select>
+    <Layout title="Paiement">
+        <div class="py-12">
+            <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
+                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
+                    <div class="p-8">
+                        <!-- En-tête -->
+                        <div class="text-center mb-8">
+                            <div class="flex justify-center mb-4">
+                                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                    </svg>
+                                </div>
                             </div>
-                            <div class="col-md-3">
-                                <label for="filter_type" class="form-label small text-muted">Type</label>
-                                <select
-                                    id="filter_type"
-                                    v-model="filters.type"
-                                    class="form-select form-select-sm">
-                                    <option value="">Tous les types</option>
-                                    <option value="reservation">Réservation</option>
-                                    <option value="location">Location</option>
-                                    <option value="vente">Vente</option>
-                                </select>
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">Finaliser le Paiement</h2>
+                            <p class="text-gray-600">Vous allez être redirigé vers PayDunya pour effectuer le paiement sécurisé</p>
+                        </div>
+
+                        <!-- Alerte fractionnement (si applicable) -->
+                        <div v-if="infoFractionnement" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div class="flex items-start">
+                                <svg class="w-6 h-6 text-yellow-500 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <div>
+                                    <h4 class="font-semibold text-yellow-800 mb-2">Paiement en plusieurs tranches</h4>
+                                    <p class="text-sm text-yellow-700 mb-2">
+                                        Le montant total ({{ formatPrice(paiement.montant_total) }} FCFA) dépasse la limite de PayDunya
+                                        ({{ formatPrice(infoFractionnement.limite_paydunya) }} FCFA).
+                                    </p>
+                                    <p class="text-sm text-yellow-700">
+                                        Vous devez effectuer <strong>{{ infoFractionnement.nombre_tranches }} paiements</strong> successifs.
+                                        <br>
+                                        <strong>Ce paiement : {{ formatPrice(infoFractionnement.montant_a_payer) }} FCFA</strong>
+                                    </p>
+                                </div>
                             </div>
-                            <div class="col-md-3">
-                                <label for="filter_mode" class="form-label small text-muted">Mode de paiement</label>
-                                <select
-                                    id="filter_mode"
-                                    v-model="filters.mode_paiement"
-                                    class="form-select form-select-sm">
-                                    <option value="">Tous les modes</option>
-                                    <option value="mobile_money">Mobile Money</option>
-                                    <option value="carte">Carte bancaire</option>
-                                    <option value="virement">Virement</option>
-                                </select>
+                        </div>
+
+                        <!-- Détails du paiement -->
+                        <div class="mb-8 bg-gray-50 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Détails du Paiement</h3>
+
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">Type :</span>
+                                    <span class="font-semibold capitalize">{{ getTypeLabel(type) }}</span>
+                                </div>
+
+                                <div v-if="item.bien" class="flex justify-between items-center">
+                                    <span class="text-gray-600">Bien :</span>
+                                    <span class="font-semibold text-right">{{ item.bien.title }}</span>
+                                </div>
+
+                                <!-- Affichage du montant selon le type -->
+                                <template v-if="type === 'reservation'">
+                                    <!-- Pour les réservations: toujours le montant total -->
+                                    <div class="flex justify-between items-center pt-3 border-t border-gray-200">
+                                        <span class="text-gray-600">Montant à Payer :</span>
+                                        <span class="text-2xl font-bold text-green-600">
+                                            {{ formatPrice(paiement.montant_total) }} FCFA
+                                        </span>
+                                    </div>
+                                </template>
+
+                                <template v-else>
+                                    <!-- Pour ventes et locations: afficher total et montant à payer -->
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-gray-600">Montant Total :</span>
+                                        <span class="font-semibold">{{ formatPrice(paiement.montant_total) }} FCFA</span>
+                                    </div>
+
+                                    <div v-if="paiement.montant_paye > 0" class="flex justify-between items-center">
+                                        <span class="text-gray-600">Déjà Payé :</span>
+                                        <span class="font-semibold text-blue-600">{{ formatPrice(paiement.montant_paye) }} FCFA</span>
+                                    </div>
+
+                                    <div class="flex justify-between items-center pt-3 border-t border-gray-200">
+                                        <span class="text-gray-600">
+                                            {{ infoFractionnement ? 'Cette Tranche :' : 'Montant à Payer :' }}
+                                        </span>
+                                        <span class="text-2xl font-bold text-green-600">
+                                            {{ formatPrice(montantAPayer) }} FCFA
+                                        </span>
+                                    </div>
+                                </template>
+
+                                <div v-if="type === 'location'" class="text-sm text-gray-500 italic">
+                                    (Premier mois + Caution)
+                                </div>
                             </div>
-                            <div class="col-md-3">
+                        </div>
+
+                        <!-- Formulaire de paiement -->
+                        <form @submit.prevent="initierPaiement">
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Nom complet <span class="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        v-model="form.customer_name"
+                                        type="text"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Email <span class="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        v-model="form.customer_email"
+                                        type="email"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Téléphone <span class="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        v-model="form.customer_phone"
+                                        type="tel"
+                                        placeholder="+221701234567"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Mode de paiement <span class="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        v-model="form.mode_paiement"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        required
+                                    >
+                                        <option value="">Sélectionner un mode de paiement</option>
+                                        <option value="mobile_money">Mobile Money (Tous)</option>
+                                        <option value="wave">Wave</option>
+                                        <option value="orange_money">Orange Money</option>
+                                        <option value="mtn_money">MTN Money</option>
+                                        <option value="moov_money">Moov Money</option>
+                                        <option value="carte">Carte bancaire</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Message d'information -->
+                            <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div class="flex items-start">
+                                    <svg class="w-5 h-5 text-blue-500 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <p class="text-sm text-blue-800">
+                                        Vous serez redirigé vers la plateforme sécurisée PayDunya pour finaliser votre paiement de
+                                        <strong>{{ formatPrice(montantAPayer) }} FCFA</strong>.
+                                        Ne fermez pas cette fenêtre pendant le processus.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Boutons d'action -->
+                            <div class="flex items-center justify-between">
+                                <Link
+                                    :href="getPreviousUrl()"
+                                    class="px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold rounded-lg transition"
+                                >
+                                    Annuler
+                                </Link>
+
                                 <button
-                                    @click="resetFilters"
-                                    class="btn btn-outline-secondary btn-sm w-100">
-                                    <i class="fas fa-filter-circle-xmark me-1"></i>Réinitialiser
+                                    type="submit"
+                                    :disabled="processing"
+                                    :class="{
+                                        'bg-blue-600 hover:bg-blue-700 text-white': !processing,
+                                        'bg-gray-400 text-gray-600 cursor-not-allowed': processing
+                                    }"
+                                    class="px-8 py-3 font-semibold rounded-lg transition flex items-center"
+                                >
+                                    <span v-if="processing">
+                                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Redirection vers PayDunya...
+                                    </span>
+                                    <span v-else class="flex items-center">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                        Payer {{ formatPrice(montantAPayer) }} FCFA
+                                    </span>
                                 </button>
                             </div>
-                        </div>
+                        </form>
                     </div>
-                </div>
-
-                <!-- Liste des paiements -->
-                <div v-if="paiementsFiltres.length > 0" class="row g-4">
-                    <div v-for="paiement in paiementsFiltres" :key="paiement.id" class="col-lg-6">
-                        <div class="card h-100 shadow-sm border-0">
-                            <div class="card-body">
-                                <!-- En-tête avec statut et type -->
-                                <div class="d-flex justify-content-between align-items-start mb-3">
-                                    <div class="flex-grow-1">
-                                        <div class="d-flex align-items-center gap-2 mb-1">
-                                            <h6 class="card-title mb-0 text-primary">
-                                                <i :class="getTypeIcon(paiement.type)" class="me-2"></i>
-                                                {{ getTypeLabel(paiement.type) }}
-                                            </h6>
-                                            <span :class="getStatutBadgeClass(paiement.statut)">
-                                                {{ getStatutLabel(paiement.statut) }}
-                                            </span>
-                                        </div>
-                                        <p class="text-muted mb-0 small">
-                                            ID: {{ paiement.transaction_id || `PAI-${paiement.id}` }}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <!-- Informations sur le bien associé -->
-                                <div v-if="getBienAssocie(paiement)" class="bg-light rounded p-3 mb-3">
-                                    <div class="row align-items-center">
-                                        <div class="col-8">
-                                            <h6 class="mb-1 text-dark">{{ getBienAssocie(paiement).title }}</h6>
-                                            <p class="text-muted mb-0 small">
-                                                <i class="fas fa-map-marker-alt me-1"></i>
-                                                {{ getBienAssocie(paiement).address }}, {{ getBienAssocie(paiement).city }}
-                                            </p>
-                                        </div>
-                                        <div class="col-4 text-end">
-                                            <img
-                                                v-if="getBienAssocie(paiement).image"
-                                                :src="getBienImageUrl(getBienAssocie(paiement).image)"
-                                                :alt="getBienAssocie(paiement).title"
-                                                class="img-fluid rounded"
-                                                style="max-height: 50px; max-width: 80px; object-fit: cover;">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Détails du paiement -->
-                                <div class="row g-3 mb-3">
-                                    <div class="col-6">
-                                        <small class="text-muted d-block">Montant total</small>
-                                        <div class="fw-bold text-dark">
-                                            {{ formatPrice(paiement.montant_total) }} FCFA
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block">Montant payé</small>
-                                        <div class="fw-bold" :class="getPaiementStatusClass(paiement)">
-                                            {{ formatPrice(paiement.montant_paye) }} FCFA
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block">Mode de paiement</small>
-                                        <div class="fw-medium">
-                                            <i :class="getModeIcon(paiement.mode_paiement)" class="me-1"></i>
-                                            {{ getModeLabel(paiement.mode_paiement) }}
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block">Date</small>
-                                        <div class="fw-medium">
-                                            {{ formatDate(paiement.date_transaction || paiement.created_at) }}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Montant restant si applicable -->
-                                <div v-if="paiement.montant_restant > 0" class="alert alert-warning py-2 px-3 mb-3">
-                                    <small>
-                                        <i class="fas fa-exclamation-triangle me-1"></i>
-                                        <strong>Reste à payer :</strong> {{ formatPrice(paiement.montant_restant) }} FCFA
-                                    </small>
-                                </div>
-
-                                <!-- Actions spécifiques pour réservations réussies -->
-                                <div v-if="showReservationActions(paiement)" class="mb-3">
-                                    <div class="border-top pt-3">
-                                        <h6 class="text-success mb-2">
-                                            <i class="fas fa-check-circle me-2"></i>Prochaines étapes
-                                        </h6>
-                                        <div class="d-grid gap-2">
-                                            <Link
-                                                :href="route('visites.create', { bien_id: getBienAssocie(paiement).id })"
-                                                class="btn btn-outline-primary btn-sm">
-                                                <i class="fas fa-calendar-alt me-1"></i>Programmer une visite
-                                            </Link>
-                                            <Link
-                                                v-if="peutProcederVente(paiement)"
-                                                :href="route('ventes.create', { bien_id: getBienAssocie(paiement).id })"
-                                                class="btn btn-success btn-sm">
-                                                <i class="fas fa-handshake me-1"></i>Procéder à la vente
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Actions -->
-                                <div class="d-flex gap-2 mt-auto">
-                                    <Link
-                                        :href="getDetailsRoute(paiement)"
-                                        class="btn btn-outline-primary btn-sm flex-fill">
-                                        <i class="fas fa-eye me-1"></i>Détails
-                                    </Link>
-
-                                    <!-- Reprendre le paiement si échec -->
-                                    <button
-                                        v-if="paiement.statut === 'echoue'"
-                                        @click="reprendrePaiement(paiement)"
-                                        class="btn btn-warning btn-sm">
-                                        <i class="fas fa-redo me-1"></i>Reprendre
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Footer avec date de création -->
-                            <div class="card-footer bg-transparent border-0 pt-0">
-                                <small class="text-muted">
-                                    Créé le {{ formatDate(paiement.created_at) }}
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- État vide -->
-                <div v-else-if="paiements.length === 0" class="text-center py-5">
-                    <div class="mb-4">
-                        <i class="fas fa-credit-card display-1 text-muted opacity-50"></i>
-                    </div>
-                    <h4 class="text-muted mb-3">Aucun paiement trouvé</h4>
-                    <p class="text-muted mb-4">
-                        Vous n'avez encore effectué aucun paiement. <br>
-                        Réservez un bien pour commencer.
-                    </p>
-                    <Link href="/" class="btn btn-primary">
-                        <i class="fas fa-search me-2"></i>Explorer les biens
-                    </Link>
-                </div>
-
-                <!-- Aucun résultat après filtrage -->
-                <div v-else-if="paiementsFiltres.length === 0" class="text-center py-5">
-                    <div class="mb-4">
-                        <i class="fas fa-filter display-1 text-muted opacity-50"></i>
-                    </div>
-                    <h4 class="text-muted mb-3">Aucun paiement correspondant</h4>
-                    <p class="text-muted mb-4">
-                        Aucun paiement ne correspond à vos critères de recherche.
-                    </p>
-                    <button @click="resetFilters" class="btn btn-outline-primary">
-                        <i class="fas fa-filter-circle-xmark me-2"></i>Réinitialiser les filtres
-                    </button>
                 </div>
             </div>
         </div>
-    </div>
+    </Layout>
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { Link, router } from '@inertiajs/vue3'
+import Layout from '../Layout.vue'
+import { route } from 'ziggy-js'
+import axios from 'axios'
 
 const props = defineProps({
-    paiements: { type: Array, required: true },
-    userRoles: { type: Array, default: () => [] }
+    type: {
+        type: String,
+        required: true
+    },
+    item: {
+        type: Object,
+        required: true
+    },
+    paiement: {
+        type: Object,
+        required: true
+    },
+    user: {
+        type: Object,
+        required: true
+    },
+    infoFractionnement: {
+        type: Object,
+        default: null
+    }
 })
 
-// Filtres
-const filters = ref({
-    statut: '',
-    type: '',
+const processing = ref(false)
+const form = ref({
+    paiement_id: props.paiement.id,
+    customer_name: props.user.name || '',
+    customer_email: props.user.email || '',
+    customer_phone: '',
+    description: `Paiement ${props.type} #${props.paiement.id}`,
     mode_paiement: ''
 })
 
-// Paiements filtrés
-const paiementsFiltres = computed(() => {
-    let result = [...props.paiements]
+// Calculer le montant à payer
+const montantAPayer = computed(() => {
+    if (props.type === 'reservation') {
+        // Réservations: toujours le montant total
+        return props.paiement.montant_total
+    } else {
+        // Ventes et Locations: montant restant ou première tranche
+        const montantRestant = props.paiement.montant_total - (props.paiement.montant_paye || 0)
 
-    if (filters.value.statut) {
-        result = result.filter(p => p.statut === filters.value.statut)
+        if (props.infoFractionnement) {
+            // Si fractionnement: première tranche
+            return props.infoFractionnement.montant_a_payer
+        } else {
+            // Sinon: tout le montant restant
+            return montantRestant
+        }
     }
-
-    if (filters.value.type) {
-        result = result.filter(p => p.type === filters.value.type)
-    }
-
-    if (filters.value.mode_paiement) {
-        result = result.filter(p => p.mode_paiement === filters.value.mode_paiement)
-    }
-
-    return result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 })
 
-// Méthodes utilitaires
 const formatPrice = (price) => {
-    return new Intl.NumberFormat('fr-FR').format(price || 0)
-}
-
-const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    })
-}
-
-const getStatutLabel = (statut) => {
-    const labels = {
-        'en_attente': 'En attente',
-        'reussi': 'Réussi',
-        'echoue': 'Échec'
-    }
-    return labels[statut] || statut
-}
-
-const getStatutBadgeClass = (statut) => {
-    const classes = {
-        'en_attente': 'badge bg-warning text-dark',
-        'reussi': 'badge bg-success',
-        'echoue': 'badge bg-danger'
-    }
-    return classes[statut] || 'badge bg-secondary'
+    return new Intl.NumberFormat('fr-FR').format(price)
 }
 
 const getTypeLabel = (type) => {
     const labels = {
         'reservation': 'Réservation',
-        'location': 'Location',
-        'vente': 'Vente'
+        'vente': 'Achat',
+        'location': 'Location'
     }
     return labels[type] || type
 }
 
-const getTypeIcon = (type) => {
-    const icons = {
-        'reservation': 'fas fa-bookmark',
-        'location': 'fas fa-key',
-        'vente': 'fas fa-handshake'
+const getPreviousUrl = () => {
+    if (props.type === 'vente') {
+        return route('ventes.create', { bien_id: props.item.bien?.id })
+    } else if (props.type === 'location') {
+        return route('locations.create', { bien_id: props.item.bien?.id })
+    } else if (props.type === 'reservation') {
+        return route('reservations.create', props.item.bien?.id)
     }
-    return icons[type] || 'fas fa-credit-card'
+    return route('home')
 }
 
-const getModeLabel = (mode) => {
-    const labels = {
-        'mobile_money': 'Mobile Money',
-        'carte': 'Carte bancaire',
-        'virement': 'Virement'
+const initierPaiement = async () => {
+    if (processing.value) return
+
+    if (!form.value.customer_name || !form.value.customer_email || !form.value.customer_phone || !form.value.mode_paiement) {
+        alert('⚠️ Veuillez remplir tous les champs requis.')
+        return
     }
-    return labels[mode] || mode
-}
 
-const getModeIcon = (mode) => {
-    const icons = {
-        'mobile_money': 'fas fa-mobile-alt',
-        'carte': 'fas fa-credit-card',
-        'virement': 'fas fa-university'
-    }
-    return icons[mode] || 'fas fa-money-bill'
-}
+    processing.value = true
 
-const getPaiementStatusClass = (paiement) => {
-    if (paiement.statut === 'reussi') return 'text-success'
-    if (paiement.statut === 'echoue') return 'text-danger'
-    return 'text-warning'
-}
+    try {
+        console.log('Envoi requête paiement:', form.value)
 
-const getBienAssocie = (paiement) => {
-    if (paiement.reservation?.bien) return paiement.reservation.bien
-    if (paiement.location?.bien) return paiement.location.bien
-    if (paiement.vente?.bien) return paiement.vente.bien
-    return null
-}
+        const response = await axios.post(route('paiement.initier'), form.value)
 
-const getBienImageUrl = (imagePath) => {
-    return `/storage/${imagePath}`
-}
+        console.log('Réponse serveur:', response.data)
 
-const showReservationActions = (paiement) => {
-    return paiement.reservation_id &&
-        paiement.statut === 'reussi' &&
-        getBienAssocie(paiement)
-}
-
-const peutProcederVente = (paiement) => {
-    const bien = getBienAssocie(paiement)
-    return bien?.mandat?.type_mandat === 'vente'
-}
-
-const getDetailsRoute = (paiement) => {
-    if (paiement.reservation_id) {
-        return route('reservations.show', paiement.reservation_id)
-    } else if (paiement.location_id) {
-        return route('locations.show', paiement.location_id)
-    } else if (paiement.vente_id) {
-        return route('ventes.show', paiement.vente_id)
-    }
-    return '#'
-}
-
-const resetFilters = () => {
-    filters.value = {
-        statut: '',
-        type: '',
-        mode_paiement: ''
+        if (response.data.success && response.data.payment_url) {
+            // Rediriger vers PayDunya
+            window.location.href = response.data.payment_url
+        } else {
+            alert('❌ Erreur lors de l\'initiation du paiement : ' + (response.data.message || 'Erreur inconnue'))
+            processing.value = false
+        }
+    } catch (error) {
+        console.error('Erreur initiation paiement:', error)
+        alert('❌ Une erreur est survenue : ' + (error.response?.data?.message || error.message))
+        processing.value = false
     }
 }
 
-const reprendrePaiement = (paiement) => {
-    // Rediriger vers la page d'initiation de paiement
-    const type = paiement.type
-    const id = paiement.reservation_id || paiement.location_id || paiement.vente_id
-
-    window.location.href = route('paiement.initier', {
-        type: type,
-        id: id,
-        paiement_id: paiement.id
+onMounted(() => {
+    console.log('Page paiement chargée:', {
+        type: props.type,
+        paiement_id: props.paiement.id,
+        montant_total: props.paiement.montant_total,
+        montant_paye: props.paiement.montant_paye,
+        montant_a_payer: montantAPayer.value,
+        infoFractionnement: props.infoFractionnement
     })
-}
+})
 </script>
-
-<style scoped>
-.card {
-    border-radius: 15px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
-}
-
-.card-title {
-    color: #2c3e50;
-}
-
-.btn-sm {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.875rem;
-    border-radius: 6px;
-}
-
-.alert {
-    border-radius: 8px;
-}
-
-.badge {
-    font-size: 0.75rem;
-    padding: 0.4em 0.8em;
-    border-radius: 8px;
-}
-
-.bg-light {
-    background-color: #f8f9fa !important;
-}
-
-.form-select-sm {
-    border-radius: 6px;
-}
-
-.text-break {
-    word-break: break-word;
-}
-</style>

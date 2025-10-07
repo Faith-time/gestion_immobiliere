@@ -51,10 +51,11 @@ class Location extends Model
         return $this->belongsTo(User::class, 'client_id');
     }
 
-    public function paiements()
+    public function paiement()
     {
-        return $this->hasMany(Paiement::class, 'location_id');
+        return $this->hasOne(Paiement::class, 'location_id');
     }
+
 
     public function avisRetards()
     {

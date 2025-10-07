@@ -10,6 +10,33 @@
             <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
                     <div class="p-6 sm:p-8">
+                        <!-- Messages Flash -->
+                        <div v-if="$page.props.flash?.error" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <div class="flex items-center">
+                                <svg class="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <p class="text-red-800 font-medium">{{ $page.props.flash.error }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Erreurs de validation -->
+                        <div v-if="Object.keys(errors).length > 0" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <div class="flex items-start">
+                                <svg class="w-5 h-5 text-red-500 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <div>
+                                    <p class="text-red-800 font-medium mb-2">Erreurs détectées :</p>
+                                    <ul class="list-disc list-inside text-red-700 text-sm">
+                                        <li v-for="(error, key) in errors" :key="key">
+                                            {{ Array.isArray(error) ? error[0] : error }}
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Message d'information -->
                         <div class="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                             <div class="flex items-center">
@@ -125,7 +152,7 @@
                                             </label>
                                             <div class="p-3 bg-white rounded border">
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                    Prêt pour finalisation
+                                                    Prêt pour paiement
                                                 </span>
                                             </div>
                                         </div>
@@ -143,8 +170,7 @@
                                 <div>
                                     <p class="text-yellow-800 font-medium mb-1">Confirmation importante</p>
                                     <p class="text-yellow-700 text-sm">
-                                        En cliquant sur "Finaliser l'Achat", vous confirmez votre intention d'acquérir ce bien au prix indiqué.
-                                        Cette action créera un enregistrement de vente officiel.
+                                        En cliquant sur "Finaliser l'Achat", vous serez redirigé vers PayDunya pour effectuer le paiement sécurisé.
                                     </p>
                                 </div>
                             </div>
@@ -173,7 +199,7 @@
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
-                                    Finalisation...
+                                    Redirection...
                                 </span>
                                 <span v-else class="flex items-center">
                                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,23 +220,23 @@
 import { ref } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3'
 import Layout from '../Layout.vue'
-import {route} from "ziggy-js";
+import { route } from "ziggy-js"
 
-// Props - Le bien est automatiquement passé depuis la page de succès
 const props = defineProps({
     bien: {
         type: Object,
         required: true
+    },
+    errors: {
+        type: Object,
+        default: () => ({})
     }
 })
 
 const processing = ref(false)
 const { auth } = usePage().props
-
-// Date d'aujourd'hui
 const today = new Date().toISOString().split('T')[0]
 
-// Fonctions utilitaires
 const formatPrice = (price) => {
     return new Intl.NumberFormat('fr-FR').format(price)
 }
@@ -226,18 +252,18 @@ const formatDate = (dateString) => {
 const getInitials = (name) => {
     return name.split(' ').map(word => word.charAt(0).toUpperCase()).join('').substring(0, 2)
 }
-// Finalisation avec redirection vers paiement
-const finaliserAchat = () => {
-    processing.value = true
 
-    // Vérification de sécurité - empêcher l'auto-achat
+// ✅ CORRECTION : Utiliser router.post comme dans Reservation/Create.vue
+const finaliserAchat = () => {
+    if (processing.value) return
+
     if (props.bien.proprietaire_id === auth.user.id) {
-        alert('Vous ne pouvez pas acheter votre propre bien.')
-        processing.value = false
+        alert('❌ Vous ne pouvez pas acheter votre propre bien.')
         return
     }
 
-    // Données automatiquement mappées
+    processing.value = true
+
     const venteData = {
         biens_id: props.bien.id,
         prix_vente: props.bien.price,
@@ -245,24 +271,25 @@ const finaliserAchat = () => {
     }
 
     router.post(route('ventes.store'), venteData, {
-        onSuccess: (response) => {
-            processing.value = false
-            // NOUVEAU : Redirection vers l'interface de paiement
-            if (response.props?.redirect_url) {
-                window.location.href = response.props.redirect_url
-            } else {
-                // Fallback si pas de redirection
-                router.visit(route('ventes.index'))
-            }
+        preserveState: false,
+        preserveScroll: false,
+        onSuccess: (page) => {
+            console.log('✅ Vente créée, redirection vers paiement')
+            // Inertia gère automatiquement la redirection
         },
         onError: (errors) => {
             processing.value = false
-            console.error('Erreur lors de la finalisation:', errors)
-            if (errors.message) {
-                alert(errors.message)
-            } else {
-                alert('Une erreur est survenue lors de la finalisation de l\'achat.')
-            }
+            console.error('❌ Erreur:', errors)
+
+            // Afficher les erreurs
+            let errorMessage = 'Erreurs détectées:\n'
+            Object.values(errors).forEach(error => {
+                errorMessage += '• ' + (Array.isArray(error) ? error[0] : error) + '\n'
+            })
+            alert(errorMessage)
+        },
+        onFinish: () => {
+            processing.value = false
         }
     })
 }

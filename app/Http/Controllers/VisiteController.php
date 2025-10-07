@@ -17,7 +17,7 @@ class VisiteController extends Controller
      */
     public function index()
     {
-        $visites = Visite::with(['bien.category', 'agent'])
+        $visites = Visite::with(['bien.category'])
             ->where('client_id', Auth::id())
             ->latest('date_visite')
             ->get();
@@ -41,16 +41,6 @@ class VisiteController extends Controller
 
         $bien = Bien::with(['category', 'proprietaire', 'mandat'])->findOrFail($bienId);
 
-        // Vérifier réservation confirmée
-        $reservationConfirmee = Auth::user()->reservations()
-            ->where('bien_id', $bienId)
-            ->where('statut', 'confirmée')
-            ->exists();
-
-        if (!$reservationConfirmee) {
-            return redirect()->route('biens.show', $bienId)
-                ->with('error', 'Vous devez avoir une réservation confirmée pour demander une visite.');
-        }
 
         // Vérifier visite en cours
         $visiteExistante = Visite::where('client_id', Auth::id())
@@ -166,7 +156,7 @@ class VisiteController extends Controller
     {
         $this->authorize('admin'); // Policy
 
-        $visites = Visite::with(['bien.category', 'client', 'agent'])
+        $visites = Visite::with(['bien.category', 'client'])
             ->latest('date_visite')
             ->get();
 
@@ -184,7 +174,6 @@ class VisiteController extends Controller
         $this->authorize('admin');
 
         $request->validate([
-            'agent_id'    => 'nullable|exists:users,id',
             'date_visite' => 'required|date|after:today',
             'notes'       => 'nullable|string|max:500',
         ]);
@@ -197,7 +186,6 @@ class VisiteController extends Controller
 
         $visite->update([
             'statut'       => 'confirmee',
-            'agent_id'     => $request->agent_id,
             'date_visite'  => $request->date_visite,
             'notes_admin'  => $request->notes,
             'confirmee_at' => now(),

@@ -80,7 +80,7 @@
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-key text-primary me-2"></i>
-                                        <span class="fw-bold">Location #{{ location.id }}</span>
+                                        <span class="fw-bold">Location {{ location.bien?.title }}</span>
                                     </div>
                                     <span
                                         class="badge"
@@ -122,12 +122,6 @@
                                         <div class="bg-light p-2 rounded text-center">
                                             <div class="fw-bold text-success">{{ formatPrice(location.loyer_mensuel) }} FCFA</div>
                                             <small class="text-muted">Loyer/mois</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="bg-light p-2 rounded text-center">
-                                            <div class="fw-bold text-info">{{ formatPrice(location.caution) }} FCFA</div>
-                                            <small class="text-muted">Caution</small>
                                         </div>
                                     </div>
                                 </div>
@@ -218,7 +212,6 @@
                                         @click="gererPaiements(location)"
                                         class="btn btn-outline-success btn-sm flex-fill mt-1"
                                     >
-                                        <i class="fas fa-credit-card me-1"></i>Paiements
                                     </button>
 
                                     <button

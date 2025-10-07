@@ -2,36 +2,43 @@
     <div class="container py-5">
         <div class="row">
             <div class="col-12">
-                <!-- En-tête dynamique -->
+                <!-- Message informatif -->
+                <div class="alert alert-info mb-4" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Information :</strong> Seules les transactions dont le paiement a été complété avec succès sont affichées ici.
+                    Vous pouvez consulter et signer les contrats une fois le paiement validé.
+                </div>
+
+                <!-- En-tête universel -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h1 class="h2 text-primary mb-1">{{ getPageTitle }}</h1>
-                        <p class="text-muted mb-0">{{ getPageDescription }}</p>
+                        <h1 class="h2 text-primary mb-1">Mes Transactions</h1>
+                        <p class="text-muted mb-0">Gérez vos transactions immobilières</p>
                     </div>
                     <Link href="/" class="btn btn-outline-primary">
                         <i class="fas fa-home me-2"></i>Retour à l'accueil
                     </Link>
                 </div>
 
-                <!-- Onglets pour séparer les vues -->
-                <div class="mb-4" v-if="!isAdmin && hasMultipleRoles">
+                <!-- Onglets (uniquement si l'utilisateur a les deux rôles) -->
+                <div v-if="hasMultipleRoles" class="mb-4">
                     <ul class="nav nav-pills">
                         <li class="nav-item">
                             <button
-                                class="nav-link"
-                                :class="{ active: activeTab === 'achats' }"
                                 @click="activeTab = 'achats'"
+                                :class="['nav-link', { active: activeTab === 'achats' }]"
                             >
-                                <i class="fas fa-shopping-cart me-2"></i>Mes Achats ({{ ventesAsAcheteur.length }})
+                                <i class="fas fa-shopping-cart me-2"></i>
+                                Mes Achats ({{ ventesAsAcheteur.length }})
                             </button>
                         </li>
                         <li class="nav-item">
                             <button
-                                class="nav-link"
-                                :class="{ active: activeTab === 'ventes' }"
                                 @click="activeTab = 'ventes'"
+                                :class="['nav-link', { active: activeTab === 'ventes' }]"
                             >
-                                <i class="fas fa-home me-2"></i>Mes Ventes ({{ ventesAsProprietaire.length }})
+                                <i class="fas fa-home me-2"></i>
+                                Mes Ventes ({{ ventesAsProprietaire.length }})
                             </button>
                         </li>
                     </ul>
@@ -76,10 +83,10 @@
                 <!-- Message si aucune transaction -->
                 <div v-if="displayedVentes.length === 0" class="text-center py-5">
                     <div class="mb-4">
-                        <i :class="getEmptyIcon" class="text-muted" style="font-size: 4rem;"></i>
+                        <i class="fas fa-exchange-alt text-muted" style="font-size: 4rem;"></i>
                     </div>
-                    <h4 class="text-muted mb-3">{{ getEmptyTitle }}</h4>
-                    <p class="text-muted mb-4">{{ getEmptyDescription }}</p>
+                    <h4 class="text-muted mb-3">Aucune transaction trouvée</h4>
+                    <p class="text-muted mb-4">Vous n'avez encore effectué aucune transaction immobilière.</p>
                     <Link href="/biens" class="btn btn-primary">
                         <i class="fas fa-search me-2"></i>Parcourir les biens disponibles
                     </Link>
@@ -198,15 +205,12 @@ import { Link } from '@inertiajs/vue3'
 const props = defineProps({
     ventes: { type: Array, default: () => [] },
     userRoles: { type: Array, default: () => [] },
-    userType: { type: String, default: 'client' }
 })
 
-// État local
+// État local pour l'onglet actif
 const activeTab = ref('achats')
 
-// Computed properties
-const isAdmin = computed(() => props.userRoles.includes('admin'))
-
+// Séparer les ventes en fonction du rôle de l'utilisateur
 const ventesAsAcheteur = computed(() =>
     props.ventes.filter(vente => vente.user_role_in_vente === 'acheteur')
 )
@@ -215,61 +219,22 @@ const ventesAsProprietaire = computed(() =>
     props.ventes.filter(vente => vente.user_role_in_vente === 'vendeur')
 )
 
+// Vérifier si l'utilisateur a les deux rôles
 const hasMultipleRoles = computed(() =>
     ventesAsAcheteur.value.length > 0 && ventesAsProprietaire.value.length > 0
 )
 
+// Déterminer quelles ventes afficher
 const displayedVentes = computed(() => {
-    if (isAdmin.value) return props.ventes
-    if (!hasMultipleRoles.value) return props.ventes
+    if (!hasMultipleRoles.value) {
+        // Si un seul rôle, afficher toutes les ventes
+        return props.ventes
+    }
+    // Si plusieurs rôles, afficher selon l'onglet actif
     return activeTab.value === 'achats' ? ventesAsAcheteur.value : ventesAsProprietaire.value
 })
 
-const getPageTitle = computed(() => {
-    if (isAdmin.value) return 'Gestion des Ventes'
-    if (!hasMultipleRoles.value) {
-        return ventesAsAcheteur.value.length > 0 ? 'Mes Achats' : 'Mes Ventes'
-    }
-    return activeTab.value === 'achats' ? 'Mes Achats' : 'Mes Ventes'
-})
-
-const getPageDescription = computed(() => {
-    if (isAdmin.value) return 'Gérez toutes les transactions immobilières'
-    if (!hasMultipleRoles.value) {
-        return ventesAsAcheteur.value.length > 0 ? 'Gérez vos achats immobiliers' : 'Gérez vos ventes immobilières'
-    }
-    return activeTab.value === 'achats' ? 'Gérez vos achats immobiliers' : 'Gérez vos ventes immobilières'
-})
-
-const getEmptyIcon = computed(() => {
-    if (!hasMultipleRoles.value) {
-        return ventesAsAcheteur.value.length === 0 && ventesAsProprietaire.value.length === 0
-            ? 'fas fa-exchange-alt' : (ventesAsAcheteur.value.length > 0 ? 'fas fa-home' : 'fas fa-shopping-cart')
-    }
-    return activeTab.value === 'achats' ? 'fas fa-shopping-cart' : 'fas fa-home'
-})
-
-const getEmptyTitle = computed(() => {
-    if (!hasMultipleRoles.value) {
-        if (ventesAsAcheteur.value.length === 0 && ventesAsProprietaire.value.length === 0) {
-            return 'Aucune transaction trouvée'
-        }
-        return ventesAsAcheteur.value.length > 0 ? 'Aucune vente trouvée' : 'Aucun achat trouvé'
-    }
-    return activeTab.value === 'achats' ? 'Aucun achat trouvé' : 'Aucune vente trouvée'
-})
-
-const getEmptyDescription = computed(() => {
-    if (!hasMultipleRoles.value) {
-        if (ventesAsAcheteur.value.length === 0 && ventesAsProprietaire.value.length === 0) {
-            return 'Vous n\'avez encore aucune transaction immobilière.'
-        }
-        return ventesAsAcheteur.value.length > 0 ? 'Vous n\'avez encore vendu aucun bien.' : 'Vous n\'avez encore effectué aucun achat.'
-    }
-    return activeTab.value === 'achats' ? 'Vous n\'avez encore effectué aucun achat.' : 'Vous n\'avez encore vendu aucun bien.'
-})
-
-// Méthodes utilitaires existantes
+// Méthodes utilitaires
 const formatPrice = (value) => {
     if (!value) return '0'
     return Number(value).toLocaleString('fr-FR')
@@ -282,7 +247,7 @@ const formatDate = (dateString) => {
 
 const getStatusLabel = (statut) => ({
     en_cours: 'En cours',
-    confirmée: 'Confirmée',
+    confirmée: 'confirmée',
     annulee: 'Annulée'
 }[statut] || statut)
 
@@ -294,21 +259,24 @@ const getStatusBadgeClass = (statut) => ({
 
 const getVentesByStatus = (statut) => displayedVentes.value.filter(v => v.statut === statut)
 
-// Nouvelles méthodes pour la contextualisation
+// Méthodes de contextualisation
 const getTransactionIcon = (vente) => {
-    return vente.user_role_in_vente === 'acheteur' ? 'fas fa-shopping-cart text-primary' : 'fas fa-home text-warning'
+    return vente.user_role_in_vente === 'acheteur'
+        ? 'fas fa-shopping-cart text-primary'
+        : 'fas fa-home text-warning'
 }
 
 const getTransactionLabel = (vente) => {
-    return vente.user_role_in_vente === 'acheteur' ? 'Achat' : 'Vente'
+    return vente.user_role_in_vente === 'acheteur' ? 'Transaction' : 'Transaction'
 }
 
 const getUserRoleLabel = (vente) => {
     return vente.user_role_in_vente === 'acheteur' ? 'Acheteur' : 'Vendeur'
 }
-
 const getRoleBadgeClass = (vente) => {
-    return vente.user_role_in_vente === 'acheteur' ? 'bg-info text-white' : 'bg-warning text-dark'
+    return vente.user_role_in_vente === 'acheteur'
+        ? 'bg-info text-white'
+        : 'bg-warning text-dark'
 }
 
 const getPriceLabel = (vente) => {
@@ -329,7 +297,7 @@ const getOtherPartyName = (vente) => {
         : vente.acheteur?.name || 'Non spécifié'
 }
 
-// Méthodes d'actions (inchangées)
+// Méthodes d'actions
 const previewContract = (vente) => window.open(route('ventes.contract.preview', vente.id), '_blank')
 const downloadContract = (vente) => window.open(route('ventes.contract.download', vente.id))
 const goToSignature = (vente) => router.visit(route('ventes.signature.show', vente.id))
@@ -346,3 +314,21 @@ const getSignatureStatusClass = (status) => ({
     entierement_signe: 'bg-success text-white'
 }[status] || 'bg-secondary text-white')
 </script>
+
+<style scoped>
+.nav-pills .nav-link {
+    cursor: pointer;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #17a2b8;
+}
+
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+</style>

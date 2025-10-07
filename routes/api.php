@@ -14,6 +14,10 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-// Routes publiques pour CinetPay (webhooks) - SANS middleware CSRF
-Route::post('/paiement/notify', [PaiementController::class, 'notify'])->name('api.paiement.notify');
-Route::get('/paiement/retour/{paiement_id}', [PaiementController::class, 'retour'])->name('api.paiement.retour');
+// Webhook PayDunya (appelé par PayDunya) - SANS middleware CSRF et AUTH
+Route::post('/paydunya/callback', [PaiementController::class, 'callback'])
+    ->name('api.paydunya.callback');
+
+// Route de retour après paiement (peut aussi être dans web.php)
+Route::get('/paiement/retour/{paiement_id}', [PaiementController::class, 'retour'])
+    ->name('api.paiement.retour');

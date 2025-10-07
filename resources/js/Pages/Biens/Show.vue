@@ -112,26 +112,37 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Document de propriété -->
-                        <div v-if="bien.property_title" class="property-documents mb-5">
-                            <h3 class="section-title mb-3">Documents</h3>
-                            <div class="document-item p-3 border rounded">
-                                <i class="fas fa-file-pdf text-danger me-3"></i>
-                                <span>Titre de propriété</span>
-                                <a :href="`/storage/${bien.property_title}`"
-                                   target="_blank"
-                                   class="btn btn-outline-primary btn-sm ms-auto">
-                                    <i class="fas fa-download me-2"></i>Télécharger
-                                </a>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
                 <!-- Sidebar - Actions et contact -->
                 <div class="col-lg-4">
                     <div class="property-sidebar">
+                        <!-- Carte de prise de rendez-vous pour visite -->
+                        <div v-if="bien.status === 'disponible'" class="visit-card mb-4 p-4 bg-light border-primary border-2 rounded shadow">
+                            <h4 class="text-primary mb-3">
+                                <i class="fas fa-calendar-check me-2"></i>
+                                Planifier une visite
+                            </h4>
+                            <p class="text-muted mb-3">
+                                Prenez rendez-vous pour visiter cette propriété avant de la réserver
+                            </p>
+
+                            <button
+                                @click="planifierVisite"
+                                class="btn btn-primary btn-lg w-100 mb-3"
+                                :disabled="visiteEnCours"
+                            >
+                                <i class="fas fa-eye me-2"></i>
+                                {{ visiteEnCours ? 'Chargement...' : 'Prendre rendez-vous pour une visite' }}
+                            </button>
+
+                            <div class="alert alert-info mb-0 small">
+                                <i class="fas fa-info-circle me-2"></i>
+                                La visite est gratuite et vous permet de découvrir le bien avant toute réservation
+                            </div>
+                        </div>
+
                         <!-- Bouton de réservation principal -->
                         <div class="reservation-card mb-4 p-4 bg-white border rounded shadow-sm">
                             <h4 class="text-center mb-3">Intéressé par cette propriété ?</h4>
@@ -143,15 +154,14 @@
 
                             <div v-if="bien.status === 'disponible'" class="d-grid gap-2">
                                 <button
-                                    @click="reserverBien"
-                                    class="btn btn-primary btn-lg py-3"
+                                    @click="ouvrirModalReservation"
+                                    class="btn btn-success btn-lg py-3"
                                     :disabled="reservationEnCours"
                                 >
-                                    <i class="fas fa-calendar-check me-2"></i>
-                                    {{ reservationEnCours ? 'Réservation en cours...' : 'Réserver maintenant' }}
+                                    <i class="fas fa-handshake me-2"></i>
+                                    {{ reservationEnCours ? 'Réservation en cours...' : 'Réserver ce bien' }}
                                 </button>
 
-                                <!-- AJOUT : Afficher le type de mandat sur la page du bien -->
                                 <div v-if="bien.mandat" class="small text-muted text-center">
                                     <i class="fas fa-info-circle me-1"></i>
                                     {{ bien.mandat.type_mandat === 'vente' ? 'Disponible à la vente' : 'Disponible en location' }}
@@ -161,9 +171,11 @@
                                     <i class="fas fa-phone me-2"></i>Contacter l'agent
                                 </button>
                             </div>
+
                             <div v-else-if="bien.status === 'reserve'" class="text-center">
                                 <div class="alert alert-warning mb-3">
-                                    <i class="fas fa-clock me-2"></i>Cette propriété est réservée
+                                    <i class="fas fa-clock me-2"></i>
+                                    Cette propriété est actuellement réservée
                                 </div>
                                 <button class="btn btn-outline-primary w-100" @click="contacterAgent">
                                     <i class="fas fa-bell me-2"></i>Être notifié si disponible
@@ -173,11 +185,18 @@
                             <div v-else-if="bien.status === 'vendu' || bien.status === 'loue'" class="text-center">
                                 <div class="alert alert-secondary mb-3">
                                     <i class="fas fa-check-circle me-2"></i>
-                                    {{ bien.status === 'vendu' ? 'Cette propriété est vendue' : 'Cette propriété est louée' }}
+                                    {{ bien.status === 'vendu' ? 'Cette propriété a été vendue' : 'Cette propriété est louée' }}
                                 </div>
-                                <button class="btn btn-outline-primary w-100" @click="voirProprietessimilaires">
+                                <button class="btn btn-outline-primary w-100" @click="voirProprieteSimilaires">
                                     <i class="fas fa-search me-2"></i>Voir des propriétés similaires
                                 </button>
+                            </div>
+
+                            <div v-else class="text-center">
+                                <div class="alert alert-info mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Cette propriété n'est pas disponible actuellement ({{ bien.status }})
+                                </div>
                             </div>
                         </div>
 
@@ -237,6 +256,67 @@
             </div>
         </div>
     </section>
+
+    <!-- Modal de confirmation de réservation -->
+    <div class="modal fade" id="modalConfirmationReservation" tabindex="-1" aria-labelledby="modalConfirmationLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title text-primary fw-bold" id="modalConfirmationLabel">
+                        <i class="fas fa-lock me-2"></i>Confirmation de réservation
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body px-4 py-4">
+                    <div class="mb-4">
+                        <p class="text-dark mb-3">
+                            En cliquant sur <strong>« Confirmer la réservation »</strong>, vous effectuez un dépôt de garantie destiné à bloquer le bien immobilier sélectionné.
+                        </p>
+                        <p class="text-dark mb-3">
+                            Ce dépôt constitue un <strong>engagement de réservation</strong> et sera déduit du montant total lors de la signature du contrat de vente ou de location.
+                        </p>
+                        <p class="text-dark mb-3">
+                            Afin de valider définitivement votre réservation, vous devrez fournir certains <strong>documents justificatifs</strong> (pièce d'identité, justificatif de revenus, etc.).
+                        </p>
+                    </div>
+
+                    <div class="bg-light p-3 rounded mb-4">
+                        <p class="text-dark mb-2 fw-semibold">
+                            <i class="fas fa-shield-alt text-primary me-2"></i>Ces documents permettent à notre agence de :
+                        </p>
+                        <ul class="mb-0 text-dark">
+                            <li class="mb-2">Vérifier votre identité et la conformité de la transaction</li>
+                            <li class="mb-2">Évaluer votre capacité financière avant validation</li>
+                            <li class="mb-0">Garantir la sécurité juridique du processus de réservation</li>
+                        </ul>
+                    </div>
+
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-user-shield me-2"></i>
+                        Les fichiers transmis sont traités de manière <strong>confidentielle et sécurisée</strong> par notre équipe, conformément à notre politique de protection des données.
+                    </div>
+
+                    <div class="alert alert-success mb-4">
+                        <i class="fas fa-undo me-2"></i>
+                        En cas de refus de dossier ou d'indisponibilité du bien, votre dépôt de garantie vous sera <strong>intégralement remboursé</strong>.
+                    </div>
+
+                    <div class="alert alert-primary mb-0">
+                        <i class="fas fa-credit-card me-2"></i>
+                        Le paiement est <strong>100% sécurisé</strong> via PayDunya (Wave, Orange Money, Free Money…).
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                    <button type="button" class="btn btn-secondary btn-lg px-4" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Annuler
+                    </button>
+                    <button type="button" class="btn btn-success btn-lg px-4" @click="confirmerReservation">
+                        <i class="fas fa-check-circle me-2"></i>Confirmer la réservation
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script>
@@ -250,10 +330,9 @@ export default {
 <script setup>
 import { Link } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { router } from '@inertiajs/vue3'
 
-// Props
 const props = defineProps({
     bien: {
         type: Object,
@@ -261,10 +340,10 @@ const props = defineProps({
     }
 })
 
-// État réactif
 const reservationEnCours = ref(false)
+const visiteEnCours = ref(false)
+let modalInstance = null
 
-// Méthodes utilitaires
 const formatPrice = (price) => {
     return new Intl.NumberFormat('fr-FR').format(price)
 }
@@ -298,29 +377,117 @@ const getStatusClass = (status) => {
     return statusClasses[status] || 'badge-secondary'
 }
 
-// Actions
-const reserverBien = async () => {
-    if (reservationEnCours.value) return
+const ouvrirModalReservation = () => {
+    console.log('=== OUVERTURE MODAL ===')
 
-    reservationEnCours.value = true
+    const modalElement = document.getElementById('modalConfirmationReservation')
+    console.log('modalElement trouvé?', modalElement !== null)
 
-    try {
-        router.get(route('reservations.create', { bien_id: props.bien.id }));
+    if (!modalElement) {
+        console.error('❌ Élément modal non trouvé')
+        return
+    }
 
-    } catch (error) {
-        console.error('Erreur lors de la réservation:', error)
-        alert('Erreur lors de la réservation. Veuillez réessayer.')
-    } finally {
-        reservationEnCours.value = false
+    // ✅ Utiliser window.bootstrap au lieu de bootstrap
+    if (typeof window.bootstrap !== 'undefined') {
+        try {
+            // Récupérer ou créer l'instance du modal
+            let modal = window.bootstrap.Modal.getInstance(modalElement)
+            if (!modal) {
+                modal = new window.bootstrap.Modal(modalElement)
+                console.log('✅ Modal créé')
+            }
+            modal.show()
+            modalInstance = modal
+            console.log('✅ Modal affiché')
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'ouverture du modal:', error)
+        }
+    } else {
+        console.error('❌ Bootstrap non disponible')
+        alert('Erreur: Bootstrap non chargé correctement')
     }
 }
+
+const confirmerReservation = () => {
+    console.log('=== CONFIRMER RÉSERVATION ===')
+    console.log('bien_id:', props.bien.id)
+
+    if (reservationEnCours.value) {
+        console.log('⚠️ Réservation déjà en cours')
+        return
+    }
+
+    // Fermer le modal
+    if (modalInstance) {
+        modalInstance.hide()
+    }
+
+    reservationEnCours.value = true
+    console.log('✅ Tentative de redirection vers:', route('reservations.create', { bien_id: props.bien.id }))
+
+    // ✅ nextTick est maintenant disponible
+    nextTick(() => {
+        router.get(route('reservations.create', { bien_id: props.bien.id }), {}, {
+            onSuccess: () => {
+                console.log('✅ Redirection réussie')
+            },
+            onError: (errors) => {
+                console.error('❌ Erreur de redirection:', errors)
+                alert('Erreur lors de la redirection. Consultez la console.')
+                reservationEnCours.value = false
+            },
+            onFinish: () => {
+                console.log('⏹️ Requête terminée')
+            }
+        })
+    })
+}
+
+onMounted(() => {
+    console.log('=== COMPONENT MOUNTED ===')
+
+    if (typeof AOS !== 'undefined') {
+        AOS.refresh()
+    }
+
+    // ✅ Vérification avec window.bootstrap
+    nextTick(() => {
+        const modalElement = document.getElementById('modalConfirmationReservation')
+        console.log('Modal element existe?', modalElement !== null)
+        console.log('Bootstrap existe?', typeof window.bootstrap !== 'undefined')
+
+        if (modalElement && typeof window.bootstrap !== 'undefined') {
+            modalInstance = new window.bootstrap.Modal(modalElement, {
+                backdrop: 'static',
+                keyboard: false
+            })
+            console.log('✅ Modal initialisé dans onMounted')
+        } else {
+            console.warn('⚠️ Modal ou Bootstrap non disponible au montage')
+        }
+    })
+})
+const planifierVisite = () => {
+    if (visiteEnCours.value) return
+
+    visiteEnCours.value = true
+
+    router.get(route('visites.create', { bien_id: props.bien.id }), {}, {
+        onError: (error) => {
+            console.error('Erreur:', error)
+            alert('Erreur lors de la planification de la visite')
+        },
+        onFinish: () => {
+            visiteEnCours.value = false
+        }
+    })
+}
 const contacterAgent = () => {
-    // Ici vous pouvez ouvrir un modal de contact ou rediriger
     alert('Fonctionnalité de contact en cours de développement')
 }
 
-const voirProprietesimilaires = () => {
-    // Rediriger vers la liste des biens avec un filtre similaire
+const voirProprieteSimilaires = () => {
     router.visit(route('biens.index', {
         categorie: props.bien.categorie_id,
         ville: props.bien.city
@@ -360,12 +527,6 @@ const copierLien = async () => {
     }
 }
 
-onMounted(() => {
-    // Initialisation des animations AOS si nécessaire
-    if (typeof AOS !== 'undefined') {
-        AOS.refresh()
-    }
-})
 </script>
 
 <style scoped>
@@ -404,6 +565,17 @@ onMounted(() => {
     top: 2rem;
 }
 
+.visit-card {
+    border: 2px solid #17a2b8;
+    background: linear-gradient(135deg, #e8f5f7 0%, #ffffff 100%);
+    transition: all 0.3s ease;
+}
+
+.visit-card:hover {
+    box-shadow: 0 8px 20px rgba(23, 162, 184, 0.2);
+    transform: translateY(-2px);
+}
+
 .reservation-card {
     border: 2px solid #e9ecef;
     transition: border-color 0.3s ease;
@@ -414,13 +586,23 @@ onMounted(() => {
 }
 
 .btn-primary {
-    background-color: #17a2b8; /* Couleur principale de votre site */
+    background-color: #17a2b8;
     border-color: #17a2b8;
 }
 
 .btn-primary:hover {
     background-color: #138496;
     border-color: #117a8b;
+}
+
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
 }
 
 .text-primary {
@@ -453,12 +635,6 @@ onMounted(() => {
     align-items: flex-start;
 }
 
-.document-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
 .badge-success {
     background-color: #28a745;
 }
@@ -476,6 +652,24 @@ onMounted(() => {
     background-color: #6c757d;
 }
 
+.modal-content {
+    border-radius: 15px;
+    border: none;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #e8f5f7 0%, #ffffff 100%);
+    border-radius: 15px 15px 0 0;
+}
+
+.modal-body ul {
+    padding-left: 1.5rem;
+}
+
+.modal-body ul li {
+    line-height: 1.6;
+}
+
 @media (max-width: 768px) {
     .property-sidebar {
         position: static;
@@ -488,6 +682,10 @@ onMounted(() => {
 
     .hero .row {
         height: 40vh !important;
+    }
+
+    .modal-dialog {
+        margin: 0.5rem;
     }
 }
 </style>

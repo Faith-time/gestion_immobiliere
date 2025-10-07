@@ -16,22 +16,17 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(append: [
             HandleInertiaRequests::class,
-            // ❌ NE PAS ajouter 'authenticate' ici car cela affecterait toutes les routes web
         ]);
 
-        // ✅ Configuration des alias de middleware
         $middleware->alias([
             'authenticate' => \App\Http\Middleware\Authenticate::class
         ]);
 
-        // ✅ Exclure explicitement les routes API des middlewares web
         $middleware->group('api', [
-            // Les routes API n'héritent que des middlewares de base
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
 
-        // ✅ Exclure les webhooks de CSRF et autres protections
         $middleware->validateCsrfTokens(except: [
             'api/paiement/notify',
             'api/paiement/retour/*',
@@ -45,9 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
         \App\Console\Commands\SurveillerQueueNotifications::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
-        // Configuration du planificateur de tâches
 
-        // Traitement complet une fois par jour à 8h
         $schedule->command('loyer:notifications --type=all')
             ->dailyAt('08:00')
             ->withoutOverlapping()

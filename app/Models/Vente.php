@@ -1,6 +1,5 @@
 <?php
 
-// Mise à jour du modèle Vente avec signatures électroniques
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -129,5 +128,10 @@ class Vente extends Model
     public function canTransferProperty()
     {
         return $this->isFullySigned() && !$this->property_transferred && $this->statut !== 'annulee';
+    }
+
+    public function paiement()
+    {
+        return $this->hasOne(Paiement::class, 'vente_id');
     }
 }

@@ -197,7 +197,7 @@ class LocationController extends Controller
     }
 
     /**
-     * Créer une nouvelle location
+     * Créer une nouvelle location avec redirection vers PayDunya
      */
     public function store(Request $request)
     {
@@ -210,89 +210,91 @@ class LocationController extends Controller
         $user = Auth::user();
         $bien = Bien::with(['mandat', 'proprietaire'])->find($request->bien_id);
 
+        // Vérifications
         if ($bien->proprietaire_id === $user->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Vous ne pouvez pas louer votre propre bien.'
-            ], 400);
+            return back()->withErrors(['message' => '❌ Vous ne pouvez pas louer votre propre bien.']);
         }
 
-            // Vérifications de base
+        $maLocationExistante = Location::where('bien_id', $request->bien_id)
+            ->where('client_id', $user->id)
+            ->whereIn('statut', ['active', 'en_cours'])
+            ->first();
+
+        if ($maLocationExistante) {
+            return redirect()->route('locations.show', $maLocationExistante->id)
+                ->withErrors(['message' => '❌ Vous avez déjà une location active pour ce bien.']);
+        }
+
+        $locationAutreClient = Location::where('bien_id', $request->bien_id)
+            ->where('client_id', '!=', $user->id)
+            ->whereIn('statut', ['active', 'en_cours'])
+            ->exists();
+
+        if ($locationAutreClient) {
+            return back()->withErrors(['message' => '❌ Ce bien est déjà loué par un autre client.']);
+        }
+
         if (!$bien || !$bien->mandat || $bien->mandat->type_mandat !== 'gestion_locative' || $bien->mandat->statut !== 'actif') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Ce bien n\'est pas disponible à la location.'
-            ], 400);
+            return back()->withErrors(['message' => '❌ Ce bien n\'est pas disponible à la location.']);
         }
 
-        // Vérifier qu'il y a une réservation confirmée
         $reservationConfirmee = Reservation::where('client_id', $user->id)
             ->where('bien_id', $request->bien_id)
             ->where('statut', 'confirmée')
             ->first();
 
         if (!$reservationConfirmee) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Vous devez avoir une réservation confirmée pour louer ce bien.'
-            ], 400);
+            return back()->withErrors(['message' => '❌ Vous devez avoir une réservation confirmée pour louer ce bien.']);
         }
 
-        // Vérifier qu'aucune location active n'existe déjà
-        if (Location::where('bien_id', $request->bien_id)->whereIn('statut', ['active', 'en_cours'])->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Une location existe déjà pour ce bien.'
-            ], 400);
+        if (!in_array($bien->status, ['disponible', 'reserve'])) {
+            return back()->withErrors(['message' => '❌ Ce bien ne peut pas être loué.']);
         }
 
+        // Dans la méthode store() du LocationController
         try {
-            $location = DB::transaction(function () use ($request, $user, $bien, $reservationConfirmee) {
+            $location = DB::transaction(function () use ($request, $user, $bien) {
                 $dateDebut = Carbon::parse($request->date_debut);
                 $dateFin = $dateDebut->copy()->addMonths((int) $request->duree_mois);
 
-                $location = Location::create([
+                return Location::create([
                     'bien_id' => $request->bien_id,
                     'client_id' => $user->id,
                     'loyer_mensuel' => $bien->price,
                     'date_debut' => $dateDebut,
                     'date_fin' => $dateFin,
-                    'statut' => 'active',
+                    'statut' => 'en_attente_paiement',
                     'signature_status' => 'non_signe',
                 ]);
-
-                // Générer le PDF
-                $this->contractPdfService->generatePdf($location, 'location');
-
-                // Mettre à jour le bien et la réservation
-                $bien->update(['status' => 'loué']);
-
-                return $location;
             });
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Location finalisée avec succès !',
-                'location_id' => $location->id
-            ], 200);
+            // Calculer le montant total (premier mois + caution de 2 mois)
+            $montantTotal = ($bien->price * 1) + ($bien->price * 2);
 
-            return redirect()->route('locations.index')
-                ->with('success', 'Location finalisée avec succès ! Le contrat est généré et prêt pour signature.');
-
-        } catch (\Exception $e) {
-            \Log::error('Erreur lors de la création de la location', [
-                'error' => $e->getMessage(),
-                'bien_id' => $request->bien_id,
-                'user_id' => $user->id
+            // Créer le paiement
+            $paiement = Paiement::create([
+                'type' => 'location',
+                'location_id' => $location->id,
+                'montant_total' => $montantTotal,
+                'montant_paye' => 0,
+                'montant_restant' => $montantTotal,
+                'commission_agence' => $montantTotal * 0.05,
+                'mode_paiement' => 'en_attente',
+                'transaction_id' => 'LOC_' . $location->id . '_' . time(),
+                'statut' => 'en_attente',
+                'date_transaction' => now(),
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de la finalisation de la location : ' . $e->getMessage()
-            ], 500);
+            return Inertia::location(route('paiement.initier.show', [
+                'type' => 'location',
+                'id' => $location->id,
+                'paiement_id' => $paiement->id
+            ]));
+
+        } catch (\Exception $e) {
+            // ...
         }
     }
-
     /**
      * Détails d'une location
      */
