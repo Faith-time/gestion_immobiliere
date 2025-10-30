@@ -1,6 +1,4 @@
 <template>
-    <pre>{{ JSON.stringify($page.props.debug, null, 2) }}</pre>
-
     <div>
         <!-- Menu mobile -->
         <div class="site-mobile-menu site-navbar-target">
@@ -21,8 +19,7 @@
                     class="slide-item"
                 >
                     <img
-                        :src="bien.image ? `/storage/${bien.image}` : '/images/placeholder.jpg'"
-                        :alt="`${bien.title} - Slide ${index + 1}`"
+                        :src="bien.images[0]?.url || defaultImage1"                        :alt="`${bien.title} - Slide ${index + 1}`"
                         class="img-fluid w-100 h-100 object-cover"
                     />
                     <div class="slide-overlay"></div>
@@ -47,7 +44,7 @@
             <div class="hero-content position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
                 <div class="text-center text-light">
                     <h1 class="hero-title mb-4" data-aos="fade-up">
-                        Trouvez facilement la maison de vos rêves au Sénégal
+                        Bienvenue dans le portail de l'agence immobiliere Cauris Immo.
                     </h1>
 
                     <!-- Barre de recherche principale -->
@@ -103,14 +100,7 @@
                             {{ hasActiveFilters ? 'trouvée' : 'disponible' }}{{ currentBiensCount > 1 ? 's' : '' }}
                         </p>
                     </div>
-                    <div class="col-lg-6 text-lg-end">
-                        <Link
-                            :href="route('biens.index')"
-                            class="btn btn-primary text-white py-3 px-4"
-                        >
-                            Voir toutes les propriétés
-                        </Link>
-                    </div>
+
                 </div>
 
                 <!-- Filtres rapides et contrôles -->
@@ -246,8 +236,7 @@
                         <div class="property-card h-100">
                             <Link :href="route('biens.show', bien.id)" class="property-image">
                                 <img
-                                    :src="bien.image ? `/storage/${bien.image}` : '/images/placeholder.jpg'"
-                                    :alt="bien.title"
+                                    :src="bien.images[0]?.url || defaultImage1"                                    :alt="bien.title"
                                     class="img-fluid"
                                 />
                                 <div class="property-overlay">
@@ -315,8 +304,7 @@
                                 >
                                     <Link :href="route('biens.show', bien.id)" class="img">
                                         <img
-                                            :src="bien.image ? `/storage/${bien.image}` : '/images/placeholder.jpg'"
-                                            :alt="bien.title"
+                                            :src="bien.images[0]?.url || defaultImage1"                                            :alt="bien.title"
                                             class="img-fluid"
                                         />
                                     </Link>
@@ -437,82 +425,7 @@
             </div>
         </div>
 
-        <!-- Section Services -->
-        <section class="features-section py-5 bg-light">
-            <div class="container">
-                <div class="row justify-content-center text-center mb-5">
-                    <div class="col-lg-8">
-                        <h2 class="font-weight-bold heading text-primary mb-4">
-                            Nos Services Immobiliers au Sénégal
-                        </h2>
-                        <p class="text-black-50">
-                            Découvrez nos services sur mesure pour tous vos besoins immobiliers
-                        </p>
-                    </div>
-                </div>
 
-                <div class="row g-4">
-                    <div class="col-lg-3 col-md-6">
-                        <div class="service-card text-center p-4 h-100">
-                            <div class="service-icon mb-3">
-                                <i class="fas fa-home"></i>
-                            </div>
-                            <h3 class="service-title mb-3">Maisons</h3>
-                            <p class="service-description mb-3">
-                                Découvrez notre collection exclusive de maisons familiales et villas modernes.
-                            </p>
-                            <Link :href="route('biens.index')" class="service-btn">
-                                Voir les maisons
-                            </Link>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-3 col-md-6">
-                        <div class="service-card text-center p-4 h-100">
-                            <div class="service-icon mb-3">
-                                <i class="fas fa-building"></i>
-                            </div>
-                            <h3 class="service-title mb-3">Appartements</h3>
-                            <p class="service-description mb-3">
-                                Trouvez l'appartement idéal parmi notre sélection d'espaces modernes.
-                            </p>
-                            <Link :href="route('biens.index')" class="service-btn">
-                                Voir les appartements
-                            </Link>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-3 col-md-6">
-                        <div class="service-card text-center p-4 h-100">
-                            <div class="service-icon mb-3">
-                                <i class="fas fa-comments"></i>
-                            </div>
-                            <h3 class="service-title mb-3">Contactez-nous</h3>
-                            <p class="service-description mb-3">
-                                Besoin d'aide ? Discutez directement avec notre équipe d'experts immobiliers.
-                            </p>
-                            <Link :href="route('conversations.index')" class="service-btn">
-                                Discuter avec l'agence
-                            </Link>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 col-md-6">
-                        <div class="service-card text-center p-4 h-100">
-                            <div class="service-icon mb-3">
-                                <i class="fas fa-calendar-check"></i>
-                            </div>
-                            <h3 class="service-title mb-3">Prendre Rendez-vous</h3>
-                            <p class="service-description mb-3">
-                                Planifiez facilement une visite personnalisée avec nos agents.
-                            </p>
-                            <button class="service-btn" @click="scheduleVisit">
-                                Planifier une visite
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
 
         <!-- Section statistiques -->
         <div class="section section-stats py-5">
@@ -532,7 +445,7 @@
                     <div class="col-lg-6 mb-5 mb-lg-0">
                         <div class="stats-image">
                             <img
-                                :src="biens[0]?.image ? `/storage/${biens[0].image}` : defaultImage1"
+                                :src="biens.length > 1 && biens[1].images && biens[1].images.length >= 0 ? biens[0].images[0].url : defaultImage1"
                                 :alt="biens[0]?.title || 'Propriété exemple'"
                                 class="img-fluid rounded shadow"
                             />
@@ -545,7 +458,7 @@
                                     <span class="icon-home2"></span>
                                 </div>
                                 <div class="feature-text">
-                                    <h3 class="heading">{{ totalBiens }}+ Propriétés</h3>
+                                    <h3 class="heading">150 + Propriétés</h3>
                                     <p class="text-black-50">
                                         Large portefeuille de propriétés vérifiées dans toutes les régions du Sénégal.
                                     </p>
@@ -581,8 +494,88 @@
             </div>
         </div>
 
-        <!-- Section équipe -->
-        <section class="team-section py-5 bg-light">
+        <!-- Section Solutions Immobilières - Redesignée -->
+        <section class="solutions-section py-5">
+            <div class="container">
+                <div class="row justify-content-center text-center mb-5">
+                    <div class="col-lg-8">
+                        <h2 class="font-weight-bold heading text-primary mb-3">
+                            Nos Solutions Immobilières au Sénégal
+                        </h2>
+                        <p class="text-black-50">
+                            Simplifiez vos démarches immobilières grâce à nos services dédiés à la location, la gestion et l'accompagnement personnalisé.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <!-- Service 1 - Fiche de Dépôt -->
+                    <div class="col-lg-4 col-md-6">
+                        <div class="solution-card-modern h-100">
+                            <div class="solution-icon-wrapper">
+                                <div class="solution-icon-modern">
+                                    <i class="fas fa-file-signature"></i>
+                                </div>
+                            </div>
+                            <h3 class="solution-title-modern">Soumettre une Fiche de Dépôt</h3>
+                            <p class="solution-description-modern">
+                                Déposez facilement votre fiche de location en indiquant vos informations personnelles,
+                                vos critères de logement et votre budget. Nos agents analyseront votre profil afin de
+                                vous proposer des biens parfaitement adaptés à vos attentes.
+                            </p>
+                            <button @click="showModal = true" class="solution-btn-modern">
+                                <span>Remplir la fiche</span>
+                                <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Service 2 - Accompagnement -->
+                    <div class="col-lg-4 col-md-6">
+                        <div class="solution-card-modern h-100">
+                            <div class="solution-icon-wrapper">
+                                <div class="solution-icon-modern">
+                                    <i class="fas fa-handshake"></i>
+                                </div>
+                            </div>
+                            <h3 class="solution-title-modern">Accompagnement Personnalisé</h3>
+                            <p class="solution-description-modern">
+                                Bénéficiez d'un suivi complet par nos conseillers immobiliers. Nous vous guidons à chaque étape,
+                                de la sélection du bien jusqu'à la signature du contrat de location ou d'achat.
+                            </p>
+                            <Link :href="route('conversations.index')" class="solution-btn-modern">
+                                <span>Contacter un conseiller</span>
+                                <i class="fas fa-arrow-right ms-2"></i>
+                            </Link>
+                        </div>
+                    </div>
+
+                    <!-- Service 3 - Estimation -->
+                    <div class="col-lg-4 col-md-6">
+                        <div class="solution-card-modern h-100">
+                            <div class="solution-icon-wrapper">
+                                <div class="solution-icon-modern">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                            </div>
+                            <h3 class="solution-title-modern">Estimation de Bien Immobilier</h3>
+                            <p class="solution-description-modern">
+                                Obtenez une estimation précise et fiable de la valeur locative ou marchande de votre bien.
+                                Nos experts se basent sur les données du marché, la localisation et les caractéristiques
+                                de votre propriété pour vous aider à fixer un prix juste et compétitif.
+                            </p>
+                            <Link class="solution-btn-modern">
+                                <span>Estimer mon bien</span>
+                                <i class="fas fa-arrow-right ms-2"></i>
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section Équipe - Redesignée -->
+        <section class="team-section-modern py-5 bg-light">
             <div class="container">
                 <div class="row justify-content-center text-center mb-5">
                     <div class="col-lg-8">
@@ -590,76 +583,224 @@
                             Notre Équipe
                         </h2>
                         <p class="text-black-50">
-                            Rencontrez notre équipe dédiée d'agents immobiliers professionnels prêts à vous accompagner.
+                            Rencontrez notre équipe dédiée de professionnels prêts à vous accompagner dans tous vos projets immobiliers.
                         </p>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="col-sm-6 col-md-6 col-lg-4 mb-4">
-                        <div class="team-member text-center">
-                            <div class="member-image mb-3">
+
+                <!-- Ligne 1 : PDG + Assistante + Agent Commercial -->
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-4 col-md-6">
+                        <div class="team-card-modern director-highlight">
+                            <div class="team-card-header">
                                 <img
-                                    :src="teamMember1"
-                                    alt="Mamadou Diop"
-                                    class="img-fluid rounded-circle"
+                                    :src="directorImage"
+                                    alt="Yancouba Goudiaby"
+                                    class="team-img-modern"
                                 />
+                                <div class="team-badge director-badge">
+                                    <i class="fas fa-crown"></i>
+                                </div>
                             </div>
-                            <div class="member-info">
-                                <h3 class="member-name">Mamadou Diop</h3>
-                                <p class="member-role">Agent Immobilier Senior</p>
-                                <p class="member-description">
-                                    Agent expérimenté spécialisé dans l'immobilier résidentiel avec plus de 8 ans d'expérience à Dakar.
+                            <div class="team-card-body">
+                                <h4 class="team-name-modern">Yancouba Goudiaby</h4>
+                                <span class="team-role-badge director">DIRECTEUR GÉNÉRAL</span>
+                                <p class="team-desc-modern">
+                                    Visionnaire et leader de l'entreprise, supervisant l'ensemble des opérations et la stratégie globale.
                                 </p>
-                                <div class="social-links">
-                                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
+                                <div class="team-social-modern">
+                                    <a href="#"><i class="fab fa-twitter"></i></a>
+                                    <a href="#"><i class="fab fa-facebook"></i></a>
+                                    <a href="#"><i class="fab fa-linkedin"></i></a>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-sm-6 col-md-6 col-lg-4 mb-4">
-                        <div class="team-member text-center">
-                            <div class="member-image mb-3">
+
+                    <div class="col-lg-4 col-md-6">
+                        <div class="team-card-modern assistant-highlight">
+                            <div class="team-card-header">
                                 <img
-                                    :src="teamMember2"
-                                    alt="Aïda Ndiaye"
-                                    class="img-fluid rounded-circle"
+                                    :src="assistantImage"
+                                    alt="Leyla Goudiaby"
+                                    class="team-img-modern"
                                 />
+                                <div class="team-badge assistant-badge">
+                                    <i class="fas fa-star"></i>
+                                </div>
                             </div>
-                            <div class="member-info">
-                                <h3 class="member-name">Aïda Ndiaye</h3>
-                                <p class="member-role">Spécialiste Immobilier Commercial</p>
-                                <p class="member-description">
-                                    Experte en propriétés commerciales avec une expertise dans l'investissement immobilier.
+                            <div class="team-card-body">
+                                <h4 class="team-name-modern">Leyla Goudiaby</h4>
+                                <span class="team-role-badge assistant">ASSISTANTE DG</span>
+                                <p class="team-desc-modern">
+                                    Soutien essentiel à la direction, coordonne les activités et assure la liaison entre services.
                                 </p>
-                                <div class="social-links">
-                                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
+                                <div class="team-social-modern">
+                                    <a href="#"><i class="fab fa-twitter"></i></a>
+                                    <a href="#"><i class="fab fa-facebook"></i></a>
+                                    <a href="#"><i class="fab fa-linkedin"></i></a>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-sm-6 col-md-6 col-lg-4 mb-4">
-                        <div class="team-member text-center">
-                            <div class="member-image mb-3">
+
+                    <div class="col-lg-4 col-md-6">
+                        <div class="team-card-modern">
+                            <div class="team-card-header">
                                 <img
-                                    :src="teamMember3"
-                                    alt="Omar Sarr"
-                                    class="img-fluid rounded-circle"
+                                    :src="habibImage"
+                                    alt="Habib Seck"
+                                    class="team-img-modern"
                                 />
                             </div>
-                            <div class="member-info">
-                                <h3 class="member-name">Omar Sarr</h3>
-                                <p class="member-role">Expert en Propriétés de Luxe</p>
-                                <p class="member-description">
-                                    Expert en propriétés haut de gamme aidant les clients à trouver des opportunités d'investissement premium.
+                            <div class="team-card-body">
+                                <h4 class="team-name-modern">Habib Seck</h4>
+                                <span class="team-role-badge commercial">AGENT COMMERCIAL</span>
+                                <p class="team-desc-modern">
+                                    Expert en développement commercial et relations clients, spécialisé en prospection.
                                 </p>
-                                <div class="social-links">
-                                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
-                                    <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
+                                <div class="team-social-modern">
+                                    <a href="#"><i class="fab fa-twitter"></i></a>
+                                    <a href="#"><i class="fab fa-facebook"></i></a>
+                                    <a href="#"><i class="fab fa-linkedin"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ligne 2 : Elias + Mr Badji + Leyla Comptable -->
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-4 col-md-6">
+                        <div class="team-card-modern">
+                            <div class="team-card-header">
+                                <img
+                                    :src="eliasImage"
+                                    alt="Elias Sané"
+                                    class="team-img-modern"
+                                />
+                            </div>
+                            <div class="team-card-body">
+                                <h4 class="team-name-modern">Elias Sané</h4>
+                                <span class="team-role-badge recovery">AGENT DE RECOUVREMENT</span>
+                                <p class="team-desc-modern">
+                                    Spécialiste en gestion des créances et suivi des paiements.
+                                </p>
+                                <div class="team-social-modern">
+                                    <a href="#"><i class="fab fa-linkedin"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4 col-md-6">
+                        <div class="team-card-modern">
+                            <div class="team-card-header">
+                                <img
+                                    :src="badjiImage"
+                                    alt="Mr Badji"
+                                    class="team-img-modern"
+                                />
+                            </div>
+                            <div class="team-card-body">
+                                <h4 class="team-name-modern">Mr Badji</h4>
+                                <span class="team-role-badge recovery">AGENT DE RECOUVREMENT</span>
+                                <p class="team-desc-modern">
+                                    Expert en recouvrement avec une approche professionnelle et orientée résultats.
+                                </p>
+                                <div class="team-social-modern">
+                                    <a href="#"><i class="fab fa-linkedin"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4 col-md-6">
+                        <div class="team-card-modern">
+                            <div class="team-card-header">
+                                <img
+                                    :src="leylaComptableImage"
+                                    alt="Leyla Goudiaby"
+                                    class="team-img-modern"
+                                />
+                            </div>
+                            <div class="team-card-body">
+                                <h4 class="team-name-modern">Leyla Goudiaby</h4>
+                                <span class="team-role-badge accounting">COMPTABLE</span>
+                                <p class="team-desc-modern">
+                                    Gestion rigoureuse de la comptabilité et des finances de l'entreprise.
+                                </p>
+                                <div class="team-social-modern">
+                                    <a href="#"><i class="fab fa-linkedin"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ligne 3 : Ousmane Assistant + Ousmane IT + Huissier -->
+                <div class="row g-4">
+                    <div class="col-lg-4 col-md-6">
+                        <div class="team-card-modern">
+                            <div class="team-card-header">
+                                <img
+                                    :src="ousmaneAssistantImage"
+                                    alt="Ousmane Fall"
+                                    class="team-img-modern"
+                                />
+                            </div>
+                            <div class="team-card-body">
+                                <h4 class="team-name-modern">Ousmane Fall</h4>
+                                <span class="team-role-badge accounting">ASSISTANT COMPTABLE</span>
+                                <p class="team-desc-modern">
+                                    Support comptable et gestion des opérations financières quotidiennes.
+                                </p>
+                                <div class="team-social-modern">
+                                    <a href="#"><i class="fab fa-linkedin"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4 col-md-6">
+                        <div class="team-card-modern">
+                            <div class="team-card-header">
+                                <img
+                                    :src="ousmaneITImage"
+                                    alt="Ousmane Fall"
+                                    class="team-img-modern"
+                                />
+                            </div>
+                            <div class="team-card-body">
+                                <h4 class="team-name-modern">Ousmane Fall</h4>
+                                <span class="team-role-badge it">RESPONSABLE IT</span>
+                                <p class="team-desc-modern">
+                                    Gestion et maintenance de l'infrastructure informatique de l'entreprise.
+                                </p>
+                                <div class="team-social-modern">
+                                    <a href="#"><i class="fab fa-linkedin"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4 col-md-6">
+                        <div class="team-card-modern">
+                            <div class="team-card-header">
+                                <img
+                                    :src="huissierImage"
+                                    alt="Huissier de justice"
+                                    class="team-img-modern"
+                                />
+                            </div>
+                            <div class="team-card-body">
+                                <h4 class="team-name-modern">Mr X</h4>
+                                <span class="team-role-badge legal">HUISSIER DE JUSTICE</span>
+                                <p class="team-desc-modern">
+                                    Expert juridique assurant le respect des procédures légales et réglementaires.
+                                </p>
+                                <div class="team-social-modern">
+                                    <a href="#"><i class="fab fa-linkedin"></i></a>
                                 </div>
                             </div>
                         </div>
@@ -667,20 +808,30 @@
                 </div>
             </div>
         </section>
-
-        <!-- Widget de Chat IA - AJOUTEZ CECI -->
-        <ChatWidget />
     </div>
+    <!-- Modal de demande de location -->
+    <ClientDossierModal
+        :show="showModal"
+        @close="showModal = false"
+        @success="handleSuccess"
+    />
+
+    <!-- Toast de succès -->
+    <Transition name="toast">
+        <div v-if="showSuccessToast" class="success-toast">
+            <div class="toast-content">
+                <i class="fas fa-check-circle"></i>
+                <div>
+                    <h4>Demande envoyée avec succès !</h4>
+                    <p>Vous serez notifié dès qu'un logement correspondant sera disponible.</p>
+                </div>
+            </div>
+            <button @click="showSuccessToast = false" class="toast-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </Transition>
 </template>
-
-<script>
-import Layout from '@/Pages/Layout.vue'
-
-export default {
-    layout: Layout
-}
-</script>
-
 <script setup>
 import { Link } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
@@ -688,15 +839,31 @@ import { onMounted, computed, ref, watch, nextTick } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { tns } from 'tiny-slider/src/tiny-slider'
 import ChatWidget from '../Pages/ChatWidget.vue'
+import ClientDossierModal from '../Pages/ClientDossiers/Create.vue';
 
 
 // Images par défaut
 import defaultImage1 from '@/assets/images/hero_bg_3.jpg'
 import defaultImage2 from '@/assets/images/hero_bg_2.jpg'
 import defaultImage3 from '@/assets/images/hero_bg_1.jpg'
-import teamMember1 from '@/assets/images/person_1-min.jpg'
-import teamMember2 from '@/assets/images/person_2-min.jpg'
-import teamMember3 from '@/assets/images/person_3-min.jpg'
+
+
+// ✅ Variables pour le modal
+const showModal = ref(false)
+const showSuccessToast = ref(false)
+
+// ✅ Fonction de gestion du succès
+const handleSuccess = () => {
+    showSuccessToast.value = true
+
+    // Masquer automatiquement après 5 secondes
+    setTimeout(() => {
+        showSuccessToast.value = false
+    }, 5000)
+}
+
+
+
 
 // Props du contrôleur
 const props = defineProps({
@@ -732,7 +899,36 @@ const props = defineProps({
     }
 })
 
-// État du composant
+const getFirstImageUrl = (bien) => {
+    try {
+        // Utiliser toRaw pour accéder aux données brutes si nécessaire
+        const bienData = bien;
+
+        // Vérifier si le bien a des images
+        if (bienData?.images && Array.isArray(bienData.images) && bienData.images.length > 0) {
+            const firstImage = bienData.images[0];
+
+            console.log('Première image:', firstImage); // Debug
+
+            // Priorité à l'attribut 'url' si disponible
+            if (firstImage?.url) {
+                return firstImage.url;
+            }
+
+            // Sinon, construire l'URL depuis chemin_image
+            if (firstImage?.chemin_image) {
+                return `/storage/${firstImage.chemin_image}`;
+            }
+        }
+
+        console.warn('Aucune image trouvée pour le bien:', bienData?.id || 'ID inconnu');
+    } catch (error) {
+        console.error('Erreur dans getFirstImageUrl:', error);
+    }
+
+    // ✅ Image par défaut si aucune image n'est disponible
+    return defaultImage1;
+}
 const mainSearchQuery = ref('')
 const searchSuggestions = ref([])
 const currentQuickFilter = ref('all')
@@ -757,7 +953,7 @@ let propertySlider = null
 
 // Computed properties
 const heroSliderBiens = computed(() => {
-    return props.biens.filter(bien => bien.image).slice(0, 3)
+    return props.biens.filter(bien => bien.images).slice(0, 3)
 })
 
 const hasActiveFilters = computed(() => {
@@ -1012,6 +1208,8 @@ const scheduleVisit = () => {
     console.log('Planification de visite')
 }
 
+
+
 // Initialisation des sliders
 const initHeroSlider = () => {
     if (heroSliderBiens.value.length > 0) {
@@ -1071,7 +1269,12 @@ watch(useSlider, (newVal) => {
 
 // Lifecycle
 onMounted(() => {
-    // Initialiser les filtres depuis les props
+    console.log('Biens reçus:', props.biens);
+    console.log('Premier bien:', props.biens[0]);
+    if (props.biens[0]?.images) {
+        console.log('Images du premier bien:', props.biens[0].images);
+    }
+
     if (props.filters) {
         Object.keys(props.filters).forEach(key => {
             if (props.filters[key] && advancedFilters.value.hasOwnProperty(key)) {
@@ -1098,6 +1301,730 @@ onMounted(() => {
 </script>
 
 <style scoped>
+
+/* ============================================
+   SECTION SOLUTIONS - Design Moderne
+   ============================================ */
+.solutions-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.solutions-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(0, 96, 100, 0.05) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+.solution-card-modern {
+    background: white;
+    border-radius: 20px;
+    padding: 2.5rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    border: 1px solid rgba(0, 96, 100, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.solution-card-modern::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #006064, #00838f);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+}
+
+.solution-card-modern:hover::before {
+    transform: scaleX(1);
+}
+
+.solution-card-modern:hover {
+    transform: translateY(-15px);
+    box-shadow: 0 20px 60px rgba(0, 96, 100, 0.15);
+}
+
+.solution-icon-wrapper {
+    margin-bottom: 2rem;
+}
+
+.solution-icon-modern {
+    width: 90px;
+    height: 90px;
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 96, 100, 0.3);
+    transition: all 0.4s ease;
+}
+
+.solution-card-modern:hover .solution-icon-modern {
+    transform: rotateY(360deg);
+    box-shadow: 0 15px 40px rgba(0, 96, 100, 0.4);
+}
+
+.solution-icon-modern i {
+    font-size: 2.5rem;
+    color: white;
+}
+
+.solution-title-modern {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 1.25rem;
+    text-align: center;
+}
+
+.solution-description-modern {
+    color: #6b7280;
+    line-height: 1.7;
+    font-size: 0.95rem;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.solution-btn-modern {
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    text-decoration: none;
+    box-shadow: 0 4px 15px rgba(0, 96, 100, 0.3);
+}
+
+.solution-btn-modern:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 96, 100, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+.solution-btn-modern i {
+    transition: transform 0.3s ease;
+}
+
+.solution-btn-modern:hover i {
+    transform: translateX(5px);
+}
+
+/* ============================================
+   SECTION SOLUTIONS - Design Moderne
+   ============================================ */
+.solutions-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.solutions-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(0, 96, 100, 0.05) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+.solution-card-modern {
+    background: white;
+    border-radius: 20px;
+    padding: 2.5rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    border: 1px solid rgba(0, 96, 100, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.solution-card-modern::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #006064, #00838f);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+}
+
+.solution-card-modern:hover::before {
+    transform: scaleX(1);
+}
+
+.solution-card-modern:hover {
+    transform: translateY(-15px);
+    box-shadow: 0 20px 60px rgba(0, 96, 100, 0.15);
+}
+
+.solution-icon-wrapper {
+    margin-bottom: 2rem;
+}
+
+.solution-icon-modern {
+    width: 90px;
+    height: 90px;
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 96, 100, 0.3);
+    transition: all 0.4s ease;
+}
+
+.solution-card-modern:hover .solution-icon-modern {
+    transform: rotateY(360deg);
+    box-shadow: 0 15px 40px rgba(0, 96, 100, 0.4);
+}
+
+.solution-icon-modern i {
+    font-size: 2.5rem;
+    color: white;
+}
+
+.solution-title-modern {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 1.25rem;
+    text-align: center;
+}
+
+.solution-description-modern {
+    color: #6b7280;
+    line-height: 1.7;
+    font-size: 0.95rem;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.solution-btn-modern {
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    text-decoration: none;
+    box-shadow: 0 4px 15px rgba(0, 96, 100, 0.3);
+}
+
+.solution-btn-modern:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 96, 100, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+.solution-btn-modern i {
+    transition: transform 0.3s ease;
+}
+
+.solution-btn-modern:hover i {
+    transform: translateX(5px);
+}
+
+/* ============================================
+   SECTION ÉQUIPE - Design Moderne
+   ============================================ */
+.team-section-modern {
+    position: relative;
+}
+
+/* Featured Card - Directeur */
+.team-featured-card {
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    border-radius: 25px;
+    padding: 3rem;
+    box-shadow: 0 20px 60px rgba(0, 96, 100, 0.3);
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.team-featured-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+.featured-image-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.featured-img {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 6px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+}
+
+.featured-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 5px 20px rgba(251, 191, 36, 0.5);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.featured-badge i {
+    font-size: 1.5rem;
+    color: white;
+}
+
+.featured-content {
+    padding-left: 2rem;
+}
+
+.featured-name {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+}
+
+.featured-role {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.featured-description {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 2rem;
+}
+
+.featured-social {
+    display: flex;
+    gap: 1rem;
+}
+
+.social-icon {
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    backdrop-filter: blur(10px);
+}
+
+.social-icon:hover {
+    background: white;
+    color: #006064;
+    transform: translateY(-5px);
+}
+
+/* Section Équipe */
+.team-section-modern {
+    position: relative;
+    background: #f8f9fa;
+}
+
+/* Team Cards */
+.team-card-modern {
+    background: white;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    transition: all 0.4s ease;
+    height: 100%;
+    border: 2px solid transparent;
+}
+
+.team-card-modern:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+}
+
+/* Highlights spéciaux */
+.director-highlight {
+    border-color: #fbbf24;
+    background: linear-gradient(to bottom, #fffbeb 0%, white 30%);
+}
+
+.assistant-highlight {
+    border-color: #c084fc;
+    background: linear-gradient(to bottom, #faf5ff 0%, white 30%);
+}
+
+/* Header with image */
+.team-card-header {
+    position: relative;
+    padding: 2rem 2rem 0;
+    text-align: center;
+}
+
+.team-img-modern {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 5px solid #f8f9fa;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    transition: transform 0.4s ease;
+}
+
+.team-card-modern:hover .team-img-modern {
+    transform: scale(1.05);
+}
+
+/* Badge sur l'image */
+.team-badge {
+    position: absolute;
+    top: 2rem;
+    right: calc(50% - 70px);
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.director-badge {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    animation: pulse 2s infinite;
+}
+
+.assistant-badge {
+    background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Card Body */
+.team-card-body {
+    padding: 1.5rem 2rem 2rem;
+    text-align: center;
+}
+
+.team-name-modern {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.75rem;
+}
+
+/* Role Badge */
+.team-role-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.team-role-badge.director {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+}
+
+.team-role-badge.assistant {
+    background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%);
+    color: #7c3aed;
+}
+
+.team-role-badge.commercial {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+}
+
+.team-role-badge.recovery {
+    background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
+    color: #115e59;
+}
+
+.team-role-badge.accounting {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #065f46;
+}
+
+.team-role-badge.it {
+    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    color: #9a3412;
+}
+
+.team-role-badge.legal {
+    background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+    color: #991b1b;
+}
+
+/* Description */
+.team-desc-modern {
+    color: #6b7280;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+    min-height: 75px;
+}
+
+/* Social Links */
+.team-social-modern {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.team-social-modern a {
+    width: 40px;
+    height: 40px;
+    background: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.team-social-modern a:hover {
+    background: #006064;
+    color: white;
+    transform: translateY(-3px);
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+    .team-card-modern {
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .team-img-modern {
+        width: 120px;
+        height: 120px;
+    }
+
+    .team-name-modern {
+        font-size: 1.1rem;
+    }
+
+    .team-desc-modern {
+        font-size: 0.875rem;
+        min-height: auto;
+    }
+}
+/* Styles existants de votre Home.vue */
+
+.solution-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s;
+}
+
+.solution-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+.solution-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 36px;
+}
+
+.solution-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.solution-description {
+    color: #6b7280;
+    line-height: 1.6;
+    font-size: 15px;
+}
+
+.solution-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 14px 32px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.solution-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+/* Toast de succès */
+.success-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    max-width: 400px;
+    z-index: 10000;
+    border-left: 4px solid #10b981;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.toast-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex: 1;
+}
+
+.toast-content > i {
+    font-size: 24px;
+    color: #10b981;
+    flex-shrink: 0;
+}
+
+.toast-content h4 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 4px 0;
+}
+
+.toast-content p {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+.toast-close:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+/* Transitions pour le toast */
+.toast-enter-active,
+.toast-leave-active {
+    transition: all 0.3s ease;
+}
+
+.toast-enter-from {
+    opacity: 0;
+    transform: translateX(100px);
+}
+
+.toast-leave-to {
+    opacity: 0;
+    transform: translateX(100px);
+}
+
+@media (max-width: 768px) {
+    .success-toast {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+}
 /* Styles Hero Section */
 .hero-section {
     height: 70vh;
@@ -1750,4 +2677,198 @@ onMounted(() => {
         left: 1rem !important;
     }
 }
+
+.team-section {
+    position: relative;
+    overflow: hidden;
+}
+
+.team-member {
+    background: white;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.team-member:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+}
+
+.member-image {
+    position: relative;
+    display: inline-block;
+}
+
+.member-image img {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border: 5px solid #f8f9fa;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.team-member:hover .member-image img {
+    transform: scale(1.05);
+}
+
+/* Direction Card */
+.direction-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+}
+
+.direction-card .member-name,
+.direction-card .member-description {
+    color: white;
+}
+
+.director-img {
+    width: 180px !important;
+    height: 180px !important;
+    border: 6px solid white !important;
+}
+
+.director-badge {
+    position: absolute;
+    top: 10px;
+    right: calc(50% - 90px);
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 10px rgba(245, 158, 11, 0.4);
+}
+
+/* Assistant Card */
+.assistant-card {
+    background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+    color: white;
+    border: none;
+}
+
+.assistant-card .member-name,
+.assistant-card .member-description {
+    color: white;
+}
+
+/* Member Info */
+.member-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 0.5rem;
+}
+
+.member-role {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.director-role {
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+.assistant-role {
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+.commercial-role {
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    color: #4338ca;
+}
+
+.recovery-role {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+}
+
+.accounting-role {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #065f46;
+}
+
+.it-role {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+}
+
+.legal-role {
+    background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+    color: #991b1b;
+}
+
+.member-description {
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+/* Social Links */
+.social-links {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.social-link {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.social-link:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-3px);
+}
+
+.direction-card .social-link,
+.assistant-card .social-link {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.direction-card .social-link:hover,
+.assistant-card .social-link:hover {
+    background: white;
+    color: #667eea;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .member-image img {
+        width: 120px;
+        height: 120px;
+    }
+
+    .director-img {
+        width: 140px !important;
+        height: 140px !important;
+    }
+}
+
 </style>

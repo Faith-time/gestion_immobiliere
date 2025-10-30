@@ -4,38 +4,47 @@
             <div class="col-12">
                 <!-- En-tête -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h1 class="h2 text-primary mb-1">Mes Locations</h1>
-                        <p class="text-muted mb-0">Gérez vos contrats de location</p>
+                    <h2 class="mb-0">
+                        <i class="fas fa-key me-3 text-primary"></i>Mes Contrats de location
+                    </h2>
+                    <div class="text-muted">
+                        {{ locations.length }} location{{ locations.length > 1 ? 's' : '' }}
                     </div>
-                    <Link
-                        href="/"
-                        class="btn btn-outline-primary"
-                    >
-                        <i class="fas fa-home me-2"></i>Retour à l'accueil
-                    </Link>
+                </div>
+
+                <!-- Messages de session -->
+                <div v-if="$page.props.flash?.success" class="alert alert-success alert-dismissible fade show mb-4">
+                    <i class="fas fa-check-circle me-2"></i>
+                    {{ $page.props.flash.success }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <div v-if="$page.props.flash?.error" class="alert alert-danger alert-dismissible fade show mb-4">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {{ $page.props.flash.error }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
 
                 <!-- Statistiques rapides -->
                 <div class="row g-3 mb-4">
                     <div class="col-md-3">
-                        <div class="card bg-primary text-white">
+                        <div class="card bg-primary text-white h-100">
                             <div class="card-body text-center">
                                 <h3 class="mb-0">{{ getLocationsByStatus('active').length }}</h3>
-                                <small>Locations actives</small>
+                                <small>Actives</small>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card bg-warning text-dark">
+                        <div class="card bg-warning text-dark h-100">
                             <div class="card-body text-center">
-                                <h3 class="mb-0">{{ getLocationsByStatus('en_attente').length }}</h3>
-                                <small>En attente</small>
+                                <h3 class="mb-0">{{ getLocationsByStatus('en_attente_paiement').length }}</h3>
+                                <small>En attente de paiement</small>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card bg-success text-white">
+                        <div class="card bg-success text-white h-100">
                             <div class="card-body text-center">
                                 <h3 class="mb-0">{{ getLocationsByStatus('terminee').length }}</h3>
                                 <small>Terminées</small>
@@ -43,7 +52,7 @@
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card bg-info text-white">
+                        <div class="card bg-info text-white h-100">
                             <div class="card-body text-center">
                                 <h3 class="mb-0">{{ locations.length }}</h3>
                                 <small>Total</small>
@@ -52,179 +61,169 @@
                     </div>
                 </div>
 
-                <!-- Message si aucune location -->
-                <div v-if="locations.length === 0" class="text-center py-5">
-                    <div class="mb-4">
-                        <i class="fas fa-key text-muted" style="font-size: 4rem;"></i>
-                    </div>
-                    <h4 class="text-muted mb-3">Aucune location trouvée</h4>
-                    <p class="text-muted mb-4">Vous n'avez pas encore de contrat de location.</p>
-                    <Link
-                        href="/"
-                        class="btn btn-primary"
-                    >
-                        <i class="fas fa-search me-2"></i>Parcourir les biens disponibles
-                    </Link>
-                </div>
-
                 <!-- Liste des locations -->
-                <div v-else class="row g-4">
-                    <div
-                        v-for="location in locations"
-                        :key="location.id"
-                        class="col-lg-6"
-                    >
+                <div v-if="locations.length > 0" class="row g-4">
+                    <div v-for="location in locations" :key="location.id" class="col-lg-6">
                         <div class="card h-100 shadow-sm border-0">
-                            <!-- En-tête de la carte -->
-                            <div class="card-header bg-light border-0">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-key text-primary me-2"></i>
-                                        <span class="fw-bold">Location {{ location.bien?.title }}</span>
+                            <div class="card-body">
+                                <!-- En-tête de la carte avec statut -->
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div class="flex-grow-1">
+                                        <h5 class="card-title mb-1">
+                                            {{ location.bien?.titre || 'Bien sans titre' }}
+                                        </h5>
+                                        <p class="text-muted mb-0 small">
+                                            <i class="fas fa-map-marker-alt me-1"></i>
+                                            {{ location.bien?.adresse || 'Adresse non spécifiée' }}, {{ location.bien?.ville }}
+                                        </p>
                                     </div>
-                                    <span
-                                        class="badge"
-                                        :class="getStatusBadgeClass(location.statut)"
-                                    >
-                                        {{ getStatusLabel(location.statut) }}
+                                    <span :class="getStatutBadgeClass(location.statut)">
+                                        {{ getStatutLabel(location.statut) }}
                                     </span>
                                 </div>
-                            </div>
 
-                            <div class="card-body">
-                                <!-- Image et titre du bien -->
-                                <div class="row mb-3">
-                                    <div class="col-4">
-                                        <img
-                                            :src="location.bien?.image ? `/storage/${location.bien.image}` : '/images/placeholder.jpg'"
-                                            :alt="location.bien?.title || 'Bien'"
-                                            class="img-fluid rounded"
-                                            style="height: 80px; object-fit: cover; width: 100%;"
-                                        />
-                                    </div>
-                                    <div class="col-8">
-                                        <h6 class="card-title mb-1 text-primary">
-                                            {{ location.bien?.title || 'Bien non spécifié' }}
-                                        </h6>
-                                        <p class="text-muted small mb-1">
-                                            <i class="fas fa-map-marker-alt me-1"></i>
-                                            {{ location.bien?.address }}, {{ location.bien?.city }}
-                                        </p>
-                                        <p class="text-muted small mb-0">
-                                            {{ location.bien?.category?.name }}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <!-- Informations financières -->
-                                <div class="row g-2 mb-3">
+                                <!-- Informations principales -->
+                                <div class="row g-3 mb-3">
                                     <div class="col-6">
-                                        <div class="bg-light p-2 rounded text-center">
-                                            <div class="fw-bold text-success">{{ formatPrice(location.loyer_mensuel) }} FCFA</div>
-                                            <small class="text-muted">Loyer/mois</small>
+                                        <small class="text-muted d-block">Locataire</small>
+                                        <div class="fw-medium">
+                                            <i class="fas fa-user me-1 text-primary"></i>
+                                            {{ location.locataire?.name || 'Non défini' }}
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Loyer mensuel</small>
+                                        <div class="fw-medium text-success">
+                                            <i class="fas fa-coins me-1"></i>
+                                            {{ formatPrice(location.montant) }} FCFA
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Date début</small>
+                                        <div class="fw-medium">
+                                            <i class="fas fa-calendar-check me-1 text-info"></i>
+                                            {{ formatDate(location.date_debut) }}
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Date fin</small>
+                                        <div class="fw-medium">
+                                            <i class="fas fa-calendar-times me-1 text-danger"></i>
+                                            {{ formatDate(location.date_fin) }}
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Dates -->
-                                <div class="mb-3">
-                                    <div class="row g-2 text-sm">
-                                        <div class="col-6">
-                                            <small class="text-muted">Début:</small>
-                                            <div class="fw-medium">{{ formatDate(location.date_debut) }}</div>
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">Fin:</small>
-                                            <div class="fw-medium">{{ formatDate(location.date_fin) }}</div>
-                                        </div>
-                                    </div>
+                                <!-- Durée restante -->
+                                <div class="alert alert-info py-2 mb-3">
+                                    <small>
+                                        <i class="fas fa-clock me-1"></i>
+                                        <strong>{{ getDureeRestante(location) }}</strong>
+                                        <span class="text-muted"> sur {{ getDureeTotal(location) }} mois</span>
+                                    </small>
                                 </div>
 
-                                <!-- Durée et progression -->
+                                <!-- Barre de progression -->
                                 <div class="mb-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <div class="d-flex justify-content-between mb-1">
                                         <small class="text-muted">Progression</small>
-                                        <small class="text-muted">{{ getDureeRestante(location) }}</small>
+                                        <small class="text-muted">{{ getProgressPercentage(location) }}%</small>
                                     </div>
                                     <div class="progress" style="height: 6px;">
                                         <div
                                             class="progress-bar"
                                             :class="getProgressBarClass(location.statut)"
-                                            :style="{ width: getProgressPercentage(location) + '%' }"
+                                            role="progressbar"
+                                            :style="`width: ${getProgressPercentage(location)}%`"
                                         ></div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <!-- Actions -->
-                            <div class="card-footer bg-transparent border-0">
-                                <div class="d-flex gap-2 flex-wrap">
+                                <!-- Informations de signature -->
+                                <div v-if="location.signature_stats" class="mb-3">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <small class="badge" :class="getSignatureStatusClass(location.signature_stats.signature_status)">
+                                            <i class="fas fa-pen me-1"></i>
+                                            {{ getSignatureStatusText(location.signature_stats.signature_status) }}
+                                        </small>
+                                        <small v-if="location.signature_stats.locataire_signed" class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Locataire signé
+                                        </small>
+                                        <small v-if="location.signature_stats.bailleur_signed" class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Bailleur signé
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="d-flex gap-2 mt-auto flex-wrap">
+                                    <!-- Voir le bien -->
                                     <Link
-                                        :href="route('locations.show', location.id)"
-                                        class="btn btn-outline-primary btn-sm flex-fill"
-                                    >
-                                        <i class="fas fa-eye me-1"></i>Détails
+                                        v-if="location.bien?.id"
+                                        :href="route('biens.show', location.bien.id)"
+                                        class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye me-1"></i>Voir le bien
                                     </Link>
 
-                                    <!-- Boutons de contrat -->
+                                    <!-- Gérer les loyers (pour le locataire uniquement et si location active) -->
+                                    <Link
+                                        v-if="isLocataire(location) && location.statut === 'active'"
+                                        :href="route('locations.mes-loyers')"
+                                        class="btn btn-primary btn-sm">
+                                        <i class="fas fa-wallet me-1"></i>Gérer mes loyers
+                                    </Link>
+
+                                    <!-- Aperçu du contrat -->
                                     <button
                                         @click="previewContract(location)"
-                                        class="btn btn-outline-info btn-sm flex-fill"
-                                        title="Prévisualiser le contrat"
-                                    >
-                                        <i class="fas fa-file-eye me-1"></i>Contrat
+                                        class="btn btn-outline-info btn-sm"
+                                        title="Aperçu du contrat">
+                                        <i class="fas fa-file-alt me-1"></i>Aperçu
                                     </button>
 
+                                    <!-- Télécharger le contrat -->
                                     <button
                                         @click="downloadContract(location)"
-                                        class="btn btn-outline-success btn-sm flex-fill"
-                                        title="Télécharger le contrat PDF"
-                                    >
+                                        class="btn btn-outline-success btn-sm"
+                                        title="Télécharger le contrat">
                                         <i class="fas fa-download me-1"></i>PDF
                                     </button>
 
-                                    <!-- Bouton de signature -->
+                                    <!-- Signer le contrat -->
                                     <button
-                                        v-if="location.can_sign"
                                         @click="goToSignature(location)"
-                                        class="btn btn-warning btn-sm flex-fill"
-                                        :class="{
-                'btn-outline-warning': !location.signature_stats?.fully_signed,
-                'btn-success': location.signature_stats?.fully_signed
-            }"
-                                        :title="getSignatureButtonTitle(location)"
-                                    >
-                                        <i class="fas fa-pen me-1" v-if="!location.signature_stats?.fully_signed"></i>
-                                        <i class="fas fa-check-circle me-1" v-else></i>
+                                        class="btn btn-sm"
+                                        :class="location.signature_stats?.fully_signed ? 'btn-success' : 'btn-warning'"
+                                        :title="getSignatureButtonTitle(location)">
+                                        <i class="fas me-1" :class="location.signature_stats?.fully_signed ? 'fa-check-circle' : 'fa-pen'"></i>
                                         {{ getSignatureButtonText(location) }}
-                                    </button>
-
-                                    <!-- Badge de statut de signature -->
-                                    <div class="w-100 mt-1" v-if="location.signature_stats">
-                                        <small class="badge" :class="getSignatureStatusClass(location.signature_stats.signature_status)">
-                                            {{ getSignatureStatusText(location.signature_stats.signature_status) }}
-                                        </small>
-                                    </div>
-
-                                    <!-- Actions supplémentaires -->
-                                    <button
-                                        v-if="location.statut === 'active'"
-                                        @click="gererPaiements(location)"
-                                        class="btn btn-outline-success btn-sm flex-fill mt-1"
-                                    >
-                                    </button>
-
-                                    <button
-                                        v-if="location.statut === 'en_attente'"
-                                        @click="annulerLocation(location)"
-                                        class="btn btn-outline-danger btn-sm mt-1"
-                                    >
-                                        <i class="fas fa-times me-1"></i>Annuler
                                     </button>
                                 </div>
                             </div>
+
+                            <!-- Footer avec date de création -->
+                            <div class="card-footer bg-transparent border-0 pt-0">
+                                <small class="text-muted">
+                                    Créée le {{ formatDate(location.created_at) }}
+                                </small>
+                            </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- État vide -->
+                <div v-else class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-key display-1 text-muted opacity-50"></i>
+                    </div>
+                    <h4 class="text-muted mb-3">Aucune location trouvée</h4>
+                    <p class="text-muted mb-4">
+                        Vous n'avez pas encore de contrat de location. <br>
+                        Explorez nos biens disponibles à la location.
+                    </p>
+                    <Link href="/" class="btn btn-primary">
+                        <i class="fas fa-search me-2"></i>Explorer les biens
+                    </Link>
                 </div>
             </div>
         </div>
@@ -238,13 +237,28 @@ export default { layout: Layout }
 
 <script setup>
 import { Link, router } from '@inertiajs/vue3'
+import { onMounted } from 'vue'
 
 const props = defineProps({
     locations: { type: Array, default: () => [] },
     userRoles: { type: Array, default: () => [] }
 })
 
-// Méthodes utilitaires
+onMounted(() => {
+    console.log('📦 Locations reçues:', props.locations)
+    if (props.locations.length > 0) {
+        console.log('📦 Première location:', props.locations[0])
+        console.log('💰 Montant:', props.locations[0].montant)
+        console.log('🏠 Bien:', props.locations[0].bien)
+    }
+})
+
+// Vérifier si l'utilisateur est le locataire
+const isLocataire = (location) => {
+    return location.user_role_in_location === 'locataire'
+}
+
+// Méthodes utilitaires de formatage
 const formatPrice = (price) => {
     return new Intl.NumberFormat('fr-FR').format(price || 0)
 }
@@ -253,48 +267,54 @@ const formatDate = (dateString) => {
     if (!dateString) return 'Non spécifié'
     return new Date(dateString).toLocaleDateString('fr-FR', {
         year: 'numeric',
-        month: 'short',
+        month: 'long',
         day: 'numeric'
     })
 }
 
-const getStatusLabel = (statut) => {
+// Méthodes de statut
+const getStatutLabel = (statut) => {
     const labels = {
-        'en_attente': 'En attente',
+        'en_attente_paiement': 'En attente de paiement',
         'active': 'Active',
         'terminee': 'Terminée',
+        'en_retard': 'En retard',
         'suspendue': 'Suspendue',
         'annulee': 'Annulée'
     }
     return labels[statut] || statut
 }
 
-const getStatusBadgeClass = (statut) => {
+const getStatutBadgeClass = (statut) => {
     const classes = {
-        'en_attente': 'bg-warning text-dark',
-        'active': 'bg-success',
-        'terminee': 'bg-secondary',
-        'suspendue': 'bg-danger',
-        'annulee': 'bg-dark'
+        'en_attente_paiement': 'badge bg-warning text-dark',
+        'active': 'badge bg-success',
+        'terminee': 'badge bg-secondary',
+        'en_retard': 'badge bg-danger',
+        'suspendue': 'badge bg-danger',
+        'annulee': 'badge bg-dark'
     }
-    return classes[statut] || 'bg-secondary'
+    return classes[statut] || 'badge bg-secondary'
 }
 
 const getProgressBarClass = (statut) => {
     const classes = {
-        'en_attente': 'bg-warning',
+        'en_attente_paiement': 'bg-warning',
         'active': 'bg-success',
         'terminee': 'bg-secondary',
+        'en_retard': 'bg-danger',
         'suspendue': 'bg-danger',
         'annulee': 'bg-dark'
     }
     return classes[statut] || 'bg-secondary'
 }
 
+// Méthodes de filtrage
 const getLocationsByStatus = (statut) => {
     return props.locations.filter(location => location.statut === statut)
 }
 
+// Calculs de progression et durée
 const getProgressPercentage = (location) => {
     if (!location.date_debut || !location.date_fin) return 0
 
@@ -330,22 +350,19 @@ const getDureeRestante = (location) => {
     }
 }
 
-// Actions
-const gererPaiements = (location) => {
-    router.visit(route('paiements.location', location.id))
+const getDureeTotal = (location) => {
+    if (!location.date_debut || !location.date_fin) return 0
+
+    const debut = new Date(location.date_debut)
+    const fin = new Date(location.date_fin)
+
+    const diffTime = fin.getTime() - debut.getTime()
+    const diffMonths = Math.round(diffTime / (1000 * 60 * 60 * 24 * 30))
+
+    return diffMonths
 }
 
-const annulerLocation = (location) => {
-    if (confirm('Êtes-vous sûr de vouloir annuler cette location ?')) {
-        router.post(route('locations.annuler', location.id), {}, {
-            onSuccess: () => {
-                console.log('Location annulée')
-            }
-        })
-    }
-}
-
-// Actions pour les contrats et signatures
+// Actions sur les contrats
 const previewContract = (location) => {
     window.open(route('locations.contract.preview', location.id), '_blank')
 }
@@ -355,10 +372,10 @@ const downloadContract = (location) => {
 }
 
 const goToSignature = (location) => {
-    router.visit(route('locations.signature.show', location.id))
+    router.visit(route('signature.show', location.id))
 }
 
-// Méthodes utilitaires pour les signatures
+// Méthodes pour les signatures
 const getSignatureButtonText = (location) => {
     if (location.signature_stats?.fully_signed) {
         return 'Signé'
@@ -412,76 +429,50 @@ const getSignatureStatusClass = (status) => {
 
 <style scoped>
 .card {
+    border-radius: 15px;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+}
+
+.card-title {
+    color: #2c3e50;
+}
+
+.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.875rem;
+    border-radius: 6px;
+}
+
+.alert {
+    border-radius: 8px;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.4em 0.8em;
+    border-radius: 8px;
 }
 
 .progress {
     background-color: #e9ecef;
+    border-radius: 10px;
 }
 
-.text-sm {
-    font-size: 0.875rem;
+.progress-bar {
+    border-radius: 10px;
 }
 
-.bg-primary {
-    background-color: #17a2b8 !important;
-}
-
-.text-primary {
-    color: #17a2b8 !important;
-}
-
-.btn-primary {
-    background-color: #17a2b8;
-    border-color: #17a2b8;
-}
-
-.btn-primary:hover {
-    background-color: #138496;
-    border-color: #117a8b;
-}
-
-@media (max-width: 768px) {
-    .card-footer .d-flex {
-        flex-direction: column;
-        gap: 0.5rem !important;
-    }
-
-    .card-footer .btn {
-        width: 100%;
-    }
-}
-
-/* Styles pour les boutons de signature */
-.btn-warning.btn-success {
-    background-color: #28a745;
-    border-color: #28a745;
-    color: white;
-}
-
-.btn-warning.btn-success:hover {
-    background-color: #218838;
-    border-color: #1e7e34;
-}
-
-/* Responsive pour les actions */
-@media (max-width: 576px) {
-    .card-footer .d-flex {
-        flex-direction: column;
-    }
-
-    .card-footer .btn {
-        margin-bottom: 0.25rem;
-    }
-}
-
-/* Badge de signature */
-.badge {
-    font-size: 0.75rem;
+.card.bg-primary:hover,
+.card.bg-warning:hover,
+.card.bg-success:hover,
+.card.bg-info:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
 }
 </style>

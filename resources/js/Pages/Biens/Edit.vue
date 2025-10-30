@@ -1,48 +1,113 @@
 <template>
     <div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <!-- Header avec animation -->
         <div class="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-800 py-16">
-            <div class="absolute inset-0 bg-black/20"></div>
-            <div class="absolute -top-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
-            <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-purple-300/20 rounded-full blur-3xl"></div>
-
             <div class="relative max-w-7xl mx-auto px-4 text-center">
-                <h1 class="text-5xl font-extrabold text-white mb-4 tracking-tight">
-                    Modifier le Bien Immobilier
+                <h1 class="text-5xl font-extrabold text-white mb-4">
+                    Modifier le Bien
                 </h1>
-                <p class="text-xl text-blue-100 max-w-2xl mx-auto">
-                    Modifiez les informations de votre bien et de son mandat
+                <p class="text-xl text-blue-100">
+                    Modifiez les informations de votre bien immobilier
                 </p>
-                <div class="mt-4 inline-flex items-center px-4 py-2 bg-white/20 rounded-full text-white font-semibold">
-                    <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                    Bien #{{ bien.id }}
-                </div>
             </div>
         </div>
 
-        <!-- Formulaire principal -->
         <div class="max-w-6xl mx-auto px-4 -mt-8 relative z-10">
             <div class="bg-white/70 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
-                <!-- Indicateur de progression -->
                 <div class="h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-600"></div>
 
                 <form @submit.prevent="submit" class="p-12 space-y-10">
-                    <!-- Section Informations principales -->
+                    <!-- Section Photos Générales -->
                     <div class="space-y-8">
-                        <div class="flex items-center justify-between mb-6">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                                    <span class="text-white font-bold">1</span>
-                                </div>
-                                <h2 class="text-2xl font-bold text-gray-800">Informations Principales</h2>
+                        <div class="flex items-center space-x-3 mb-6">
+                            <div class="w-10 h-10 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center">
+                                <span class="text-white font-bold">📸</span>
                             </div>
-                            <div class="text-sm text-gray-500">
-                                Créé le {{ formatDate(bien.created_at) }}
+                            <h2 class="text-2xl font-bold text-gray-800">Photos Générales du Bien</h2>
+                        </div>
+
+                        <!-- Images existantes -->
+                        <div v-if="existingImages.length > 0">
+                            <label class="block text-sm font-semibold text-gray-700 mb-3">
+                                Images actuelles
+                            </label>
+                            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+                                <div v-for="image in existingImages" :key="image.id" class="relative group">
+                                    <div class="relative aspect-square">
+                                        <img :src="`/storage/${image.chemin_image}`" class="w-full h-full object-cover rounded-lg border-2" :class="form.deleted_images.includes(image.id) ? 'border-red-500 opacity-50' : 'border-gray-200'" />
+                                        <button
+                                            type="button"
+                                            @click="toggleDeleteImage(image.id)"
+                                            class="absolute top-2 right-2 rounded-full w-8 h-8 flex items-center justify-center transition-all shadow-lg"
+                                            :class="form.deleted_images.includes(image.id) ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100'"
+                                        >
+                                            {{ form.deleted_images.includes(image.id) ? '↺' : '✕' }}
+                                        </button>
+                                        <div class="absolute bottom-2 left-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+                                            {{ image.libelle || 'Image ' + image.id }}
+                                        </div>
+                                        <div v-if="form.deleted_images.includes(image.id)" class="absolute inset-0 flex items-center justify-center bg-red-500/20 rounded-lg">
+                                            <span class="text-red-600 font-bold bg-white px-3 py-1 rounded">À SUPPRIMER</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- Ajouter nouvelles images -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Ajouter de nouvelles photos générales
+                            </label>
+                            <div class="relative mb-4">
+                                <input
+                                    type="file"
+                                    @change="handleNewImagesChange"
+                                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    accept="image/*"
+                                    multiple
+                                />
+                                <div class="w-full h-48 border-2 border-dashed border-gray-300 rounded-xl hover:border-teal-400 transition-all bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <span class="text-3xl">📸</span>
+                                        </div>
+                                        <p class="text-gray-600 font-medium mb-2">Cliquez pour ajouter de nouvelles photos</p>
+                                        <p class="text-sm text-gray-500">PNG, JPG, WebP - Max 10MB par image</p>
+                                        <p class="text-xs text-gray-400 mt-1">{{ newImagePreviews.length }} nouvelle(s) image(s)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Prévisualisation nouvelles images -->
+                            <div v-if="newImagePreviews.length > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                <div v-for="(preview, index) in newImagePreviews" :key="'new-' + index" class="relative group">
+                                    <div class="relative aspect-square">
+                                        <img :src="preview.url" class="w-full h-full object-cover rounded-lg border-2 border-green-400" />
+                                        <button
+                                            type="button"
+                                            @click="removeNewImage(index)"
+                                            class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                                        >
+                                            ✕
+                                        </button>
+                                        <div class="absolute bottom-2 left-2 right-2 bg-green-500/80 text-white text-xs px-2 py-1 rounded">
+                                            NOUVELLE
+                                        </div>
+                                    </div>
+                                    <input
+                                        v-model="preview.label"
+                                        type="text"
+                                        class="mt-2 w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                                        placeholder="Libellé (ex: Façade, Salon...)"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Titre et Document -->
+                    <div class="space-y-8">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <!-- Titre -->
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                                     Titre du bien <span class="text-red-500">*</span>
@@ -50,35 +115,19 @@
                                 <input
                                     v-model="form.title"
                                     type="text"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all bg-white/80"
                                     placeholder="Ex: Villa moderne avec piscine"
                                     required
                                 />
-                                <div v-if="form.errors.title" class="text-red-500 text-sm mt-1">{{ form.errors.title }}</div>
                             </div>
 
-                            <!-- Document actuel/nouveau -->
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                                     Document commercial
                                 </label>
-
-                                <!-- Affichage du document existant -->
-                                <div v-if="bien.property_title && !documentFileName" class="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-2">
-                                            <span class="text-green-600">📎</span>
-                                            <span class="text-sm font-medium text-green-800">Document actuel</span>
-                                        </div>
-                                        <a :href="`/storage/${bien.property_title}`"
-                                           target="_blank"
-                                           class="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                                            Voir le document
-                                        </a>
-                                    </div>
+                                <div v-if="bien.property_title && !documentFileName" class="mb-2 text-sm text-green-600">
+                                    ✓ Document actuel disponible
                                 </div>
-
-                                <!-- Zone d'upload pour nouveau document -->
                                 <div class="relative">
                                     <input
                                         type="file"
@@ -86,116 +135,60 @@
                                         class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                         accept=".pdf,.doc,.docx"
                                     />
-                                    <div class="w-full px-4 py-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 transition-all duration-300 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center group-hover:from-blue-50 group-hover:to-purple-50">
+                                    <div class="w-full px-4 py-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 transition-all bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
                                         <div class="text-center">
                                             <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
                                                 <span class="text-2xl">📎</span>
                                             </div>
                                             <p class="text-sm text-gray-600 font-medium">
-                                                {{ documentFileName || 'Cliquez pour remplacer le document' }}
+                                                {{ documentFileName || 'Remplacer le document' }}
                                             </p>
                                         </div>
                                     </div>
                                 </div>
-                                <div v-if="form.errors.property_title" class="text-red-500 text-sm mt-1">{{ form.errors.property_title }}</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section Type de Mandat -->
+                    <!-- Type de Mandat -->
                     <div class="space-y-8">
-                        <div class="flex items-center space-x-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-teal-600 rounded-xl flex items-center justify-center">
-                                <span class="text-white font-bold">2</span>
-                            </div>
-                            <h2 class="text-2xl font-bold text-gray-800">Type de Mandat</h2>
-                        </div>
-
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <!-- Type de mandat -->
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                                     Type de mandat <span class="text-red-500">*</span>
                                 </label>
                                 <select
                                     v-model="form.type_mandat"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm appearance-none cursor-pointer"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all bg-white/80"
                                     required
                                     @change="onTypeMandatChange"
                                 >
-                                    <option value="">-- Sélectionner un type de mandat --</option>
-                                    <option v-for="type in typeMandatOptions" :key="type.value" :value="type.value">
-                                        {{ type.label }}
-                                    </option>
+                                    <option value="vente">Mandat de Vente</option>
+                                    <option value="gestion_locative">Mandat de Gérance (Location)</option>
                                 </select>
-                                <div v-if="form.errors.type_mandat" class="text-red-500 text-sm mt-1">{{ form.errors.type_mandat }}</div>
                             </div>
 
-                            <!-- Type de mandat de vente (conditionnel) -->
                             <div v-if="form.type_mandat === 'vente'" class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                                     Type de mandat de vente <span class="text-red-500">*</span>
                                 </label>
-                                <div class="relative">
-                                    <select
-                                        v-model="form.type_mandat_vente"
-                                        class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm appearance-none cursor-pointer"
-                                        required
-                                    >
-                                        <option value="">-- Sélectionner un type de mandat de vente --</option>
-                                        <option
-                                            v-for="type in typeMandatVenteOptions"
-                                            :key="type.value"
-                                            :value="type.value"
-                                            :title="type.description"
-                                        >
-                                            {{ type.label }}
-                                        </option>
-                                    </select>
-
-                                    <!-- Tooltip d'information -->
-                                    <div
-                                        v-if="form.type_mandat_vente"
-                                        class="mt-3 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-lg"
-                                    >
-                                        <h4 class="font-semibold text-blue-800 mb-2">
-                                            {{ getSelectedMandatLabel() }}
-                                        </h4>
-                                        <p class="text-sm text-blue-700 leading-relaxed">
-                                            {{ getSelectedMandatDescription() }}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div v-if="form.errors.type_mandat_vente" class="text-red-500 text-sm mt-1">{{ form.errors.type_mandat_vente }}</div>
-                            </div>
-
-                            <!-- Conditions particulières -->
-                            <div class="group" :class="form.type_mandat === 'vente' ? 'md:col-span-2' : 'md:col-span-1'">
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Conditions particulières
-                                </label>
-                                <textarea
-                                    v-model="form.conditions_particulieres"
-                                    rows="4"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm resize-none"
-                                    placeholder="Précisez les conditions spéciales du mandat..."
-                                ></textarea>
-                                <div v-if="form.errors.conditions_particulieres" class="text-red-500 text-sm mt-1">{{ form.errors.conditions_particulieres }}</div>
+                                <select
+                                    v-model="form.type_mandat_vente"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all bg-white/80"
+                                    required
+                                >
+                                    <option value="">-- Sélectionner --</option>
+                                    <option value="exclusif">Mandat Exclusif</option>
+                                    <option value="simple">Mandat Simple</option>
+                                    <option value="semi_exclusif">Mandat Semi-Exclusif</option>
+                                </select>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section Localisation -->
+                    <!-- Localisation -->
                     <div class="space-y-8">
-                        <div class="flex items-center space-x-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-                                <span class="text-white font-bold">3</span>
-                            </div>
-                            <h2 class="text-2xl font-bold text-gray-800">Localisation</h2>
-                        </div>
-
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <!-- Ville -->
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                                     Ville <span class="text-red-500">*</span>
@@ -203,41 +196,42 @@
                                 <input
                                     v-model="form.city"
                                     type="text"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
-                                    placeholder="Ex: Dakar"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all bg-white/80"
                                     required
                                 />
-                                <div v-if="form.errors.city" class="text-red-500 text-sm mt-1">{{ form.errors.city }}</div>
                             </div>
 
-                            <!-- Adresse -->
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Adresse complète <span class="text-red-500">*</span>
+                                    Adresse <span class="text-red-500">*</span>
                                 </label>
                                 <input
                                     v-model="form.address"
                                     type="text"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
-                                    placeholder="Ex: Parcelles Assainies, Unité 15"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all bg-white/80"
                                     required
                                 />
-                                <div v-if="form.errors.address" class="text-red-500 text-sm mt-1">{{ form.errors.address }}</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section Caractéristiques -->
+                    <!-- Caractéristiques -->
                     <div class="space-y-8">
-                        <div class="flex items-center space-x-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
-                                <span class="text-white font-bold">4</span>
+                        <!-- Alerte mode Appartement -->
+                        <div v-if="estCategorieAppartement" class="bg-blue-50 border-l-4 border-blue-500 p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-info-circle text-blue-500"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-blue-700">
+                                        <strong>Mode Appartement activé :</strong> Les champs chambres, étages, salles de bain, cuisines et salons sont calculés automatiquement.
+                                    </p>
+                                </div>
                             </div>
-                            <h2 class="text-2xl font-bold text-gray-800">Caractéristiques</h2>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            <!-- Superficie -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                                     Superficie (m²) <span class="text-red-500">*</span>
@@ -245,14 +239,11 @@
                                 <input
                                     v-model="form.superficy"
                                     type="number"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
-                                    placeholder="200"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all bg-white/80"
                                     required
                                 />
-                                <div v-if="form.errors.superficy" class="text-red-500 text-sm mt-1">{{ form.errors.superficy }}</div>
                             </div>
 
-                            <!-- Prix -->
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                                     Prix (FCFA) <span class="text-red-500">*</span>
@@ -260,298 +251,477 @@
                                 <input
                                     v-model="form.price"
                                     type="number"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
-                                    placeholder="50000000"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all bg-white/80"
                                     required
                                 />
-                                <div v-if="form.errors.price" class="text-red-500 text-sm mt-1">{{ form.errors.price }}</div>
+                            </div>
+
+                            <div class="group">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                    Catégorie <span class="text-red-500">*</span>
+                                </label>
+                                <select
+                                    v-model="form.categorie_id"
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:ring-4 focus:ring-pink-500/20 transition-all bg-white/80"
+                                    required
+                                    @change="onCategorieChange"
+                                >
+                                    <option value="">-- Sélectionner --</option>
+                                    <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                                </select>
                             </div>
 
                             <!-- Chambres -->
-                            <div class="group">
+                            <div class="group relative">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Nombre de chambres
+                                    Chambres
                                 </label>
                                 <input
                                     v-model="form.rooms"
                                     type="number"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
-                                    placeholder="3"
+                                    :disabled="estCategorieAppartement"
+                                    :class="[
+                                        'w-full px-4 py-4 border-2 rounded-xl transition-all',
+                                        estCategorieAppartement
+                                            ? 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                                            : 'bg-white/80 border-gray-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20'
+                                    ]"
+                                    :title="estCategorieAppartement ? 'Calculé automatiquement' : ''"
                                 />
-                                <div v-if="form.errors.rooms" class="text-red-500 text-sm mt-1">{{ form.errors.rooms }}</div>
+                                <div v-if="estCategorieAppartement" class="absolute right-3 top-9 text-gray-400">
+                                    <i class="fas fa-lock text-sm"></i>
+                                </div>
                             </div>
 
                             <!-- Étages -->
-                            <div class="group">
+                            <div class="group relative">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Nombre d'étages
+                                    Étages
                                 </label>
                                 <input
-                                    v-model="form.floors"
+                                    v-model.number="form.floors"
                                     type="number"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
-                                    placeholder="2"
+                                    :disabled="estCategorieAppartement"
+                                    :class="[
+                                        'w-full px-4 py-4 border-2 rounded-xl transition-all',
+                                        estCategorieAppartement
+                                            ? 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                                            : 'bg-white/80 border-gray-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20'
+                                    ]"
+                                    :title="estCategorieAppartement ? 'Calculé automatiquement' : ''"
+                                    @input="!estCategorieAppartement && genererFormulairesAppartements()"
                                 />
-                                <div v-if="form.errors.floors" class="text-red-500 text-sm mt-1">{{ form.errors.floors }}</div>
+                                <div v-if="estCategorieAppartement" class="absolute right-3 top-9 text-gray-400">
+                                    <i class="fas fa-lock text-sm"></i>
+                                </div>
                             </div>
 
                             <!-- Salles de bain -->
-                            <div class="group">
+                            <div class="group relative">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                                     Salles de bain
                                 </label>
                                 <input
                                     v-model="form.bathrooms"
                                     type="number"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm"
-                                    placeholder="2"
+                                    :disabled="estCategorieAppartement"
+                                    :class="[
+                                        'w-full px-4 py-4 border-2 rounded-xl transition-all',
+                                        estCategorieAppartement
+                                            ? 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                                            : 'bg-white/80 border-gray-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20'
+                                    ]"
+                                    :title="estCategorieAppartement ? 'Calculé automatiquement' : ''"
                                 />
-                                <div v-if="form.errors.bathrooms" class="text-red-500 text-sm mt-1">{{ form.errors.bathrooms }}</div>
+                                <div v-if="estCategorieAppartement" class="absolute right-3 top-9 text-gray-400">
+                                    <i class="fas fa-lock text-sm"></i>
+                                </div>
                             </div>
 
-                            <!-- Statut du bien -->
+                            <!-- Cuisines -->
+                            <div class="group relative">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                    Cuisines
+                                </label>
+                                <input
+                                    v-model="form.kitchens"
+                                    type="number"
+                                    :disabled="estCategorieAppartement"
+                                    :class="[
+                                        'w-full px-4 py-4 border-2 rounded-xl transition-all',
+                                        estCategorieAppartement
+                                            ? 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                                            : 'bg-white/80 border-gray-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20'
+                                    ]"
+                                    :title="estCategorieAppartement ? 'Calculé automatiquement' : ''"
+                                />
+                                <div v-if="estCategorieAppartement" class="absolute right-3 top-9 text-gray-400">
+                                    <i class="fas fa-lock text-sm"></i>
+                                </div>
+                            </div>
+
+                            <!-- Salons -->
+                            <div class="group relative">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                    Salons
+                                </label>
+                                <input
+                                    v-model="form.living_rooms"
+                                    type="number"
+                                    :disabled="estCategorieAppartement"
+                                    :class="[
+                                        'w-full px-4 py-4 border-2 rounded-xl transition-all',
+                                        estCategorieAppartement
+                                            ? 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                                            : 'bg-white/80 border-gray-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20'
+                                    ]"
+                                    :title="estCategorieAppartement ? 'Calculé automatiquement' : ''"
+                                />
+                                <div v-if="estCategorieAppartement" class="absolute right-3 top-9 text-gray-400">
+                                    <i class="fas fa-lock text-sm"></i>
+                                </div>
+                            </div>
+
                             <div class="group">
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Statut du bien <span class="text-red-500">*</span>
+                                    Statut
                                 </label>
                                 <select
                                     v-model="form.status"
-                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm appearance-none cursor-pointer"
-                                    required
+                                    class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 transition-all bg-white/80"
                                 >
                                     <option value="disponible">Disponible</option>
                                     <option value="reserve">Réservé</option>
                                     <option value="vendu">Vendu</option>
                                     <option value="loue">Loué</option>
                                 </select>
-                                <div v-if="form.errors.status" class="text-red-500 text-sm mt-1">{{ form.errors.status }}</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section Catégorie -->
-                    <div class="space-y-8">
+                    <!-- Formulaires Appartements -->
+                    <div v-if="afficherFormulairesAppartements" class="space-y-8">
                         <div class="flex items-center space-x-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-600 rounded-xl flex items-center justify-center">
-                                <span class="text-white font-bold">5</span>
+                            <div class="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                <span class="text-white font-bold">🏢</span>
                             </div>
-                            <h2 class="text-2xl font-bold text-gray-800">Catégorie</h2>
+                            <h2 class="text-2xl font-bold text-gray-800">Informations des Appartements</h2>
                         </div>
 
-                        <div class="group max-w-md">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                Type de bien <span class="text-red-500">*</span>
-                            </label>
-                            <select
-                                v-model="form.categorie_id"
-                                class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:ring-4 focus:ring-pink-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm appearance-none cursor-pointer"
-                                required
-                            >
-                                <option value="" class="text-gray-500">-- Sélectionner une catégorie --</option>
-                                <option v-for="categorie in categories" :key="categorie.id" :value="categorie.id" class="text-gray-800">
-                                    {{ categorie.name }}
-                                </option>
-                            </select>
-                            <div v-if="form.errors.categorie_id" class="text-red-500 text-sm mt-1">{{ form.errors.categorie_id }}</div>
-                        </div>
-                    </div>
+                        <div v-for="(appartement, index) in form.appartements" :key="index" class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 border-2 border-indigo-200">
+                            <h3 class="text-lg font-bold text-indigo-800 mb-4">
+                                {{ getEtageLabel(appartement.etage) }} - {{ appartement.numero }}
+                            </h3>
 
-                    <!-- Section Image -->
-                    <div class="space-y-8">
-                        <div class="flex items-center space-x-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center">
-                                <span class="text-white font-bold">6</span>
-                            </div>
-                            <h2 class="text-2xl font-bold text-gray-800">Image du Bien</h2>
-                        </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div class="group">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                        Superficie (m²)
+                                    </label>
+                                    <input
+                                        v-model.number="appartement.superficie"
+                                        type="number"
+                                        step="0.01"
+                                        class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 bg-white"
+                                        placeholder="Ex: 75.5"
+                                    />
+                                </div>
 
-                        <div class="group">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                Photo principale
-                            </label>
+                                <div class="group">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                        Nombre de salons
+                                    </label>
+                                    <input
+                                        v-model.number="appartement.salons"
+                                        type="number"
+                                        class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 bg-white"
+                                        placeholder="Ex: 1"
+                                    />
+                                </div>
 
-                            <!-- Image actuelle -->
-                            <div v-if="!imagePreview && bien.image" class="mb-4">
-                                <div class="relative w-32 h-32 rounded-lg overflow-hidden border-2 border-gray-200">
-                                    <img :src="getCurrentImageUrl()" alt="Image actuelle" class="w-full h-full object-cover" />
-                                    <div class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                                        <p class="text-white text-xs font-semibold">Image actuelle</p>
-                                    </div>
+                                <div class="group">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                        Chambres
+                                    </label>
+                                    <input
+                                        v-model.number="appartement.chambres"
+                                        type="number"
+                                        class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 bg-white"
+                                        placeholder="Ex: 2"
+                                    />
+                                </div>
+
+                                <div class="group">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                        Salles de bain
+                                    </label>
+                                    <input
+                                        v-model.number="appartement.salles_bain"
+                                        type="number"
+                                        class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 bg-white"
+                                        placeholder="Ex: 1"
+                                    />
+                                </div>
+
+                                <div class="group">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                        Cuisines
+                                    </label>
+                                    <input
+                                        v-model.number="appartement.cuisines"
+                                        type="number"
+                                        class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 bg-white"
+                                        placeholder="Ex: 1"
+                                    />
+                                </div>
+
+                                <div class="group md:col-span-2">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                        Description
+                                    </label>
+                                    <textarea
+                                        v-model="appartement.description"
+                                        rows="2"
+                                        class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 bg-white resize-none"
+                                        :placeholder="'Description pour ' + getEtageLabel(appartement.etage)"
+                                    ></textarea>
                                 </div>
                             </div>
 
-                            <div class="relative">
-                                <input
-                                    type="file"
-                                    @change="handleImageChange"
-                                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    accept="image/*"
-                                />
-                                <div class="w-full h-64 border-2 border-dashed border-gray-300 rounded-xl hover:border-teal-400 transition-all duration-300 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center group-hover:from-teal-50 group-hover:to-cyan-50">
-                                    <div v-if="!imagePreview" class="text-center">
-                                        <div class="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                            <span class="text-3xl">📸</span>
-                                        </div>
-                                        <p class="text-gray-600 font-medium mb-2">Cliquez pour changer la photo</p>
-                                        <p class="text-sm text-gray-500">PNG, JPG, WebP jusqu'à 10MB</p>
-                                    </div>
+                            <!-- Images de l'appartement -->
+                            <div class="mt-6 pt-6 border-t border-indigo-200">
+                                <label class="block text-sm font-semibold text-gray-700 mb-3">
+                                    Photos de l'appartement
+                                </label>
 
-                                    <div v-else class="relative w-full h-full">
-                                        <img :src="imagePreview" class="w-full h-full object-cover rounded-lg" />
-                                        <div class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-lg">
-                                            <p class="text-white font-semibold">Cliquez pour changer</p>
+                                <!-- Images existantes -->
+                                <div v-if="appartement.existing_images && appartement.existing_images.length > 0" class="mb-4">
+                                    <p class="text-xs text-gray-600 mb-2">Images actuelles</p>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <div v-for="image in appartement.existing_images" :key="image.id" class="relative group">
+                                            <div class="relative aspect-square">
+                                                <img :src="`/storage/${image.chemin_image}`" class="w-full h-full object-cover rounded-lg border-2" :class="appartement.deleted_images.includes(image.id) ? 'border-red-500 opacity-50' : 'border-indigo-200'" />
+                                                <button
+                                                    type="button"
+                                                    @click="toggleDeleteAppartementImage(index, image.id)"
+                                                    class="absolute top-1 right-1 rounded-full w-6 h-6 flex items-center justify-center transition-all text-xs shadow-lg"
+                                                    :class="appartement.deleted_images.includes(image.id) ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100'"
+                                                >
+                                                    {{ appartement.deleted_images.includes(image.id) ? '↺' : '✕' }}
+                                                </button>
+                                                <div v-if="appartement.deleted_images.includes(image.id)" class="absolute inset-0 flex items-center justify-center bg-red-500/20 rounded-lg">
+                                                    <span class="text-red-600 text-xs font-bold bg-white px-2 py-1 rounded">SUPPR</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Ajouter nouvelles images -->
+                                <div class="relative mb-4">
+                                    <input
+                                        type="file"
+                                        @change="(e) => handleAppartementImagesChange(e, index)"
+                                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        accept="image/*"
+                                        multiple
+                                    />
+                                    <div class="w-full h-32 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-500 transition-all bg-white flex items-center justify-center">
+                                        <div class="text-center">
+                                            <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                                                <span class="text-2xl">🖼️</span>
+                                            </div>
+                                            <p class="text-sm text-gray-600 font-medium">
+                                                Ajouter des photos
+                                            </p>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                {{ appartement.new_images.length }} nouvelle(s)
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Nouvelles images -->
+                                <div v-if="appartement.new_images.length > 0" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div v-for="(img, imgIndex) in appartement.new_images" :key="imgIndex" class="relative group">
+                                        <div class="relative aspect-square">
+                                            <img :src="img.url" class="w-full h-full object-cover rounded-lg border-2 border-green-400" />
+                                            <button
+                                                type="button"
+                                                @click="removeNewAppartementImage(index, imgIndex)"
+                                                class="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                                            >
+                                                ✕
+                                            </button>
+                                            <div class="absolute bottom-1 left-1 right-1 bg-green-500/80 text-white text-xs px-1 py-0.5 rounded text-center">
+                                                NOUVELLE
+                                            </div>
+                                        </div>
+                                        <input
+                                            v-model="img.label"
+                                            type="text"
+                                            class="mt-1 w-full px-2 py-1 text-xs border border-gray-300 rounded focus:border-indigo-500"
+                                            placeholder="Libellé"
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                            <div v-if="form.errors.image" class="text-red-500 text-sm mt-1">{{ form.errors.image }}</div>
                         </div>
                     </div>
 
-                    <!-- Section Description -->
+                    <!-- Description -->
                     <div class="space-y-8">
-                        <div class="flex items-center space-x-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center">
-                                <span class="text-white font-bold">7</span>
-                            </div>
-                            <h2 class="text-2xl font-bold text-gray-800">Description</h2>
-                        </div>
-
                         <div class="group">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                Description détaillée
+                                Description
                             </label>
                             <textarea
                                 v-model="form.description"
                                 rows="6"
-                                class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all duration-300 group-hover:border-gray-300 bg-white/80 backdrop-blur-sm resize-none"
-                                placeholder="Décrivez votre bien immobilier en détail : équipements, points forts, environnement..."
+                                class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all bg-white/80 resize-none"
                             ></textarea>
-                            <div v-if="form.errors.description" class="text-red-500 text-sm mt-1">{{ form.errors.description }}</div>
                         </div>
                     </div>
 
-                    <!-- Boutons d'action -->
-                    <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6 pt-8 border-t border-gray-200">
+                    <!-- Conditions particulières -->
+                    <div class="space-y-8">
+                        <div class="group">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Conditions particulières du mandat
+                            </label>
+                            <textarea
+                                v-model="form.conditions_particulieres"
+                                rows="4"
+                                class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all bg-white/80 resize-none"
+                            ></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Boutons -->
+                    <div class="flex justify-center space-x-6 pt-8 border-t">
                         <button
                             type="button"
                             @click="cancel"
-                            class="px-8 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 border-2 border-gray-200 hover:border-gray-300"
+                            class="px-8 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all"
                         >
                             Annuler
                         </button>
                         <button
                             type="submit"
                             :disabled="form.processing"
-                            class="px-12 py-4 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50"
+                            class="px-12 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all shadow-lg disabled:opacity-50"
                         >
-                            <span v-if="form.processing">Mise à jour...</span>
-                            <span v-else>Mettre à jour le Bien</span>
+                            {{ form.processing ? 'Mise à jour...' : 'Mettre à jour' }}
                         </button>
                     </div>
                 </form>
             </div>
         </div>
-
-        <!-- Espacement en bas -->
-        <div class="h-20"></div>
     </div>
 </template>
 
-// Remplacez la section script setup dans votre composant Vue par ceci :
-
 <script setup>
 import { useForm, router } from '@inertiajs/vue3'
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { route } from 'ziggy-js'
 
 const props = defineProps({
-    categories: Array,
     bien: Object,
-    mandat: Object
+    categories: Array,
 })
 
-// Initialiser le formulaire directement avec les données des props
 const form = useForm({
-    // Données du bien - Initialisées directement avec les props
     title: props.bien?.title || '',
     property_title: null,
     description: props.bien?.description || '',
-    image: null,
+    images: [],
+    images_labels: [],
+    deleted_images: [],
     rooms: Number(props.bien?.rooms) || 0,
     floors: Number(props.bien?.floors) || 0,
     bathrooms: Number(props.bien?.bathrooms) || 0,
+    kitchens: Number(props.bien?.kitchens) || 0,
+    living_rooms: Number(props.bien?.living_rooms) || 0,
     city: props.bien?.city || '',
     address: props.bien?.address || '',
     superficy: Number(props.bien?.superficy) || 0,
     price: Number(props.bien?.price) || 0,
     categorie_id: Number(props.bien?.categorie_id) || null,
     status: props.bien?.status || 'disponible',
-
-    // Données du mandat - Initialisées directement avec les props
     type_mandat: props.bien?.mandat?.type_mandat || '',
     type_mandat_vente: props.bien?.mandat?.type_mandat_vente || '',
-    conditions_particulieres: props.bien?.mandat?.conditions_particulieres || ''
+    conditions_particulieres: props.bien?.mandat?.conditions_particulieres || '',
+    appartements: [],
+    appartements_images: [],
+    appartements_images_labels: [],
+    appartements_deleted_images: []
 })
 
-const imagePreview = ref(null)
+const existingImages = ref(props.bien?.images?.filter(img => !img.appartement_id) || [])
+const newImagePreviews = ref([])
 const documentFileName = ref(null)
+const afficherFormulairesAppartements = ref(false)
 
-const typeMandatOptions = [
-    { value: 'vente', label: 'Mandat de Vente' },
-    { value: 'gestion_locative', label: 'Mandat de Gérance (Location)' },
-]
+const categorieSelectionnee = computed(() => {
+    return props.categories.find(cat => cat.id === form.categorie_id)
+})
 
-const typeMandatVenteOptions = [
-    {
-        value: 'exclusif',
-        label: 'Mandat Exclusif',
-        description: 'Le propriétaire confie la vente uniquement à une seule agence. Il ne peut ni vendre par lui-même, ni mandater une autre agence. L\'agence a l\'assurance d\'être rémunérée si la vente se réalise pendant la durée du mandat. Avantage : plus d\'implication et d\'efforts marketing de l\'agence.'
-    },
-    {
-        value: 'simple',
-        label: 'Mandat Simple',
-        description: 'Le propriétaire peut confier le bien à plusieurs agences et vendre également par ses propres moyens. L\'agence qui réalise la vente perçoit la commission. Avantage : plus de visibilité, mais moins d\'engagement des agences.'
-    },
-    {
-        value: 'semi_exclusif',
-        label: 'Mandat Semi-Exclusif',
-        description: 'Le propriétaire confie son bien à une seule agence mais garde la possibilité de vendre par lui-même. L\'agence est rémunérée uniquement si elle trouve l\'acquéreur. C\'est un compromis entre exclusif et simple.'
-    }
-]
+const estCategorieAppartement = computed(() => {
+    return form.categorie_id === 5
+})
 
-// Watcher pour s'assurer que les données sont bien chargées si elles arrivent après
-watch(() => props.bien, (newBien) => {
-    if (newBien && Object.keys(form.data()).some(key => !form[key] && newBien[key])) {
-        // Réinitialiser les données du formulaire si elles n'étaient pas disponibles au moment de la création
-        form.title = newBien.title || ''
-        form.description = newBien.description || ''
-        form.rooms = newBien.rooms || ''
-        form.floors = newBien.floors || ''
-        form.bathrooms = newBien.bathrooms || ''
-        form.city = newBien.city || ''
-        form.address = newBien.address || ''
-        form.superficy = newBien.superficy || ''
-        form.price = newBien.price || ''
-        form.categorie_id = newBien.categorie_id || ''
-        form.status = newBien.status || 'disponible'
+const estCategorieMaisonOuStudio = computed(() => {
+    return form.categorie_id === 4 || form.categorie_id === 10
+})
 
-        // Données du mandat
-        if (newBien.mandat) {
-            form.type_mandat = newBien.mandat.type_mandat || ''
-            form.type_mandat_vente = newBien.mandat.type_mandat_vente || ''
-            form.conditions_particulieres = newBien.mandat.conditions_particulieres || ''
-        }
-    }
-}, { immediate: true, deep: true })
-
-const handleImageChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-        form.image = file
-        imagePreview.value = URL.createObjectURL(file)
-    }
+if (props.bien?.appartements && props.bien.appartements.length > 0) {
+    afficherFormulairesAppartements.value = true
+    form.appartements = props.bien.appartements.map(apt => ({
+        id: apt.id,
+        numero: apt.numero,
+        etage: apt.etage,
+        superficie: apt.superficie || '',
+        pieces: apt.pieces || '',
+        chambres: apt.chambres || '',
+        salles_bain: apt.salles_bain || '',
+        description: apt.description || '',
+        existing_images: props.bien.images?.filter(img => img.appartement_id === apt.id) || [],
+        new_images: [],
+        deleted_images: []
+    }))
 }
+
+const calculerTotauxAppartements = () => {
+    if (!estCategorieAppartement.value || form.appartements.length === 0) {
+        return
+    }
+
+    form.rooms = form.appartements.reduce((total, apt) => {
+        return total + (parseInt(apt.chambres) || 0)
+    }, 0)
+
+    form.bathrooms = form.appartements.reduce((total, apt) => {
+        return total + (parseInt(apt.salles_bain) || 0)
+    }, 0)
+
+    form.kitchens = form.appartements.length
+    form.living_rooms = form.appartements.reduce((total, apt) => {
+        return total + (parseInt(apt.pieces) || 0)
+    }, 0)
+
+    const maxEtage = Math.max(...form.appartements.map(apt => apt.etage))
+    form.floors = maxEtage
+}
+
+watch(
+    () => form.appartements,
+    () => {
+        if (estCategorieAppartement.value) {
+            calculerTotauxAppartements()
+        }
+    },
+    { deep: true }
+)
 
 const handlePropertyTitleChange = (e) => {
     const file = e.target.files[0]
@@ -561,109 +731,258 @@ const handlePropertyTitleChange = (e) => {
     }
 }
 
+const handleNewImagesChange = (e) => {
+    const files = Array.from(e.target.files)
+
+    files.forEach(file => {
+        if (file.size > 10240 * 1024) {
+            alert(`L'image ${file.name} dépasse 10MB`)
+            return
+        }
+
+        form.images.push(file)
+        newImagePreviews.value.push({
+            url: URL.createObjectURL(file),
+            label: ''
+        })
+    })
+}
+
+const removeNewImage = (index) => {
+    URL.revokeObjectURL(newImagePreviews.value[index].url)
+    newImagePreviews.value.splice(index, 1)
+    form.images.splice(index, 1)
+}
+
+const toggleDeleteImage = (imageId) => {
+    const index = form.deleted_images.indexOf(imageId)
+    if (index > -1) {
+        form.deleted_images.splice(index, 1)
+    } else {
+        form.deleted_images.push(imageId)
+    }
+}
+
+const handleAppartementImagesChange = (e, appartementIndex) => {
+    const files = Array.from(e.target.files)
+
+    files.forEach(file => {
+        if (file.size > 10240 * 1024) {
+            alert(`L'image ${file.name} dépasse 10MB`)
+            return
+        }
+
+        form.appartements[appartementIndex].new_images.push({
+            file: file,
+            url: URL.createObjectURL(file),
+            label: ''
+        })
+    })
+}
+
+const removeNewAppartementImage = (appartementIndex, imageIndex) => {
+    const img = form.appartements[appartementIndex].new_images[imageIndex]
+    URL.revokeObjectURL(img.url)
+    form.appartements[appartementIndex].new_images.splice(imageIndex, 1)
+}
+
+const toggleDeleteAppartementImage = (appartementIndex, imageId) => {
+    const deletedImages = form.appartements[appartementIndex].deleted_images
+    const index = deletedImages.indexOf(imageId)
+    if (index > -1) {
+        deletedImages.splice(index, 1)
+    } else {
+        deletedImages.push(imageId)
+    }
+}
+
 const onTypeMandatChange = () => {
-    // Réinitialiser le type de mandat de vente quand on change le type de mandat
     if (form.type_mandat !== 'vente') {
         form.type_mandat_vente = ''
     }
 }
 
-const getSelectedMandatLabel = () => {
-    const selected = typeMandatVenteOptions.find(option => option.value === form.type_mandat_vente)
-    return selected ? selected.label : ''
-}
-
-const getSelectedMandatDescription = () => {
-    const selected = typeMandatVenteOptions.find(option => option.value === form.type_mandat_vente)
-    return selected ? selected.description : ''
-}
-
-const getCurrentImageUrl = () => {
-    if (props.bien?.image) {
-        return props.bien.image.startsWith('/') ? props.bien.image : `/storage/${props.bien.image}`
+const onCategorieChange = () => {
+    if (estCategorieAppartement.value) {
+        if (!form.floors || form.floors < 1) {
+            alert('Veuillez d\'abord saisir le nombre d\'étages pour générer les appartements')
+            return
+        }
+        genererFormulairesAppartements()
+    } else if (estCategorieMaisonOuStudio.value) {
+        afficherFormulairesAppartements.value = false
+        form.appartements = []
+        if (form.rooms === 0) form.rooms = ''
+        if (form.bathrooms === 0) form.bathrooms = ''
+        if (form.kitchens === 0) form.kitchens = ''
+        if (form.living_rooms === 0) form.living_rooms = ''
+    } else {
+        afficherFormulairesAppartements.value = false
+        form.appartements = []
     }
-    return '/images/placeholder-house.jpg'
 }
 
-const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    })
+const genererFormulairesAppartements = () => {
+    if (!estCategorieAppartement.value || !form.floors || form.floors < 1) {
+        afficherFormulairesAppartements.value = false
+        form.appartements = []
+        return
+    }
+
+    afficherFormulairesAppartements.value = true
+
+    const nombreAppartements = parseInt(form.floors) + 1
+    const appartementExistants = form.appartements.filter(apt => apt.id)
+
+    form.appartements = []
+
+    for (let i = 0; i < nombreAppartements; i++) {
+        const existant = appartementExistants.find(apt => apt.etage === i)
+
+        if (existant) {
+            form.appartements.push(existant)
+        } else {
+            form.appartements.push({
+                numero: `APT-${String(i + 1).padStart(3, '0')}`,
+                etage: i,
+                superficie: form.superficy ? (form.superficy / nombreAppartements).toFixed(2) : '',
+                pieces: 1,
+                chambres: 2,
+                salles_bain: 1,
+                description: getEtageLabel(i),
+                existing_images: [],
+                new_images: [],
+                deleted_images: []
+            })
+        }
+    }
+
+    calculerTotauxAppartements()
+}
+
+const getEtageLabel = (etage) => {
+    const labels = {
+        0: 'Rez-de-chaussée',
+        1: '1er étage',
+        2: '2ème étage',
+        3: '3ème étage'
+    }
+    return labels[etage] || `${etage}ème étage`
 }
 
 const submit = () => {
-    // Debug pour vérifier les données
-    console.log('Données avant envoi:', {
-        title: form.title,
-        city: form.city,
-        address: form.address,
-        superficy: form.superficy,
-        price: form.price,
-        categorie_id: form.categorie_id
-    });
+    const remainingGeneralImages = existingImages.value.length - form.deleted_images.length + newImagePreviews.value.length
 
-    // Vérifier que les données essentielles sont présentes
-    if (!form.title || !form.city || !form.address || !form.superficy || !form.price || !form.categorie_id) {
-        alert('Certains champs requis sont manquants. Vérifiez le formulaire.');
-        return;
+    if (remainingGeneralImages === 0 && !afficherFormulairesAppartements.value) {
+        alert('Le bien doit avoir au moins une image')
+        return
     }
 
-    // Utiliser router.post avec _method au lieu de form.put
-    const formData = new FormData();
+    form.images_labels = newImagePreviews.value.map(p => p.label || '')
 
-    // Ajouter la méthode PUT
-    formData.append('_method', 'PUT');
+    if (afficherFormulairesAppartements.value) {
+        form.appartements_images = []
+        form.appartements_images_labels = []
+        form.appartements_deleted_images = []
 
-    // Ajouter tous les champs
-    formData.append('title', form.title || '');
-    formData.append('city', form.city || '');
-    formData.append('address', form.address || '');
-    formData.append('superficy', form.superficy || '0');
-    formData.append('price', form.price || '0');
-    formData.append('categorie_id', form.categorie_id || '');
-    formData.append('description', form.description || '');
-    formData.append('rooms', form.rooms || '0');
-    formData.append('floors', form.floors || '0');
-    formData.append('bathrooms', form.bathrooms || '0');
-    formData.append('status', form.status || 'disponible');
+        form.appartements.forEach((appartement, index) => {
+            appartement.deleted_images.forEach(imgId => {
+                form.appartements_deleted_images.push({
+                    image_id: imgId,
+                    appartement_index: index
+                })
+            })
 
-    // Données du mandat
-    if (form.type_mandat) formData.append('type_mandat', form.type_mandat);
-    if (form.type_mandat_vente) formData.append('type_mandat_vente', form.type_mandat_vente);
-    if (form.conditions_particulieres) formData.append('conditions_particulieres', form.conditions_particulieres);
-
-    // Fichiers (seulement s'ils sont sélectionnés)
-    if (form.image) {
-        formData.append('image', form.image);
-    }
-    if (form.property_title) {
-        formData.append('property_title', form.property_title);
+            appartement.new_images.forEach(img => {
+                form.appartements_images.push({
+                    file: img.file,
+                    appartement_index: index
+                })
+                form.appartements_images_labels.push({
+                    label: img.label || '',
+                    appartement_index: index
+                })
+            })
+        })
     }
 
-    // Envoyer avec router.post
+    const formData = new FormData()
+    formData.append('_method', 'PUT')
+
+    Object.keys(form.data()).forEach(key => {
+        if (key === 'images') {
+            form.images.forEach(img => formData.append('images[]', img))
+        } else if (key === 'images_labels') {
+            form.images_labels.forEach(label => formData.append('images_labels[]', label))
+        } else if (key === 'deleted_images') {
+            form.deleted_images.forEach(id => formData.append('deleted_images[]', id))
+        } else if (key === 'property_title' && form.property_title) {
+            formData.append('property_title', form.property_title)
+        } else if (key === 'appartements') {
+            formData.append('appartements', JSON.stringify(
+                form.appartements.map(apt => ({
+                    id: apt.id,
+                    numero: apt.numero,
+                    etage: apt.etage,
+                    superficie: apt.superficie,
+                    pieces: apt.pieces,
+                    chambres: apt.chambres,
+                    salles_bain: apt.salles_bain,
+                    description: apt.description
+                }))
+            ))
+        } else if (key === 'appartements_images') {
+            form.appartements_images.forEach((imgData, idx) => {
+                formData.append(`appartements_images[${idx}][file]`, imgData.file)
+                formData.append(`appartements_images[${idx}][appartement_index]`, imgData.appartement_index)
+            })
+        } else if (key === 'appartements_images_labels') {
+            form.appartements_images_labels.forEach((labelData, idx) => {
+                formData.append(`appartements_images_labels[${idx}][label]`, labelData.label)
+                formData.append(`appartements_images_labels[${idx}][appartement_index]`, labelData.appartement_index)
+            })
+        } else if (key === 'appartements_deleted_images') {
+            form.appartements_deleted_images.forEach((delData, idx) => {
+                formData.append(`appartements_deleted_images[${idx}][image_id]`, delData.image_id)
+                formData.append(`appartements_deleted_images[${idx}][appartement_index]`, delData.appartement_index)
+            })
+        } else if (form[key] !== null && form[key] !== undefined) {
+            formData.append(key, form[key])
+        }
+    })
+
     router.post(route('biens.update', props.bien.id), formData, {
         preserveScroll: true,
         onBefore: () => {
-            form.processing = true;
+            form.processing = true
         },
         onFinish: () => {
-            form.processing = false;
+            form.processing = false
         },
         onSuccess: () => {
-            console.log('Mise à jour réussie');
+            newImagePreviews.value.forEach(p => URL.revokeObjectURL(p.url))
+
+            if (afficherFormulairesAppartements.value) {
+                form.appartements.forEach(apt => {
+                    apt.new_images.forEach(img => URL.revokeObjectURL(img.url))
+                })
+            }
         },
         onError: (errors) => {
-            console.log('Erreurs de validation:', errors);
-            // Assigner les erreurs au formulaire
-            Object.keys(errors).forEach(key => {
-                form.setError(key, errors[key]);
-            });
+            console.log('Erreurs:', errors)
         }
-    });
+    })
 }
+
 const cancel = () => {
+    newImagePreviews.value.forEach(p => URL.revokeObjectURL(p.url))
+
+    if (afficherFormulairesAppartements.value) {
+        form.appartements.forEach(apt => {
+            apt.new_images.forEach(img => URL.revokeObjectURL(img.url))
+        })
+    }
+
     router.visit(route('biens.show', props.bien.id))
 }
 </script>

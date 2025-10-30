@@ -2,202 +2,577 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Appartement;
+use App\Models\Paiement;
 use App\Models\Reservation;
 use App\Models\Bien;
 use App\Models\ClientDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ReservationController extends Controller
 {
-    /**
-     * Afficher le formulaire de réservation
-     */
     public function create(Request $request, $bien_id = null)
     {
+        Log::info('🔍 ReservationController@create', [
+            'request_all' => $request->all(),
+            'bien_id' => $bien_id,
+            'appartement_id' => $request->input('appartement_id')
+        ]);
+
         if (!$bien_id) {
             $bien_id = $request->input('bien_id');
         }
 
-        // ✅ CORRECTION : Charger aussi la relation 'mandat'
-        $bien = Bien::with(['category', 'mandat'])->findOrFail($bien_id);
+        // ✅ RÉCUPÉRER l'appartement_id depuis la requête
+        $appartement_id = $request->input('appartement_id');
 
-        if ($bien->status !== 'disponible') {
-            return redirect()->back()->with('error', 'Ce bien n\'est plus disponible.');
+        $bien = Bien::with(['category', 'mandat', 'images', 'appartements'])->findOrFail($bien_id);
+
+        // ✅ CORRECTION : Vérification dynamique par nom de catégorie
+        $isImmeuble = $bien->category &&
+            strtolower($bien->category->name) === 'appartement' &&
+            $bien->appartements()->count() > 0;
+
+        Log::info('🏠 Bien chargé pour création réservation', [
+            'bien_id' => $bien->id,
+            'categorie_id' => $bien->categorie_id,
+            'category_name' => $bien->category ? $bien->category->name : null,
+            'status' => $bien->status,
+            'has_mandat' => $bien->mandat !== null,
+            'is_immeuble' => $isImmeuble, // ✅ Changé
+            'nb_appartements' => $bien->appartements->count(),
+            'appartement_id_requested' => $appartement_id
+        ]);
+
+        // ✅ Pour les immeubles (vérification dynamique)
+        if ($isImmeuble) {
+            // ✅ Si un appartement spécifique est demandé, vérifier qu'il est disponible
+            if ($appartement_id) {
+                $appartement = $bien->appartements()
+                    ->where('id', $appartement_id)
+                    ->where('statut', 'disponible')
+                    ->first();
+
+                if (!$appartement) {
+                    return redirect()->back()->with('error', 'Cet appartement n\'est pas disponible.');
+                }
+            } else {
+                // Sinon, vérifier qu'il y a au moins un appartement disponible
+                $appartementDisponible = $bien->appartements()
+                    ->where('statut', 'disponible')
+                    ->exists();
+
+                if (!$appartementDisponible) {
+                    return redirect()->back()->with('error', 'Aucun appartement disponible dans cet immeuble.');
+                }
+            }
+        } else {
+            // Pour les autres biens
+            if ($bien->status !== 'disponible') {
+                return redirect()->back()->with('error', 'Ce bien n\'est plus disponible.');
+            }
+        }
+
+        // Vérifier le mandat
+        if (!$bien->mandat || !in_array($bien->mandat->type_mandat, ['vente', 'gestion_locative'])) {
+            return redirect()->back()->with('error', 'Ce bien n\'a pas de mandat valide pour une réservation.');
+        }
+
+        if ($isImmeuble) {
+            $apparts = $bien->getAppartementsDisponibles();
+            Log::info('🚪 Appartements pour le bien', [
+                'bien_id' => $bien->id,
+                'total_appartements' => $bien->appartements->count(),
+                'appartements_disponibles' => $apparts->count(),
+                'tous_les_appartements' => $bien->appartements->map(function($a) {
+                    return [
+                        'id' => $a->id,
+                        'numero' => $a->numero,
+                        'statut' => $a->statut
+                    ];
+                })
+            ]);
         }
 
         return Inertia::render('Reservation/Create', [
-            'bien' => $bien
+            'bien' => $bien,
+            'appartement_id' => $appartement_id,
+            'appartements_disponibles' => $isImmeuble
+                ? $bien->getAppartementsDisponibles()
+                : []
         ]);
     }
 
-    /**
-     * Créer une réservation avec document
-     */
+
     public function store(Request $request)
     {
-        $request->validate([
-            'bien_id' => 'required|exists:biens,id',
-            'type_document' => 'required|string',
-            'fichier' => 'required|file|max:5120|mimes:pdf,jpg,jpeg,png'
-        ]);
-
         try {
-            DB::beginTransaction();
-
-            $bien = Bien::with('mandat')->findOrFail($request->bien_id);
-
-            // ✅ Vérification 1: Statut du bien
-            if (!in_array($bien->status, ['disponible'])) {
-                DB::rollback();
-                return redirect()->back()
-                    ->with('error', '❌ Ce bien ne peut pas être réservé car son statut est : ' . $bien->status)
-                    ->withInput();
-            }
-
-            // ✅ Vérification 2: Réservation existante pour CE client
-            $maReservationExistante = Reservation::where('bien_id', $request->bien_id)
-                ->where('client_id', Auth::id())
-                ->whereIn('statut', ['en_attente', 'confirmée'])
-                ->first();
-
-            if ($maReservationExistante) {
-                DB::rollback();
-                return redirect()->route('reservations.show', $maReservationExistante->id)
-                    ->with('warning', '⚠️ Vous avez déjà une réservation active pour ce bien. Consultez-la ci-dessous.');
-            }
-
-            // ✅ Vérification 3: Réservation existante par un autre client
-            $reservationAutreClient = Reservation::where('bien_id', $request->bien_id)
-                ->where('client_id', '!=', Auth::id())
-                ->whereIn('statut', ['en_attente', 'confirmée'])
-                ->exists();
-
-            if ($reservationAutreClient) {
-                DB::rollback();
-                return redirect()->back()
-                    ->with('error', '❌ Ce bien est déjà réservé par un autre client.')
-                    ->withInput();
-            }
-
-            // Créer la réservation
-            $reservation = Reservation::create([
-                'client_id' => Auth::id(),
-                'bien_id' => $request->bien_id,
-                'montant' => $this->calculateReservationAmount($bien),
-                'statut' => 'en_attente',
-                'paiement_id' => null,
-                'date_reservation' => now()
+            Log::info('📥 === DÉBUT CRÉATION RÉSERVATION ===', [
+                'user_id' => auth()->id(),
+                'request_all' => $request->all(),
+                'appartement_id_present' => $request->has('appartement_id'),
+                'appartement_id_value' => $request->input('appartement_id')
             ]);
 
-            // Upload du document
-            if ($request->hasFile('fichier')) {
-                $file = $request->file('fichier');
-                $filename = time() . '_' . Auth::id() . '_' . $request->type_document . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('documents/clients', $filename, 'public');
+            $validated = $request->validate([
+                'bien_id' => 'required|exists:biens,id',
+                'appartement_id' => 'nullable|exists:appartements,id',
+                'type_document' => 'required|string',
+                'fichier' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            ]);
 
-                ClientDocument::create([
-                    'client_id' => Auth::id(),
-                    'reservation_id' => $reservation->id,
-                    'type_document' => $request->type_document,
-                    'fichier_path' => $path,
-                    'statut' => 'en_attente'
+            Log::info('✅ Validation réussie', [
+                'validated_data' => $validated
+            ]);
+
+            $bien = Bien::with(['mandat', 'appartements', 'category'])->findOrFail($validated['bien_id']);
+
+            // ✅ Vérifier si c'est un immeuble d'appartements de manière dynamique
+            $isImmeuble = $bien->category &&
+                strtolower($bien->category->name) === 'appartement' &&
+                $bien->appartements()->count() > 0;
+
+            Log::info('🏠 Bien récupéré', [
+                'bien_id' => $bien->id,
+                'categorie_id' => $bien->categorie_id,
+                'category_name' => $bien->category ? $bien->category->name : null,
+                'is_immeuble' => $isImmeuble, // ✅ Changé de is_appartement à is_immeuble
+                'nb_appartements' => $bien->appartements->count(),
+                'appartement_id_demande' => $validated['appartement_id'] ?? null
+            ]);
+
+            // ✅ Vérifications pour immeubles
+            if ($isImmeuble) {
+                if (!isset($validated['appartement_id'])) {
+                    return redirect()->back()->withErrors([
+                        'appartement' => 'Vous devez sélectionner un appartement spécifique.'
+                    ]);
+                }
+
+                $appartement = Appartement::where('id', $validated['appartement_id'])
+                    ->where('bien_id', $bien->id)
+                    ->first();
+
+                if (!$appartement) {
+                    return redirect()->back()->withErrors([
+                        'appartement' => 'Cet appartement n\'appartient pas à cet immeuble.'
+                    ]);
+                }
+
+                if ($appartement->statut !== 'disponible') {
+                    return redirect()->back()->withErrors([
+                        'appartement' => 'Cet appartement n\'est plus disponible.'
+                    ]);
+                }
+
+                Log::info('✅ Appartement validé', [
+                    'appartement_id' => $appartement->id,
+                    'numero' => $appartement->numero,
+                    'statut' => $appartement->statut
+                ]);
+            } else {
+                // Pour les autres biens (non-immeubles)
+                if (!in_array($bien->status, ['disponible', 'en_vente'])) {
+                    return redirect()->back()->withErrors([
+                        'bien' => 'Ce bien n\'est plus disponible.'
+                    ]);
+                }
+            }
+
+            // Vérifier le mandat
+            if (!$bien->mandat || !in_array($bien->mandat->type_mandat, ['vente', 'gestion_locative'])) {
+                return redirect()->back()->withErrors([
+                    'bien' => 'Ce bien n\'a pas de mandat valide.'
                 ]);
             }
 
-            $bien->update(['status' => 'reserve']);
+            // Vérifier réservation existante
+            $queryReservation = Reservation::where('bien_id', $validated['bien_id'])
+                ->where('client_id', auth()->id())
+                ->whereIn('statut', ['en_attente', 'confirmée']);
 
-            DB::commit();
+            if (isset($validated['appartement_id'])) {
+                $queryReservation->where('appartement_id', $validated['appartement_id']);
+            }
+
+            if ($queryReservation->exists()) {
+                return redirect()->back()->withErrors([
+                    'reservation' => 'Vous avez déjà une réservation active pour ce bien/appartement.'
+                ]);
+            }
+
+            // Calculer le montant
+            $typeMandat = $bien->mandat->type_mandat;
+            if ($typeMandat === 'vente') {
+                $montantInitial = $bien->price * 0.10;
+                $typeMontant = 'acompte';
+                $messageInfo = 'L\'acompte représente 10% du prix de vente.';
+            } else {
+                $montantInitial = $bien->price;
+                $typeMontant = 'depot_garantie';
+                $messageInfo = 'Le dépôt de garantie correspond à 1 mois de loyer.';
+            }
+
+            $reservation = DB::transaction(function () use ($validated, $request, $bien, $montantInitial, $typeMontant, $isImmeuble) {
+
+                // Créer la réservation
+                $reservation = Reservation::create([
+                    'bien_id' => $validated['bien_id'],
+                    'appartement_id' => $validated['appartement_id'] ?? null,
+                    'client_id' => auth()->id(),
+                    'date_reservation' => now(),
+                    'montant' => $montantInitial,
+                    'type_montant' => $typeMontant,
+                    'statut' => 'en_attente',
+                    'documents_valides' => false,
+                ]);
+
+                Log::info('✅ Réservation créée', [
+                    'reservation_id' => $reservation->id,
+                    'bien_id' => $reservation->bien_id,
+                    'appartement_id' => $reservation->appartement_id,
+                ]);
+
+                // Stocker le fichier
+                $fichierPath = $request->file('fichier')->store('documents/clients', 'public');
+
+                ClientDocument::create([
+                    'client_id' => auth()->id(),
+                    'reservation_id' => $reservation->id,
+                    'type_document' => $validated['type_document'],
+                    'fichier_path' => $fichierPath,
+                    'statut' => 'en_attente',
+                ]);
+
+                Paiement::create([
+                    'reservation_id' => $reservation->id,
+                    'type' => 'reservation',
+                    'type_montant' => $typeMontant,
+                    'montant_total' => $montantInitial,
+                    'montant_paye' => 0,
+                    'montant_restant' => $montantInitial,
+                    'commission_agence' => 0,
+                    'statut' => 'en_attente',
+                    'mode_paiement' => 'orange_money',
+                ]);
+
+                // ✅ NE PAS CHANGER LE STATUT ICI
+                // Le statut sera mis à jour après le paiement réussi
+                Log::info('ℹ️ Statut non modifié - En attente du paiement', [
+                    'bien_id' => $bien->id,
+                    'appartement_id' => $validated['appartement_id'] ?? null,
+                    'is_immeuble' => $isImmeuble
+                ]);
+
+                return $reservation;
+            });
+
+            Log::info('🎉 === FIN CRÉATION RÉSERVATION AVEC SUCCÈS ===', [
+                'reservation_id' => $reservation->id
+            ]);
 
             return redirect()->route('reservations.show', $reservation->id)
-                ->with('success', '✅ Réservation créée avec succès.');
+                ->with('success', "Réservation créée avec succès ! $messageInfo");
 
         } catch (\Exception $e) {
-            DB::rollback();
-            \Log::error('Erreur création réservation: ' . $e->getMessage());
+            Log::error('❌ Erreur création réservation', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return redirect()->back()
-                ->with('error', '❌ Erreur: ' . $e->getMessage())
-                ->withInput();
-        }
-    }    /**
-     * Calculer le montant de réservation selon le type de mandat
-     */
-    private function calculateReservationAmount(Bien $bien)
-    {
-        // ✅ DEBUG : Ajouter des logs pour diagnostiquer
-        \Log::info('calculateReservationAmount - Bien ID: ' . $bien->id);
-        \Log::info('calculateReservationAmount - Prix: ' . $bien->price);
-        \Log::info('calculateReservationAmount - Mandat existe: ' . ($bien->mandat ? 'OUI' : 'NON'));
-
-        if (!$bien->mandat) {
-            \Log::info('calculateReservationAmount - Pas de mandat, retour 25000');
-            return 25000; // Montant par défaut si pas de mandat
-        }
-
-        \Log::info('calculateReservationAmount - Type mandat: ' . $bien->mandat->type_mandat);
-
-        switch ($bien->mandat->type_mandat) {
-            case 'vente':
-                // 5% du prix de vente
-                $montant = $bien->price * 0.05;
-                \Log::info('calculateReservationAmount - Vente, montant calculé: ' . $montant);
-                return $montant;
-
-            case 'gestion_locative':
-                // 1 mois de loyer (équivalent au prix du bien pour la location)
-                $montant = $bien->price;
-                \Log::info('calculateReservationAmount - Location, montant calculé: ' . $montant);
-                return $montant;
-
-            default:
-                \Log::info('calculateReservationAmount - Type inconnu, retour 25000');
-                return 25000; // Montant par défaut
+                ->withInput()
+                ->withErrors(['general' => 'Une erreur est survenue : ' . $e->getMessage()]);
         }
     }
-
-
-
-// Ajouter ces méthodes dans votre ReservationController existant
-
-    /**
-     * Afficher le formulaire d'édition d'une réservation
-     */
-    public function edit($id)
+    public function annuler($id)
     {
-        $reservation = Reservation::with(['bien', 'client', 'clientDocuments'])->findOrFail($id);
+        $reservation = Reservation::with(['bien.category', 'appartement'])->findOrFail($id);
 
-        // Vérifier les permissions
         if (Auth::id() !== $reservation->client_id) {
             abort(403, 'Accès non autorisé');
         }
 
-        // Seules les réservations en attente peuvent être modifiées
+        if (!in_array($reservation->statut, ['en_attente', 'confirmée'])) {
+            return redirect()->route('reservations.show', $id)
+                ->with('error', 'Cette réservation ne peut plus être annulée.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $reservation->update([
+                'statut' => 'annulée',
+                'motif_rejet' => 'Annulée par le client',
+                'cancelled_at' => now(),
+                'cancelled_by' => Auth::id()
+            ]);
+
+            // ✅ Libérer UNIQUEMENT si le paiement était réussi (donc statut était confirmée)
+            if ($reservation->statut_before_update === 'confirmée') {
+                if ($reservation->appartement_id) {
+                    // Pour un immeuble : libérer UNIQUEMENT l'appartement
+                    Appartement::where('id', $reservation->appartement_id)
+                        ->update(['statut' => 'disponible']);
+
+                    Log::info('✅ Appartement libéré', [
+                        'appartement_id' => $reservation->appartement_id
+                    ]);
+
+                    // Mettre à jour le statut global du bien parent
+                    $reservation->bien->refresh();
+                    $reservation->bien->updateStatutGlobal();
+                } else {
+                    // Pour un bien classique : libérer le bien
+                    $reservation->bien->update(['status' => 'disponible']);
+
+                    Log::info('✅ Bien libéré', [
+                        'bien_id' => $reservation->bien_id
+                    ]);
+                }
+            } else {
+                Log::info('ℹ️ Réservation annulée avant paiement - Aucun statut à libérer');
+            }
+
+            DB::commit();
+
+            return redirect()->route('reservations.index')
+                ->with('success', 'Réservation annulée avec succès.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('❌ Erreur annulation réservation', [
+                'error' => $e->getMessage()
+            ]);
+            return back()->with('error', 'Erreur lors de l\'annulation.');
+        }
+    }
+    public function initierPaiement(Reservation $reservation)
+    {
+        if ($reservation->client_id !== auth()->id()) {
+            abort(403, 'Accès non autorisé');
+        }
+
+        if ($reservation->paiement &&
+            $reservation->paiement->statut === 'reussi' &&
+            $reservation->paiement->montant_restant <= 0) {
+            return redirect()->route('reservations.show', $reservation->id)
+                ->with('error', 'Le paiement a déjà été effectué.');
+        }
+
+        try {
+            $reservation->load('bien.mandat');
+
+            // ✅ Vérifier que le bien a un mandat valide
+            $bien = $reservation->bien;
+            if (!$bien->mandat || !in_array($bien->mandat->type_mandat, ['vente', 'gestion_locative'])) {
+                return redirect()->back()
+                    ->with('error', 'Ce bien n\'a pas de mandat valide.');
+            }
+
+            $typeMandat = $bien->mandat->type_mandat;
+
+            if ($typeMandat === 'vente') {
+                $montantInitial = $bien->price * 0.10; // 10% d'acompte
+                $messageInfo = 'Acompte : 10% du prix de vente. Les 90% restants seront payés lors de l\'achat final.';
+            } elseif ($typeMandat === 'gestion_locative') {
+                $montantInitial = $bien->price; // 1 mois de dépôt de garantie
+                $messageInfo = 'Dépôt de garantie : 1 mois de loyer (caution restituable).';
+            } else {
+                return redirect()->back()
+                    ->with('error', 'Type de mandat non reconnu.');
+            }
+
+            $paiement = Paiement::where('reservation_id', $reservation->id)
+                ->whereIn('statut', ['en_attente', 'partiellement_paye'])
+                ->first();
+
+            if (!$paiement) {
+                $paiement = Paiement::create([
+                    'reservation_id' => $reservation->id,
+                    'type' => 'reservation',
+                    'montant_total' => $montantInitial,
+                    'montant_paye' => 0,
+                    'montant_restant' => $montantInitial,
+                    'commission_agence' => 0,
+                    'statut' => 'en_attente',
+                    'mode_paiement' => 'orange_money',
+                    'date_transaction' => null,
+                ]);
+
+                Log::info('💳 Paiement créé', [
+                    'reservation_id' => $reservation->id,
+                    'montant' => $montantInitial,
+                    'type_mandat' => $typeMandat
+                ]);
+            } else {
+                if ($paiement->montant_total != $montantInitial) {
+                    $paiement->update([
+                        'montant_total' => $montantInitial,
+                        'montant_restant' => $montantInitial - $paiement->montant_paye
+                    ]);
+
+                    Log::info('🔄 Montant du paiement corrigé', [
+                        'ancien_montant' => $paiement->montant_total,
+                        'nouveau_montant' => $montantInitial
+                    ]);
+                }
+            }
+
+            return redirect()->route('paiement.initier.show', [$reservation->id, $paiement->id])
+                ->with('info', $messageInfo);
+
+        } catch (\Exception $e) {
+            Log::error('❌ Erreur initialisation paiement réservation', [
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->back()
+                ->with('error', 'Erreur lors de la préparation du paiement.');
+        }
+    }
+
+    public function show($id)
+    {
+        $reservation = Reservation::with([
+            'client',
+            'bien.category',
+            'bien.images',
+            'bien.mandat',
+            'paiement'
+        ])->findOrFail($id);
+
+        if (Auth::id() !== $reservation->client_id && !Auth::user()->hasRole('admin')) {
+            abort(403, 'Accès non autorisé');
+        }
+
+        $documents = ClientDocument::where('client_id', $reservation->client_id)
+            ->latest()
+            ->get();
+
+        $paiement = null;
+        if ($reservation->paiement_id) {
+            $paiement = \App\Models\Paiement::find($reservation->paiement_id);
+        }
+
+        return Inertia::render('Reservation/Show', [
+            'reservation' => $reservation,
+            'documents' => $documents,
+            'paiement' => $paiement,
+            'userRoles' => Auth::user()->roles->pluck('name')
+        ]);
+    }
+
+    public function index()
+    {
+        $reservations = Reservation::with([
+            'bien.mandat' => function($query) {
+                $query->where('statut', 'actif');
+            },
+            'bien.category',
+            'bien.images',
+            'client',
+            'paiement'
+        ])
+            ->where('client_id', Auth::id())
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($reservation) {
+                $documentsValides = ClientDocument::where('client_id', $reservation->client_id)
+                    ->where('statut', 'valide')
+                    ->exists();
+
+                $dejaPaye = \App\Models\Paiement::where('reservation_id', $reservation->id)
+                    ->where('statut', 'reussi')
+                    ->exists();
+
+                $locationExiste = \App\Models\Location::where('reservation_id', $reservation->id)
+                    ->whereIn('statut', ['active', 'finalisée', 'en_retard'])
+                    ->exists();
+
+                $venteExiste = \App\Models\Vente::where('reservation_id', $reservation->id)
+                    ->whereIn('status', ['en_cours', 'confirmée', 'en_attente_paiement'])
+                    ->exists();
+
+                $reservation->documents_valides = $documentsValides;
+                $reservation->deja_payee = $dejaPaye;
+                $reservation->location_existe = $locationExiste;
+                $reservation->vente_existe = $venteExiste;
+
+                return $reservation;
+            });
+
+        return Inertia::render('Reservation/Index', [
+            'reservations' => $reservations ?? [],
+            'userRoles' => Auth::user()->roles->pluck('name')->toArray()
+        ]);
+    }
+
+    public function adminIndex()
+    {
+        if (!Auth::user()->hasRole('admin')) {
+            abort(403, 'Accès non autorisé');
+        }
+
+        $reservations = Reservation::with([
+            'bien.category',
+            'bien.images',
+            'bien.mandat',
+            'client',
+            'paiement'
+        ])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($reservation) {
+                $reservation->client_documents = ClientDocument::where('client_id', $reservation->client_id)
+                    ->latest()
+                    ->get();
+
+                $reservation->documents_count = $reservation->client_documents->count();
+                return $reservation;
+            });
+
+        return Inertia::render('Admin/ReservationIndex', [
+            'reservations' => $reservations ?? [],
+            'userRoles' => Auth::user()->roles->pluck('name')->toArray()
+        ]);
+    }
+
+    public function edit($id)
+    {
+        $reservation = Reservation::with(['bien', 'client'])->findOrFail($id);
+
+        if (Auth::id() !== $reservation->client_id) {
+            abort(403, 'Accès non autorisé');
+        }
+
         if ($reservation->statut !== 'en_attente') {
             return redirect()->route('reservations.show', $id)
                 ->with('error', 'Cette réservation ne peut plus être modifiée.');
         }
 
+        $documents = ClientDocument::where('client_id', Auth::id())->latest()->get();
+
         return Inertia::render('Reservation/Edit', [
             'reservation' => $reservation,
-            'bien' => $reservation->bien
+            'bien' => $reservation->bien,
+            'documents' => $documents
         ]);
     }
 
-    /**
-     * Mettre à jour une réservation
-     */
     public function update(Request $request, $id)
     {
-        $reservation = Reservation::with(['bien', 'clientDocuments'])->findOrFail($id);
+        $reservation = Reservation::with(['bien'])->findOrFail($id);
 
-        // Vérifier les permissions
         if (Auth::id() !== $reservation->client_id) {
             abort(403, 'Accès non autorisé');
         }
 
-        // Seules les réservations en attente peuvent être modifiées
         if ($reservation->statut !== 'en_attente') {
             return redirect()->route('reservations.show', $id)
                 ->with('error', 'Cette réservation ne peut plus être modifiée.');
@@ -212,46 +587,38 @@ class ReservationController extends Controller
         try {
             DB::beginTransaction();
 
-            // Gérer la suppression de document si demandée
             if ($request->supprimer_document) {
-                foreach ($reservation->clientDocuments as $document) {
-                    // Supprimer le fichier physique
-                    if (\Storage::disk('public')->exists($document->fichier_path)) {
-                        \Storage::disk('public')->delete($document->fichier_path);
+                $documents = ClientDocument::where('client_id', Auth::id())->get();
+                foreach ($documents as $document) {
+                    if (Storage::disk('public')->exists($document->fichier_path)) {
+                        Storage::disk('public')->delete($document->fichier_path);
                     }
-                    // Supprimer l'enregistrement
                     $document->delete();
                 }
             }
 
-            // Uploader un nouveau document si fourni
             if ($request->hasFile('fichier')) {
-                // Supprimer l'ancien document d'abord
-                foreach ($reservation->clientDocuments as $document) {
-                    if (\Storage::disk('public')->exists($document->fichier_path)) {
-                        \Storage::disk('public')->delete($document->fichier_path);
+                $documents = ClientDocument::where('client_id', Auth::id())->get();
+                foreach ($documents as $document) {
+                    if (Storage::disk('public')->exists($document->fichier_path)) {
+                        Storage::disk('public')->delete($document->fichier_path);
                     }
                     $document->delete();
                 }
 
-                // Créer le nouveau document
                 $file = $request->file('fichier');
                 $filename = time() . '_' . Auth::id() . '_' . $request->type_document . '.' . $file->getClientOriginalExtension();
                 $path = $file->storeAs('documents/clients', $filename, 'public');
 
                 ClientDocument::create([
                     'client_id' => Auth::id(),
-                    'reservation_id' => $reservation->id,
                     'type_document' => $request->type_document,
                     'fichier_path' => $path,
                     'statut' => 'en_attente'
                 ]);
             }
 
-            // Mettre à jour la date de modification
-            $reservation->update([
-                'updated_at' => now()
-            ]);
+            $reservation->touch();
 
             DB::commit();
 
@@ -264,111 +631,22 @@ class ReservationController extends Controller
         }
     }
 
-    /**
-     * Annuler une réservation (Client)
-     */
-    public function annuler($id)
-    {
-        $reservation = Reservation::with(['bien', 'clientDocuments'])->findOrFail($id);
-
-        // Vérifier les permissions
-        if (Auth::id() !== $reservation->client_id) {
-            abort(403, 'Accès non autorisé');
-        }
-
-        // Seules les réservations en attente ou confirmées peuvent être annulées par le client
-        if (!in_array($reservation->statut, ['en_attente', 'confirmee'])) {
-            return redirect()->route('reservations.show', $id)
-                ->with('error', 'Cette réservation ne peut plus être annulée.');
-        }
-
-        try {
-            DB::beginTransaction();
-
-            // Annuler la réservation
-            $reservation->update([
-                'statut' => 'annulee',
-                'motif_rejet' => 'Annulée par le client',
-                'cancelled_at' => now(),
-                'cancelled_by' => Auth::id()
-            ]);
-
-            // Supprimer les documents associés
-            foreach ($reservation->clientDocuments as $document) {
-                if (\Storage::disk('public')->exists($document->fichier_path)) {
-                    \Storage::disk('public')->delete($document->fichier_path);
-                }
-                $document->delete();
-            }
-
-            // Remettre le bien en disponible
-            $reservation->bien->update(['status' => 'disponible']);
-
-            DB::commit();
-
-            return redirect()->route('reservations.index')
-                ->with('success', 'Réservation annulée avec succès.');
-
-        } catch (\Exception $e) {
-            DB::rollback();
-            return back()->with('error', 'Erreur lors de l\'annulation: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Afficher une réservation
-     */
-    /**
-     * Afficher une réservation
-     */
-    public function show($id)
-    {
-        $reservation = Reservation::with([
-            'client',
-            'bien',
-            'clientDocuments',
-            'paiement'
-        ])->findOrFail($id);
-
-        // Vérifier les permissions
-        if (Auth::id() !== $reservation->client_id && !Auth::user()->hasRole('admin')) {
-            abort(403, 'Accès non autorisé');
-        }
-
-        // Récupérer le paiement associé s'il existe
-        $paiement = null;
-        if ($reservation->paiement_id) {
-            $paiement = \App\Models\Paiement::find($reservation->paiement_id);
-        }
-
-        return Inertia::render('Reservation/Show', [
-            'reservation' => $reservation->toArray(), // Passer toutes les données de la réservation
-            'paiement' => $paiement,
-            'userRoles' => Auth::user()->roles->pluck('name')
-        ]);
-    }    /**
-     * Valider une réservation (Admin)
-     */
     public function valider($id)
     {
         if (!Auth::user()->hasRole('admin')) {
             abort(403, 'Accès non autorisé');
         }
 
-        $reservation = Reservation::with(['clientDocuments'])->findOrFail($id);
+        $reservation = Reservation::findOrFail($id);
 
         if ($reservation->statut === 'en_attente') {
             DB::beginTransaction();
             try {
-                // Valider la réservation
-                $reservation->update([
-                    'statut' => 'confirmée',
-                ]);
+                $reservation->update(['statut' => 'confirmée']);
 
-                // Valider automatiquement tous les documents de cette réservation
-                $reservation->clientDocuments()->update([
-                    'statut' => 'valide',
-                ]);
+                ClientDocument::where('client_id', $reservation->client_id)
+                    ->where('statut', 'en_attente')
+                    ->update(['statut' => 'valide']);
 
                 DB::commit();
                 return back()->with('success', 'Réservation validée avec succès.');
@@ -381,9 +659,6 @@ class ReservationController extends Controller
         return back()->with('error', 'Impossible de valider cette réservation.');
     }
 
-    /**
-     * Rejeter une réservation (Admin)
-     */
     public function rejeter(Request $request, $id)
     {
         if (!Auth::user()->hasRole('admin')) {
@@ -391,26 +666,28 @@ class ReservationController extends Controller
         }
 
         $request->validate([
-            'motif_rejet' => 'string|max:500'
+            'motif_rejet' => 'nullable|string|max:500'
         ]);
 
-        $reservation = Reservation::with(['bien', 'clientDocuments'])->findOrFail($id);
+        $reservation = Reservation::with(['bien', 'appartement'])->findOrFail($id);
 
         if ($reservation->statut === 'en_attente') {
             DB::beginTransaction();
             try {
-                // Rejeter la réservation
                 $reservation->update([
                     'statut' => 'annulée',
+                    'motif_rejet' => $request->motif_rejet ?? 'Rejetée par l\'administrateur'
                 ]);
 
-                // Rejeter tous les documents de cette réservation
-                $reservation->clientDocuments()->update([
-                    'statut' => 'refusée',
-                ]);
+                // ✅ Libérer l'appartement ou le bien
+                if ($reservation->appartement_id) {
+                    Appartement::where('id', $reservation->appartement_id)
+                        ->update(['statut' => 'disponible']);
 
-                // Remettre le bien en disponible
-                $reservation->bien->update(['status' => 'disponible']);
+                    $reservation->bien->updateStatutGlobal();
+                } else {
+                    $reservation->bien->update(['status' => 'disponible']);
+                }
 
                 DB::commit();
                 return back()->with('success', 'Réservation rejetée avec succès.');
@@ -421,156 +698,4 @@ class ReservationController extends Controller
         }
 
         return back()->with('error', 'Impossible de rejeter cette réservation.');
-    }
-
-    /**
-     * Lister les réservations pour le client
-     */
-    public function index()
-    {
-        $reservations = Reservation::with([
-            'bien.mandat' => function($query) {
-                $query->where('statut', 'actif');
-            },
-            'bien.category',
-            'client',
-            'clientDocuments',
-            'paiement'
-        ])
-            ->where('client_id', auth()->id())
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($reservation) {
-                // Vérifier si les documents sont validés
-                $documentsValides = $reservation->clientDocuments
-                    ->where('statut', 'valide')
-                    ->isNotEmpty();
-
-                // ✅ Vérifier si déjà payée
-                $dejaPaye = \App\Models\Paiement::where('reservation_id', $reservation->id)
-                    ->where('statut', 'reussi')
-                    ->exists();
-
-                $reservation->documents_valides = $documentsValides;
-                $reservation->deja_payee = $dejaPaye;
-
-                return $reservation;
-            });
-
-        return Inertia::render('Reservation/Index', [
-            'reservations' => $reservations,
-            'userRoles' => auth()->user()->roles->pluck('name')
-        ]);
-    }
-
-    /**
-     * Lister toutes les réservations pour l'admin
-     */
-    public function adminIndex()
-    {
-        if (!Auth::user()->hasRole('admin')) {
-            abort(403, 'Accès non autorisé');
-        }
-
-        $reservations = Reservation::with(['bien', 'client', 'clientDocuments'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        return Inertia::render('Admin/ReservationIndex', [
-            'reservations' => $reservations,
-            'userRoles' => Auth::user()->roles->pluck('name')
-        ]);
-    }
-
-    /**
-     * Initier le paiement d'une réservation validée
-     */
-    public function initierPaiement(Reservation $reservation)
-    {
-        \Log::info('=== INITIER PAIEMENT RÉSERVATION ===');
-        \Log::info('Reservation ID: ' . $reservation->id);
-        \Log::info('Client ID: ' . auth()->id());
-        \Log::info('Reservation client_id: ' . $reservation->client_id);
-        \Log::info('Reservation statut: ' . $reservation->statut);
-
-        // ✅ VÉRIFICATION 1: Autorisation
-        if ($reservation->client_id !== auth()->id()) {
-            \Log::error('Accès refusé - IDs ne correspondent pas');
-            abort(403, 'Accès non autorisé');
-        }
-
-        // ✅ VÉRIFICATION 2: Statut de la réservation
-        if ($reservation->statut !== 'confirmée') {
-            \Log::error('Statut incorrect: ' . $reservation->statut);
-            return redirect()->back()->with('error', 'Cette réservation ne peut pas être payée. Statut actuel : ' . $reservation->statut);
-        }
-
-        // ✅ VÉRIFICATION 3: Paiement déjà effectué
-        $paiementExistant = \App\Models\Paiement::where('reservation_id', $reservation->id)
-            ->where('statut', 'reussi')
-            ->first();
-
-        if ($paiementExistant) {
-            \Log::warning('Tentative de re-paiement', [
-                'reservation_id' => $reservation->id,
-                'paiement_existant_id' => $paiementExistant->id,
-                'transaction_id' => $paiementExistant->transaction_id
-            ]);
-
-            return redirect()->route('reservations.show', $reservation->id)
-                ->with('error', '⚠️ Cette réservation a déjà été payée le ' .
-                    $paiementExistant->date_transaction->format('d/m/Y à H:i') .
-                    '. Montant : ' . number_format($paiementExistant->montant_paye, 0, '', ' ') . ' FCFA');
-        }
-
-        // ✅ VÉRIFICATION 4: Documents validés
-        $documentsValides = $reservation->clientDocuments
-            ->where('statut', 'valide')
-            ->isNotEmpty();
-
-        if (!$documentsValides) {
-            \Log::error('Documents non validés');
-            return redirect()->route('reservations.show', $reservation->id)
-                ->with('error', 'Vos documents doivent être validés par un administrateur avant de pouvoir effectuer le paiement.');
-        }
-
-        // ✅ TOUT EST OK - Créer ou récupérer le paiement EN ATTENTE
-        try {
-            // Chercher d'abord un paiement en attente existant
-            $paiement = \App\Models\Paiement::where('reservation_id', $reservation->id)
-                ->where('statut', 'en_attente')
-                ->first();
-
-            // Si aucun paiement en attente n'existe, en créer un nouveau
-            if (!$paiement) {
-                $paiement = \App\Models\Paiement::create([
-                    'reservation_id' => $reservation->id,
-                    'type' => 'reservation',
-                    'montant_total' => $reservation->montant,
-                    'montant_paye' => 0,
-                    'montant_restant' => $reservation->montant,
-                    'commission_agence' => $reservation->montant * 0.05,
-                    'mode_paiement' => 'mobile_money',
-                    'statut' => 'en_attente',
-                    'transaction_id' => 'RES_' . $reservation->id . '_' . time(),
-                    'date_transaction' => now(),
-                ]);
-
-                \Log::info('✅ Nouveau paiement créé - ID: ' . $paiement->id);
-            } else {
-                \Log::info('✅ Paiement en attente récupéré - ID: ' . $paiement->id);
-            }
-
-            // Redirection vers la page d'initiation du paiement
-            return redirect()->route('paiement.initier.show', [
-                'type' => 'reservation',
-                'id' => $reservation->id,
-                'paiement_id' => $paiement->id
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Erreur création paiement: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Erreur lors de la préparation du paiement. Veuillez réessayer.');
-        }
-    }
-}
+    }}

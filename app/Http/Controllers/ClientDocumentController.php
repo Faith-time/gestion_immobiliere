@@ -6,11 +6,26 @@ use App\Models\ClientDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class ClientDocumentController extends Controller
 {
     /**
-     * Enregistrer un document client
+     * Liste des documents du client connecté
+     */
+    public function index()
+    {
+        $documents = ClientDocument::where('client_id', Auth::id())
+            ->latest()
+            ->get();
+
+        return Inertia::render('ClientDocuments/Index', [
+            'documents' => $documents
+        ]);
+    }
+
+    /**
+     * Enregistrer un nouveau document
      */
     public function store(Request $request)
     {
@@ -25,7 +40,7 @@ class ClientDocumentController extends Controller
             $fileName = time() . '_' . Auth::id() . '_' . $request->type_document . '.' . $file->getClientOriginalExtension();
             $filePath = $file->storeAs('documents/clients', $fileName, 'public');
 
-            // Créer l'enregistrement avec valeurs automatiques
+            // Créer l'enregistrement
             $document = ClientDocument::create([
                 'client_id' => Auth::id(),
                 'type_document' => $request->type_document,
@@ -33,28 +48,11 @@ class ClientDocumentController extends Controller
                 'statut' => 'en_attente'
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Document uploadé avec succès',
-                'document' => $document
-            ]);
+            return back()->with('success', 'Document uploadé avec succès');
 
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur: ' . $e->getMessage()
-            ], 500);
+            return back()->with('error', 'Erreur lors de l\'upload: ' . $e->getMessage());
         }
-    }
-
-    /**
-     * Lister les documents d'un client
-     */
-    public function index()
-    {
-        $documents = ClientDocument::where('client_id', Auth::id())->latest()->get();
-
-        return response()->json($documents);
     }
 
     /**
@@ -64,7 +62,50 @@ class ClientDocumentController extends Controller
     {
         $document = ClientDocument::where('client_id', Auth::id())->findOrFail($id);
 
-        return response()->json($document);
+        return Inertia::render('ClientDocuments/Show', [
+            'document' => $document
+        ]);
+    }
+
+    /**
+     * Modifier un document existant
+     */
+    public function update(Request $request, $id)
+    {
+        $document = ClientDocument::where('client_id', Auth::id())->findOrFail($id);
+
+        $request->validate([
+            'type_document' => 'sometimes|string|max:255',
+            'fichier' => 'sometimes|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        try {
+            // Si un nouveau fichier est uploadé
+            if ($request->hasFile('fichier')) {
+                // Supprimer l'ancien fichier
+                Storage::disk('public')->delete($document->fichier_path);
+
+                // Upload du nouveau fichier
+                $file = $request->file('fichier');
+                $fileName = time() . '_' . Auth::id() . '_' . $request->type_document . '.' . $file->getClientOriginalExtension();
+                $filePath = $file->storeAs('documents/clients', $fileName, 'public');
+
+                $document->fichier_path = $filePath;
+                $document->statut = 'en_attente'; // Remettre en attente après modification
+            }
+
+            // Mettre à jour le type si fourni
+            if ($request->filled('type_document')) {
+                $document->type_document = $request->type_document;
+            }
+
+            $document->save();
+
+            return back()->with('success', 'Document modifié avec succès');
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Erreur lors de la modification: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -81,39 +122,40 @@ class ClientDocumentController extends Controller
             // Supprimer l'enregistrement
             $document->delete();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Document supprimé avec succès'
-            ]);
+            return back()->with('success', 'Document supprimé avec succès');
 
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur: ' . $e->getMessage()
-            ], 500);
+            return back()->with('error', 'Erreur lors de la suppression: ' . $e->getMessage());
         }
     }
 
     /**
-     * Valider un document (Admin)
+     * Valider un document (Admin uniquement)
      */
     public function valider($id)
     {
         $document = ClientDocument::findOrFail($id);
         $document->update(['statut' => 'valide']);
 
-        return back()->with('success', 'Document validé.');
+        return back()->with('success', 'Document validé avec succès');
     }
 
     /**
-     * Refuser un document (Admin)
+     * Refuser un document (Admin uniquement)
      */
-    public function refuser($id)
+    public function refuser(Request $request, $id)
     {
-        $document = ClientDocument::findOrFail($id);
-        $document->update(['statut' => 'refuse']);
+        $request->validate([
+            'motif' => 'required|string|max:500'
+        ]);
 
-        return back()->with('success', 'Document refusé.');
+        $document = ClientDocument::findOrFail($id);
+        $document->update([
+            'statut' => 'refuse',
+            'motif_refus' => $request->motif
+        ]);
+
+        return back()->with('success', 'Document refusé');
     }
 
     /**
@@ -123,8 +165,13 @@ class ClientDocumentController extends Controller
     {
         $document = ClientDocument::findOrFail($id);
 
+        // Vérifier les permissions
+        if (Auth::id() !== $document->client_id && !Auth::user()->hasRole('admin')) {
+            abort(403, 'Action non autorisée');
+        }
+
         if (!Storage::disk('public')->exists($document->fichier_path)) {
-            return back()->with('error', 'Fichier introuvable.');
+            return back()->with('error', 'Fichier introuvable');
         }
 
         return Storage::disk('public')->download($document->fichier_path);

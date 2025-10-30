@@ -1,164 +1,153 @@
 <template>
-    <div class="container py-5">
-        <div class="row">
-            <div class="col-12">
-                <!-- En-tête -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h1 class="h2 text-primary mb-1">Détails de la Vente #{{ vente.id }}</h1>
-                        <p class="text-muted mb-0">Informations complètes sur votre achat immobilier</p>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <Link :href="route('ventes.index')" class="btn btn-outline-secondary">
-                            ← Retour aux ventes
-                        </Link>
-                    </div>
-                </div>
-
-                <!-- Statut de la vente -->
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-body">
-                                <div class="row align-items-center">
-                                    <div class="col-md-8">
-                                        <h5 class="mb-1">Statut de la Vente</h5>
-                                        <p class="text-muted mb-0">Suivi de l'état de votre transaction</p>
+    <Layout :title="`Vente #${vente.id}`">
+        <div class="container py-5">
+            <div class="row">
+                <!-- Colonne principale -->
+                <div class="col-lg-8">
+                    <!-- Carte Informations Vente -->
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-file-contract me-2"></i>
+                                Détails de la Vente
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <small class="text-muted">Référence</small>
+                                    <div class="fw-bold">#{{ vente.id }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Date de vente</small>
+                                    <div class="fw-bold">{{ formatDate(vente.date_vente) }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Prix de vente</small>
+                                    <div class="fw-bold text-success fs-5">
+                                        {{ formatPrice(vente.prix_vente) }} FCFA
                                     </div>
-                                    <div class="col-md-4 text-end">
-                                        <span class="badge fs-6 px-3 py-2" :class="getStatusBadgeClass(vente.statut)">
-                                            {{ getStatusLabel(vente.statut) }}
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Statut</small>
+                                    <div>
+                                        <span :class="getStatusClass(vente.status)" class="badge">
+                                            {{ getStatusLabel(vente.status) }}
                                         </span>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row g-4">
-                    <!-- Informations sur le bien -->
-                    <div class="col-lg-8">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-header bg-light border-0">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-home text-primary me-2"></i>
-                                    Bien Acquis
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-4 mb-3">
-                                        <img
-                                            :src="vente.bien?.image ? `/storage/${vente.bien.image}` : '/images/placeholder.jpg'"
-                                            :alt="vente.bien?.title || 'Bien'"
-                                            class="img-fluid rounded"
-                                            style="height: 200px; object-fit: cover; width: 100%;"
-                                        />
-                                    </div>
-                                    <div class="col-md-8">
-                                        <h4 class="text-primary mb-2">{{ vente.bien?.title || 'Titre non disponible' }}</h4>
-
-                                        <div class="row g-3 mb-3">
-                                            <div class="col-6">
-                                                <div class="d-flex align-items-center text-muted">
-                                                    <i class="fas fa-map-marker-alt me-2"></i>
-                                                    <span>{{ vente.bien?.address }}, {{ vente.bien?.city }}</span>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="d-flex align-items-center text-muted">
-                                                    <i class="fas fa-tag me-2"></i>
-                                                    <span>{{ vente.bien?.category?.name || 'Non spécifié' }}</span>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="d-flex align-items-center text-muted">
-                                                    <i class="fas fa-expand-arrows-alt me-2"></i>
-                                                    <span>{{ vente.bien?.superficy }} m²</span>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="d-flex align-items-center text-muted">
-                                                    <i class="fas fa-door-open me-2"></i>
-                                                    <span>{{ vente.bien?.rooms }} pièces</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="bg-light p-3 rounded">
-                                            <p class="mb-0 text-muted">
-                                                <strong>Description:</strong><br>
-                                                {{ vente.bien?.description || 'Aucune description disponible' }}
-                                            </p>
-                                        </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Acheteur</small>
+                                    <div class="fw-bold">{{ vente.acheteur?.name || 'N/A' }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Vendeur</small>
+                                    <div class="fw-bold">
+                                        {{ vente.ancien_proprietaire?.name || vente.bien?.proprietaire?.name || 'N/A' }}
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Détails financiers et participants -->
-                    <div class="col-lg-4">
-                        <!-- Informations financières -->
-                        <div class="card border-0 shadow-sm mb-4">
-                            <div class="card-header bg-light border-0">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-calculator text-success me-2"></i>
-                                    Détails Financiers
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <div class="text-center p-3 bg-success bg-opacity-10 rounded">
-                                            <h3 class="text-success mb-1">{{ formatPrice(vente.prix_vente) }} FCFA</h3>
-                                            <small class="text-muted">Prix d'achat</small>
-                                        </div>
+                    <!-- Composant Statut Transfert -->
+                    <TransferStatusCard
+                        :vente="vente"
+                        :transaction-status="transactionStatus"
+                        :ancien-proprietaire="vente.ancien_proprietaire"
+                        @continuer-paiement="continuerPaiement"
+                        @signer-contrat="signerContrat"
+                    />
+
+                    <!-- Informations sur le Bien -->
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-home me-2"></i>
+                                Bien Concerné
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4" v-if="vente.bien?.images?.[0]">
+                                    <img
+                                        :src="getBienImageUrl(vente.bien.images[0].chemin_image)"
+                                        :alt="vente.bien.title"
+                                        class="img-fluid rounded"
+                                        style="max-height: 200px; width: 100%; object-fit: cover;">
+                                </div>
+                                <div :class="vente.bien?.images?.[0] ? 'col-md-8' : 'col-12'">
+                                    <h5 class="mb-3">{{ vente.bien?.title }}</h5>
+                                    <div class="mb-2">
+                                        <i class="fas fa-map-marker-alt text-muted me-2"></i>
+                                        <span>{{ vente.bien?.address }}, {{ vente.bien?.city }}</span>
                                     </div>
-                                    <div class="col-12">
-                                        <div class="d-flex justify-content-between">
-                                            <span class="text-muted">Date d'achat:</span>
-                                            <strong>{{ formatDate(vente.date_vente) }}</strong>
-                                        </div>
+                                    <div class="mb-2">
+                                        <i class="fas fa-tag text-muted me-2"></i>
+                                        <span>{{ vente.bien?.category?.name }}</span>
                                     </div>
+                                    <div class="mb-2">
+                                        <i class="fas fa-ruler-combined text-muted me-2"></i>
+                                        <span>{{ vente.bien?.superficy }} m²</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <i class="fas fa-info-circle text-muted me-2"></i>
+                                        <span class="badge" :class="getBienStatusClass(vente.bien?.status)">
+                                            {{ vente.bien?.status }}
+                                        </span>
+                                    </div>
+                                    <Link
+                                        v-if="vente.bien?.id"
+                                        :href="`/biens/${vente.bien.id}`"
+                                        class="btn btn-sm btn-outline-primary mt-2">
+                                        <i class="fas fa-eye me-1"></i>
+                                        Voir le bien
+                                    </Link>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Participants -->
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light border-0">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-users text-info me-2"></i>
-                                    Participants
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <!-- Acheteur -->
-                                <div class="mb-3 pb-3 border-bottom">
-                                    <h6 class="text-primary mb-2">Acheteur</h6>
-                                    <div class="d-flex align-items-center">
-                                        <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-3">
-                                            <i class="fas fa-user text-primary"></i>
-                                        </div>
-                                        <div>
-                                            <div class="fw-bold">{{ vente.acheteur?.name || 'Non spécifié' }}</div>
-                                            <small class="text-muted">{{ vente.acheteur?.email || 'Email non disponible' }}</small>
-                                        </div>
+                    <!-- Informations Paiement -->
+                    <div class="card shadow-sm border-0 mb-4" v-if="vente.paiement">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-credit-card me-2"></i>
+                                Informations de Paiement
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <small class="text-muted">Montant total</small>
+                                    <div class="fw-bold">{{ formatPrice(vente.paiement.montant_total) }} FCFA</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Montant payé</small>
+                                    <div class="fw-bold text-success">
+                                        {{ formatPrice(vente.paiement.montant_paye) }} FCFA
                                     </div>
                                 </div>
-
-                                <!-- Vendeur -->
-                                <div class="mb-0">
-                                    <h6 class="text-warning mb-2">Vendeur (Propriétaire)</h6>
-                                    <div class="d-flex align-items-center">
-                                        <div class="bg-warning bg-opacity-10 rounded-circle p-2 me-3">
-                                            <i class="fas fa-home text-warning"></i>
-                                        </div>
-                                        <div>
-                                            <div class="fw-bold">{{ vente.bien?.proprietaire?.name || 'Non spécifié' }}</div>
-                                            <small class="text-muted">Propriétaire du bien</small>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Montant restant</small>
+                                    <div class="fw-bold" :class="vente.paiement.montant_restant > 0 ? 'text-danger' : 'text-success'">
+                                        {{ formatPrice(vente.paiement.montant_restant) }} FCFA
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Statut du paiement</small>
+                                    <div>
+                                        <span :class="getPaiementStatusClass(vente.paiement.statut)" class="badge">
+                                            {{ getPaiementStatusLabel(vente.paiement.statut) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-12" v-if="vente.paiement.montant_restant > 0">
+                                    <div class="progress" style="height: 25px;">
+                                        <div
+                                            class="progress-bar bg-success"
+                                            :style="`width: ${(vente.paiement.montant_paye / vente.paiement.montant_total * 100)}%`">
+                                            {{ Math.round(vente.paiement.montant_paye / vente.paiement.montant_total * 100) }}%
                                         </div>
                                     </div>
                                 </div>
@@ -167,246 +156,258 @@
                     </div>
                 </div>
 
-                <!-- Section Signature -->
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light border-0 d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-pen-fancy text-purple me-2"></i>
-                                    Signatures du Contrat
-                                </h5>
-                                <span class="badge" :class="getSignatureStatusBadgeClass(signatureStats.signature_status)">
-                                    {{ getSignatureStatusLabel(signatureStats.signature_status) }}
-                                </span>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-4">
-                                    <!-- Signature Vendeur -->
-                                    <div class="col-md-6">
-                                        <div class="border rounded p-3" :class="signatureStats.vendeur_signed ? 'border-success bg-success bg-opacity-5' : 'border-secondary bg-light'">
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <h6 class="mb-0">Vendeur</h6>
-                                                <span v-if="signatureStats.vendeur_signed" class="badge bg-success">
-                                                    <i class="fas fa-check me-1"></i>Signé
-                                                </span>
-                                                <span v-else class="badge bg-secondary">Non signé</span>
-                                            </div>
-                                            <p class="text-muted small mb-0">{{ vente.bien?.proprietaire?.name }}</p>
-                                            <p v-if="signatureStats.vendeur_signed_at" class="text-muted small mb-0">
-                                                Signé le {{ formatDateTime(signatureStats.vendeur_signed_at) }}
-                                            </p>
-                                        </div>
-                                    </div>
+                <!-- Colonne actions -->
+                <div class="col-lg-4">
+                    <!-- Actions rapides -->
+                    <div class="card shadow-sm border-0 mb-4 sticky-top" style="top: 20px;">
+                        <div class="card-header bg-dark text-white">
+                            <h6 class="mb-0">
+                                <i class="fas fa-tasks me-2"></i>
+                                Actions
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <!-- Continuer le paiement -->
+                                <button
+                                    v-if="!transactionStatus.paiement_complet && isAcheteur"
+                                    @click="continuerPaiement"
+                                    class="btn btn-warning">
+                                    <i class="fas fa-credit-card me-2"></i>
+                                    Continuer le Paiement
+                                </button>
 
-                                    <!-- Signature Acheteur -->
-                                    <div class="col-md-6">
-                                        <div class="border rounded p-3" :class="signatureStats.acheteur_signed ? 'border-success bg-success bg-opacity-5' : 'border-secondary bg-light'">
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <h6 class="mb-0">Acheteur</h6>
-                                                <span v-if="signatureStats.acheteur_signed" class="badge bg-success">
-                                                    <i class="fas fa-check me-1"></i>Signé
-                                                </span>
-                                                <span v-else class="badge bg-secondary">Non signé</span>
-                                            </div>
-                                            <p class="text-muted small mb-0">{{ vente.acheteur?.name }}</p>
-                                            <p v-if="signatureStats.acheteur_signed_at" class="text-muted small mb-0">
-                                                Signé le {{ formatDateTime(signatureStats.acheteur_signed_at) }}
-                                            </p>
-                                        </div>
-                                    </div>
+                                <!-- Signer le contrat -->
+                                <Link
+                                    v-if="transactionStatus.paiement_complet && canSign"
+                                    :href="`/ventes/${vente.id}/signature`"
+                                    class="btn btn-primary">
+                                    <i class="fas fa-signature me-2"></i>
+                                    Signer le Contrat
+                                </Link>
+
+                                <!-- Télécharger le contrat -->
+                                <a
+                                    v-if="transactionStatus.signatures_completes"
+                                    :href="`/ventes/${vente.id}/contrat/download`"
+                                    class="btn btn-success"
+                                    target="_blank">
+                                    <i class="fas fa-download me-2"></i>
+                                    Télécharger le Contrat
+                                </a>
+
+                                <!-- Prévisualiser le contrat -->
+                                <a
+                                    v-if="transactionStatus.paiement_complet"
+                                    :href="`/ventes/${vente.id}/contrat/preview`"
+                                    class="btn btn-outline-primary"
+                                    target="_blank">
+                                    <i class="fas fa-eye me-2"></i>
+                                    Prévisualiser le Contrat
+                                </a>
+
+                                <!-- Retour -->
+                                <Link href="/ventes" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i>
+                                    Retour à mes ventes
+                                </Link>
+
+                                <!-- Admin: Editer -->
+                                <Link
+                                    v-if="isAdmin"
+                                    :href="`/ventes/${vente.id}/edit`"
+                                    class="btn btn-outline-warning">
+                                    <i class="fas fa-edit me-2"></i>
+                                    Modifier
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Informations complémentaires -->
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Informations
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="small">
+                                <div class="mb-3">
+                                    <i class="fas fa-calendar text-muted me-2"></i>
+                                    <strong>Créée le:</strong><br>
+                                    <span class="ms-4">{{ formatDate(vente.created_at) }}</span>
+                                </div>
+                                <div class="mb-3" v-if="vente.property_transferred_at">
+                                    <i class="fas fa-exchange-alt text-success me-2"></i>
+                                    <strong>Propriété transférée le:</strong><br>
+                                    <span class="ms-4">{{ formatDate(vente.property_transferred_at) }}</span>
+                                </div>
+                                <div class="mb-3" v-if="transactionStatus.vendeur_signe">
+                                    <i class="fas fa-signature text-success me-2"></i>
+                                    <strong>Signature vendeur:</strong><br>
+                                    <span class="ms-4">✓ Signée</span>
+                                </div>
+                                <div v-if="transactionStatus.acheteur_signe">
+                                    <i class="fas fa-signature text-success me-2"></i>
+                                    <strong>Signature acheteur:</strong><br>
+                                    <span class="ms-4">✓ Signée</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Actions -->
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-light border-0">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-tools text-dark me-2"></i>
-                                    Actions Disponibles
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <!-- Prévisualiser le contrat -->
-                                    <div class="col-md-3">
-                                        <button
-                                            @click="previewContract"
-                                            class="btn btn-outline-info w-100 d-flex align-items-center justify-content-center"
-                                        >
-                                            <i class="fas fa-eye me-2"></i>
-                                            Prévisualiser
-                                        </button>
-                                    </div>
-
-                                    <!-- Télécharger le contrat -->
-                                    <div class="col-md-3">
-                                        <button
-                                            @click="downloadContract"
-                                            class="btn btn-outline-success w-100 d-flex align-items-center justify-content-center"
-                                        >
-                                            <i class="fas fa-download me-2"></i>
-                                            Télécharger PDF
-                                        </button>
-                                    </div>
-
-                                    <!-- Signer le contrat -->
-                                    <div class="col-md-3" v-if="canSign">
-                                        <Link
-                                            :href="route('ventes.signature.show', vente.id)"
-                                            class="btn w-100 d-flex align-items-center justify-content-center"
-                                            :class="signatureStats.fully_signed ? 'btn-success' : 'btn-warning'"
-                                        >
-                                            <i :class="signatureStats.fully_signed ? 'fas fa-check-circle me-2' : 'fas fa-pen me-2'"></i>
-                                            {{ signatureStats.fully_signed ? 'Contrat Signé' : 'Signer le Contrat' }}
-                                        </Link>
-                                    </div>
-
-                                    <!-- Admin: Éditer -->
-                                    <div class="col-md-3" v-if="isAdmin">
-                                        <Link
-                                            :href="route('ventes.edit', vente.id)"
-                                            class="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center"
-                                        >
-                                            <i class="fas fa-edit me-2"></i>
-                                            Modifier
-                                        </Link>
-                                    </div>
-                                </div>
-
-                                <!-- Message de statut complet -->
-                                <div v-if="signatureStats.fully_signed" class="mt-3 p-3 bg-success bg-opacity-10 border border-success rounded">
-                                    <div class="d-flex align-items-center text-success">
-                                        <i class="fas fa-check-circle me-2"></i>
-                                        <strong>Contrat entièrement signé et valide légalement</strong>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
             </div>
         </div>
-    </div>
+    </Layout>
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import { Link, router } from '@inertiajs/vue3'
+import Layout from '../Layout.vue'
+import TransferStatusCard from '../Components/TransferStatusCard.vue'
 
 const props = defineProps({
-    vente: { type: Object, required: true },
-    signatureStats: { type: Object, required: true },
-    userRoles: { type: Array, default: () => [] },
-    isAcheteur: { type: Boolean, default: false },
-    isVendeur: { type: Boolean, default: false },
-    isAdmin: { type: Boolean, default: false }
+    vente: Object,
+    signatureStats: Object,
+    userRoles: Array,
+    isAcheteur: Boolean,
+    isVendeur: Boolean,
+    isAdmin: Boolean,
+    propertyTransferred: Boolean
 })
 
-// Calculs dérivés
+// Calculer le statut de la transaction
+const transactionStatus = computed(() => {
+    const paiement = props.vente.paiement
+    const paiementComplet = paiement &&
+        paiement.statut === 'reussi' &&
+        paiement.montant_restant <= 0
+
+    return {
+        paiement_complet: paiementComplet,
+        montant_paye: paiement?.montant_paye || 0,
+        montant_restant: paiement?.montant_restant || props.vente.prix_vente,
+        signatures_completes: props.vente.signature_vendeur && props.vente.signature_acheteur,
+        vendeur_signe: !!props.vente.signature_vendeur,
+        acheteur_signe: !!props.vente.signature_acheteur,
+        propriete_transferee: props.vente.property_transferred || false,
+        date_transfert: props.vente.property_transferred_at,
+        statut_vente: props.vente.status
+    }
+})
+
+// Vérifier si l'utilisateur peut signer
 const canSign = computed(() => {
-    return (props.isAcheteur && props.signatureStats.can_sign_acheteur) ||
-        (props.isVendeur && props.signatureStats.can_sign_vendeur)
+    if (props.isAcheteur && !props.vente.signature_acheteur) return true
+    if (props.isVendeur && !props.vente.signature_vendeur) return true
+    return false
 })
 
-// Méthodes utilitaires
-const formatPrice = (value) => {
-    if (!value) return '0'
-    return Number(value).toLocaleString('fr-FR')
+// Actions
+const continuerPaiement = () => {
+    const paiement = props.vente.paiement
+    if (paiement) {
+        router.visit(`/paiement/initier/${props.vente.id}/${paiement.id}`)
+    }
 }
 
-const formatDate = (dateString) => {
-    if (!dateString) return 'Non définie'
-    return new Date(dateString).toLocaleDateString('fr-FR')
+const signerContrat = () => {
+    router.visit(`/ventes/${props.vente.id}/signature`)
 }
 
-const formatDateTime = (dateString) => {
-    if (!dateString) return 'Non définie'
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-        year: 'numeric',
+// Formatage
+const formatPrice = (price) => {
+    return new Intl.NumberFormat('fr-FR').format(price || 0)
+}
+
+const formatDate = (date) => {
+    if (!date) return 'N/A'
+    return new Date(date).toLocaleDateString('fr-FR', {
+        day: '2-digit',
         month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        year: 'numeric'
     })
 }
 
-const getStatusLabel = (statut) => {
+const getBienImageUrl = (path) => {
+    return `/storage/${path}`
+}
+
+// Classes CSS
+const getStatusClass = (status) => {
+    const classes = {
+        'en_cours': 'bg-info',
+        'confirmée': 'bg-success',
+        'annulée': 'bg-danger',
+        'en_attente_paiement': 'bg-warning'
+    }
+    return classes[status] || 'bg-secondary'
+}
+
+const getStatusLabel = (status) => {
     const labels = {
         'en_cours': 'En cours',
         'confirmée': 'Confirmée',
-        'annulee': 'Annulée'
+        'annulée': 'Annulée',
+        'en_attente_paiement': 'En attente de paiement'
+    }
+    return labels[status] || status
+}
+
+const getBienStatusClass = (status) => {
+    const classes = {
+        'disponible': 'bg-success',
+        'vendu': 'bg-danger',
+        'loue': 'bg-warning',
+        'reserve': 'bg-info'
+    }
+    return classes[status] || 'bg-secondary'
+}
+
+const getPaiementStatusClass = (statut) => {
+    const classes = {
+        'en_attente': 'bg-warning',
+        'reussi': 'bg-success',
+        'echoue': 'bg-danger',
+        'partiellement_paye': 'bg-info'
+    }
+    return classes[statut] || 'bg-secondary'
+}
+
+const getPaiementStatusLabel = (statut) => {
+    const labels = {
+        'en_attente': 'En attente',
+        'reussi': 'Réussi',
+        'echoue': 'Échoué',
+        'partiellement_paye': 'Partiellement payé'
     }
     return labels[statut] || statut
-}
-
-const getStatusBadgeClass = (statut) => {
-    const classes = {
-        'en_cours': 'bg-warning text-dark',
-        'confirmée': 'bg-success text-white',
-        'annulee': 'bg-danger text-white'
-    }
-    return classes[statut] || 'bg-secondary text-white'
-}
-
-const getSignatureStatusLabel = (status) => {
-    const labels = {
-        'non_signe': 'Non signé',
-        'partiellement_signe': 'Partiellement signé',
-        'entierement_signe': 'Entièrement signé'
-    }
-    return labels[status] || 'Statut inconnu'
-}
-
-const getSignatureStatusBadgeClass = (status) => {
-    const classes = {
-        'non_signe': 'bg-danger text-white',
-        'partiellement_signe': 'bg-warning text-dark',
-        'entierement_signe': 'bg-success text-white'
-    }
-    return classes[status] || 'bg-secondary text-white'
-}
-
-// Actions
-const previewContract = () => {
-    window.open(route('ventes.contract.preview', props.vente.id), '_blank')
-}
-
-const downloadContract = () => {
-    window.open(route('ventes.contract.download', props.vente.id))
 }
 </script>
 
 <style scoped>
-.card {
-    transition: all 0.2s ease;
+.sticky-top {
+    position: sticky;
 }
 
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+.card {
+    border-radius: 10px;
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0 !important;
 }
 
 .btn {
-    transition: all 0.2s ease;
+    border-radius: 8px;
+    transition: all 0.3s ease;
 }
 
-.badge {
-    font-size: 0.85rem;
-}
-
-.bg-purple {
-    background-color: #6f42c1;
-    color: white;
-}
-
-.text-purple {
-    color: #6f42c1;
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 </style>

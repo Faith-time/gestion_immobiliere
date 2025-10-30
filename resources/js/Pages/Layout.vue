@@ -5,19 +5,19 @@
             <div class="menu-bg-wrap">
                 <div class="container">
                     <div class="site-navigation py-3">
-                        <Link :href="route('home')" class="logo m-0 float-start">Agence Immobilière</Link>
+                        <Link :href="route('home')" class="logo m-0 float-start">Cauris Immo</Link>
 
                         <ul class="js-clone-nav d-none d-lg-inline-block text-start site-menu float-end">
-                            <!-- Accueil - Visible pour tous -->
-                            <li v-if="!hasRole('admin')">
-                                <Link
-                                    :href="route('home')"
-                                    :class="{ 'active': route().current('home') }"
-                                    @click="handleNavClick"
-                                >
-                                    Accueil
-                                </Link>
-                            </li>
+<!--                            &lt;!&ndash; Accueil - Visible pour tous &ndash;&gt;-->
+<!--                            <li v-if="!hasRole('admin')">-->
+<!--                                <Link-->
+<!--                                    :href="route('home')"-->
+<!--                                    :class="{ 'active': route().current('home') }"-->
+<!--                                    @click="handleNavClick"-->
+<!--                                >-->
+<!--                                    Accueil-->
+<!--                                </Link>-->
+<!--                            </li>-->
 
                             <!-- Catalogue - Visible pour tous -->
                             <li class="has-children" v-if="!hasRole('admin')">
@@ -82,38 +82,31 @@
                                     :class="{ 'active': route().current('locations.client.*') }"
                                     @click="handleNavClick"
                                 >
+                                    Mes Baux
+                                </Link>
+                            </li>
+
+                            <li v-if="!hasRole('admin')">
+                                <Link
+                                    :href="route('locations.mes-loyers')"
+                                    :class="{ 'active': route().current('locations.mes-loyers') }"
+                                    class="filter-option"
+                                    @click="handleNavClick"
+                                >
                                     Mes Locations
                                 </Link>
                             </li>
 
                             <!-- Section Transactions - Affichage conditionnel -->
-                            <li v-if="$page.props.auth.user && !hasRole('admin')" class="has-children">
-                                <a href="#" @click.prevent>Mes Transactions</a>
-                                <ul class="dropdown">
+                            <li v-if="$page.props.auth.user && !hasRole('admin')" >
                                     <!-- Si l'utilisateur a des achats -->
-                                    <li v-if="userHasAchats || !hasRole('proprietaire')">
                                         <Link
                                             :href="route('ventes.index')"
                                             :class="{ 'active': route().current('ventes.*') }"
                                             @click="handleNavClick"
                                         >
-                                            <i class="fas fa-shopping-cart me-2"></i>
-                                            Mes Achats
+                                            Mes Contrats de Vente
                                         </Link>
-                                    </li>
-
-                                    <!-- Si l'utilisateur est propriétaire -->
-                                    <li v-if="hasRole('proprietaire')">
-                                        <Link
-                                            :href="route('ventes.index')"
-                                            :class="{ 'active': route().current('ventes.*') }"
-                                            @click="handleNavClick"
-                                        >
-                                            <i class="fas fa-home me-2"></i>
-                                            Mes Ventes
-                                        </Link>
-                                    </li>
-                                </ul>
                             </li>
 
                             <!-- Toutes les réservations - Visible uniquement pour admin -->
@@ -138,6 +131,38 @@
                                 </Link>
                             </li>
 
+                            <!-- Dashboard Propriétaire - Visible pour proprietaire et admin -->
+                            <li v-if="hasRole('proprietaire')">
+                                <Link
+                                    :href="route('dashboard.proprietaire')"
+                                    :class="{ 'active': route().current('dashboard.proprietaire') }"
+                                    @click="handleNavClick"
+                                >
+                                    Suivi de mes biens
+                                </Link>
+                            </li>
+
+                            <li v-if="hasRole('admin')">
+                                <Link
+                                    :href="route('dashboard.admin.global')"
+                                    :class="{ 'active': route().current('dashboard.admin.global') }"
+                                    @click="handleNavClick"
+                                >
+                                    <i class="fas fa-crown"></i>
+                                    Dashboard Admin Global
+                                </Link>
+                            </li>
+
+                            <li v-if="hasRole('admin')">
+                                <Link
+                                    :href="route('categories.index')"
+                                    :class="{ 'active': route().current('categories.*') }"
+                                    @click="handleNavClick"
+                                >
+                                    Toutes les Catégories
+                                </Link>
+                            </li>
+
                             <!-- Devenir Propriétaire - visible si client -->
                             <li v-if="!hasRole('proprietaire') && !hasRole('admin')">
                                 <Link
@@ -159,18 +184,18 @@
                                 </Link>
                             </li>
 
-                            <!-- Badge de rôle actuel -->
-                            <li class="role-badge">
-                                <span v-if="hasRole('admin')" class="badge bg-danger">
-                                    <i class="fas fa-crown me-1"></i> Admin
-                                </span>
-                                <span v-else-if="hasRole('proprietaire')" class="badge bg-success">
-                                    <i class="fas fa-home me-1"></i> Propriétaire
-                                </span>
-                                <span v-else class="badge bg-info">
-                                    <i class="fas fa-user me-1"></i> Client
-                                </span>
-                            </li>
+<!--                            &lt;!&ndash; Badge de rôle actuel &ndash;&gt;-->
+<!--                            <li class="role-badge">-->
+<!--                                <span v-if="hasRole('admin')" class="badge bg-danger">-->
+<!--                                    <i class="fas fa-crown me-1"></i> Admin-->
+<!--                                </span>-->
+<!--                                <span v-else-if="hasRole('proprietaire')" class="badge bg-success">-->
+<!--                                    <i class="fas fa-home me-1"></i> Propriétaire-->
+<!--                                </span>-->
+<!--                                <span v-else class="badge bg-info">-->
+<!--                                    <i class="fas fa-user me-1"></i> Client-->
+<!--                                </span>-->
+<!--                            </li>-->
 
                             <!-- Déconnexion -->
                             <li>

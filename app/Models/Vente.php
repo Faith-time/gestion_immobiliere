@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 
 class Vente extends Model
@@ -11,11 +12,11 @@ class Vente extends Model
     use HasFactory;
 
     protected $fillable = [
-        'biens_id',
+        'reservation_id',
         'acheteur_id',
         'prix_vente',
         'date_vente',
-        'statut',
+        'status',
         'vendeur_signature_data',
         'vendeur_signed_at',
         'vendeur_signature_ip',
@@ -27,6 +28,7 @@ class Vente extends Model
         'pdf_generated_at',
         'property_transferred',
         'property_transferred_at',
+        'ancien_proprietaire_id',
         'ancien_proprietaire_id',
     ];
 
@@ -41,14 +43,26 @@ class Vente extends Model
     ];
 
     // Statuts possibles
-    public const STATUT_EN_ATTENTE_PAIEMENT = 'en_attente_paiement'; // NOUVEAU
+    public const STATUT_EN_ATTENTE_PAIEMENT = 'en_attente_paiement';
     public const STATUT_EN_COURS = 'en_cours';
     public const STATUT_CONFIRMEE = 'confirmée';
     public const STATUT_ANNULEE = 'annulée';
     // Relations
     public function bien()
     {
-        return $this->belongsTo(Bien::class, 'biens_id');
+        return $this->hasOneThrough(
+            Bien::class,
+            Reservation::class,
+            'id', // clé étrangère sur reservations
+            'id', // clé étrangère sur biens
+            'reservation_id', // clé locale sur ventes
+            'bien_id' // clé locale sur reservations
+        );
+    }
+
+    public function reservation()
+    {
+        return $this->belongsTo(Reservation::class, 'reservation_id');
     }
 
     public function acheteur()
@@ -113,12 +127,6 @@ class Vente extends Model
     }
 
 
-// NOUVELLE RELATION pour l'ancien propriétaire
-    public function ancienProprietaire()
-    {
-        return $this->belongsTo(User::class, 'ancien_proprietaire_id');
-    }
-
 // NOUVELLES MÉTHODES
     public function isPropertyTransferred()
     {
@@ -133,5 +141,33 @@ class Vente extends Model
     public function paiement()
     {
         return $this->hasOne(Paiement::class, 'vente_id');
+    }
+
+    public function ancienProprietaire(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'ancien_proprietaire_id');
+    }
+
+    /**
+     * Obtenir le statut de la transaction
+     */
+    public function getTransactionStatus(): array
+    {
+        $paiement = $this->paiement;
+        $paiementComplet = $paiement &&
+            $paiement->statut === 'reussi' &&
+            $paiement->montant_restant <= 0;
+
+        return [
+            'paiement_complet' => $paiementComplet,
+            'montant_paye' => $paiement?->montant_paye ?? 0,
+            'montant_restant' => $paiement?->montant_restant ?? $this->prix_vente,
+            'signatures_completes' => $this->isFullySigned(),
+            'vendeur_signe' => $this->isSignedByVendeur(),
+            'acheteur_signe' => $this->isSignedByAcheteur(),
+            'propriete_transferee' => $this->isPropertyTransferred(),
+            'date_transfert' => $this->property_transferred_at,
+            'statut_vente' => $this->status,
+        ];
     }
 }

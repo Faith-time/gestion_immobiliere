@@ -17,7 +17,6 @@ class ConversationController extends Controller
     {
         $user = auth()->user();
 
-        // Correction: suppression de 'bien' de la liste des relations
         $conversations = Conversation::with(['lastMessage.sender', 'client', 'admin'])
             ->whereHas('participants', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
@@ -39,48 +38,101 @@ class ConversationController extends Controller
         }
 
         return Inertia::render('Conversation/Index', [
-            'conversations' => $conversations,
+            'conversations' => $conversations ?? [],  // ✅ Valeur par défaut
+            'userRoles' => $user->roles->pluck('name')->toArray(),  // ✅ CORRIGÉ
         ]);
     }
 
+    public function show(Conversation $conversation)
+    {
+        $user = auth()->user();
+
+        if (!$conversation->hasParticipant($user->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Accès non autorisé',
+            ], 403);
+        }
+
+        $conversation->markAsReadFor($user->id);
+
+        $conversation->load([
+            'messages.sender',
+            'client',
+            'admin',
+            'participantDetails',
+        ]);
+
+        $conversations = Conversation::with(['lastMessage.sender', 'client', 'admin'])
+            ->whereHas('participants', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+            ->where('status', 'active')
+            ->orderBy('last_message_at', 'desc')
+            ->get()
+            ->map(function ($conv) use ($user) {
+                $conv->unread_count = $conv->getUnreadCountFor($user->id);
+                return $conv;
+            });
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'conversation' => $conversation,
+                'conversations' => $conversations,
+            ]);
+        }
+
+        return Inertia::render('Conversation/Show', [
+            'conversation' => $conversation,
+            'conversations' => $conversations ?? [],  // ✅ Valeur par défaut
+            'userRoles' => $user->roles->pluck('name')->toArray(),  // ✅ CORRIGÉ
+        ]);
+    }
     // Créer une nouvelle conversation
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'client_id' => 'nullable|exists:users,id', // ✅ Ajout de client_id
             'admin_id' => 'nullable|exists:users,id',
             'subject' => 'nullable|string|max:255',
             'message' => 'required|string',
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors(),
-            ], 422);
+            return back()->withErrors($validator->errors());
         }
 
         $user = auth()->user();
 
-        // Créer la conversation
+        // ✅ Déterminer qui est le client et qui est l'admin
+        if ($user->hasRole('admin')) {
+            // Si c'est un admin qui crée la conversation
+            $clientId = $request->client_id ?? null;
+            $adminId = $user->id;
+
+            if (!$clientId) {
+                return back()->withErrors(['message' => 'Veuillez sélectionner un client']);
+            }
+        } else {
+            // Si c'est un client qui crée la conversation
+            $clientId = $user->id;
+            $adminId = $request->admin_id ?? User::role('admin')->first()?->id;
+        }
+
+        // Créer la conversation avec les bons IDs
         $conversation = Conversation::create([
-            'client_id' => $user->id,
-            'admin_id' => $request->admin_id,
+            'client_id' => $clientId,
+            'admin_id' => $adminId,
             'subject' => $request->subject ?? 'Nouvelle demande',
             'status' => 'active',
             'last_message_at' => now(),
         ]);
 
         // Ajouter les participants
-        $conversation->participants()->attach($user->id);
-        if ($request->admin_id) {
-            $conversation->participants()->attach($request->admin_id);
-        } else {
-            // Assigner automatiquement au premier admin disponible
-            $admin = User::role('admin')->first();
-            if ($admin) {
-                $conversation->update(['admin_id' => $admin->id]);
-                $conversation->participants()->attach($admin->id);
-            }
+        $conversation->participants()->attach($clientId);
+        if ($adminId) {
+            $conversation->participants()->attach($adminId);
         }
 
         // Créer le premier message
@@ -90,69 +142,27 @@ class ConversationController extends Controller
             'type' => 'text',
         ]);
 
-        // Incrémenter le compteur non lu pour l'admin
-        if ($conversation->admin_id) {
+        // Incrémenter le compteur non lu pour le destinataire
+        $recipientId = ($user->id === $clientId) ? $adminId : $clientId;
+        if ($recipientId) {
             $conversation->participantDetails()
-                ->where('user_id', $conversation->admin_id)
+                ->where('user_id', $recipientId)
                 ->first()
                 ?->incrementUnread();
         }
 
-        // Correction: suppression de 'bien' de la liste des relations
-        return response()->json([
-            'success' => true,
-            'conversation' => $conversation->load(['messages.sender', 'client', 'admin']),
-            'message' => 'Conversation créée avec succès',
-        ], 201);
-    }
-
-    // Afficher une conversation
-    public function show(Conversation $conversation)
-    {
-        $user = auth()->user();
-
-        // Vérifier que l'utilisateur participe à la conversation
-        if (!$conversation->hasParticipant($user->id)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Accès non autorisé',
-            ], 403);
-        }
-
-        // Marquer les messages comme lus
-        $conversation->markAsReadFor($user->id);
-
-        // Correction: suppression de 'bien' de la liste des relations
-        $conversation->load([
-            'messages.sender',
-            'client',
-            'admin',
-            'participantDetails',
-        ]);
-
-        if (request()->expectsJson()) {
-            return response()->json([
-                'success' => true,
-                'conversation' => $conversation,
-            ]);
-        }
-
-        return Inertia::render('Conversation/Show', [
-            'conversation' => $conversation,
-        ]);
+        return redirect()->route('conversations.show', $conversation->id);
     }
 
     // Envoyer un message
+// Envoyer un message
     public function sendMessage(Request $request, Conversation $conversation)
     {
         $user = auth()->user();
 
         // Vérifier que l'utilisateur participe à la conversation
         if (!$conversation->hasParticipant($user->id)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Accès non autorisé',
-            ], 403);
+            return back()->withErrors(['message' => 'Accès non autorisé']);
         }
 
         $validator = Validator::make($request->all(), [
@@ -161,10 +171,7 @@ class ConversationController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors(),
-            ], 422);
+            return back()->withErrors($validator->errors());
         }
 
         $messageData = [
@@ -204,11 +211,11 @@ class ConversationController extends Controller
             $participant->incrementUnread();
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => $message->load('sender'),
-        ], 201);
+        // ✅ Retourner une réponse Inertia au lieu de JSON
+        return back();
     }
+    // Marquer comme lu
+
 
     // Marquer comme lu
     public function markAsRead(Conversation $conversation)
@@ -216,25 +223,21 @@ class ConversationController extends Controller
         $user = auth()->user();
 
         if (!$conversation->hasParticipant($user->id)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Accès non autorisé',
-            ], 403);
+            return back()->withErrors(['message' => 'Accès non autorisé']);
         }
 
         $conversation->markAsReadFor($user->id);
+
+        return back(); // ✅ Ajout du retour
     }
 
-    // Mettre à jour le statut "en train d'écrire"
+// Mettre à jour le statut "en train d'écrire"
     public function updateTyping(Request $request, Conversation $conversation)
     {
         $user = auth()->user();
 
         if (!$conversation->hasParticipant($user->id)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Accès non autorisé',
-            ], 403);
+            return back()->withErrors(['message' => 'Accès non autorisé']);
         }
 
         $participant = $conversation->participantDetails()
@@ -245,21 +248,21 @@ class ConversationController extends Controller
             $participant->setTyping($request->is_typing ?? false);
         }
 
+        return back(); // ✅ Ajout du retour
     }
 
-    // Fermer une conversation
+// Fermer une conversation
     public function close(Conversation $conversation)
     {
         $user = auth()->user();
 
         if (!$user->hasRole('admin') && $conversation->client_id !== $user->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Accès non autorisé',
-            ], 403);
+            return back()->withErrors(['message' => 'Accès non autorisé']);
         }
 
         $conversation->update(['status' => 'closed']);
+
+        return back(); // ✅ Ajout du retour si ce n'est pas déjà fait
     }
 
     // Supprimer une conversation

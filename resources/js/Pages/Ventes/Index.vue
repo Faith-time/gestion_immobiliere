@@ -12,8 +12,8 @@
                 <!-- En-tête universel -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h1 class="h2 text-primary mb-1">Mes Transactions</h1>
-                        <p class="text-muted mb-0">Gérez vos transactions immobilières</p>
+                        <h1 class="h2 text-primary mb-1">Mes contrats de vente</h1>
+                        <p class="text-muted mb-0">Gérez vos contrats de vente immobilieres</p>
                     </div>
                     <Link href="/" class="btn btn-outline-primary">
                         <i class="fas fa-home me-2"></i>Retour à l'accueil
@@ -115,10 +115,10 @@
                                 <div class="row mb-3">
                                     <div class="col-4">
                                         <img
-                                            :src="vente.bien?.image ? `/storage/${vente.bien.image}` : '/images/placeholder.jpg'"
-                                            :alt="vente.bien?.title || 'Bien'"
+                                            :src="getBienImageUrl(vente.bien)"
+                                            :alt="vente.bien?.title || 'Image du bien'"
                                             class="img-fluid rounded"
-                                            style="height: 80px; object-fit: cover; width: 100%;"
+                                            @error="handleImageError"
                                         />
                                     </div>
                                     <div class="col-8">
@@ -289,6 +289,26 @@ const getDateLabel = (vente) => {
 
 const getOtherPartyLabel = (vente) => {
     return vente.user_role_in_vente === 'acheteur' ? 'Vendeur' : 'Acheteur'
+}
+
+import placeholderImage from '@/assets/images/hero_bg_1.jpg'
+
+
+// ✅ Fonction pour obtenir l'URL de l'image du bien
+const getBienImageUrl = (bien) => {
+    // Vérifier si le bien a des images
+    if (bien?.images && Array.isArray(bien.images) && bien.images.length > 0) {
+        // Retourner l'URL de la première image
+        return bien.images[0].url
+    }
+
+    // Sinon, retourner l'image placeholder
+    return placeholderImage
+}
+
+// ✅ Gérer les erreurs de chargement d'image
+const handleImageError = (event) => {
+    event.target.src = placeholderImage
 }
 
 const getOtherPartyName = (vente) => {

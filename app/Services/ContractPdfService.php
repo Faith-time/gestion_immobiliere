@@ -24,8 +24,14 @@ class ContractPdfService
 
             $data = ($type === 'vente') ? $this->getVentePdfData($contract) : $this->getLocationPdfData($contract);
 
-            // Déterminer le template selon le type de contrat et le statut de signature
-            $template = $this->getTemplate($type);
+            // ✅ MODIFICATION : Passer le contrat à getTemplate()
+            $template = $this->getTemplate($type, $contract);
+
+            Log::info('📄 Génération PDF avec template', [
+                'type' => $type,
+                'type_contrat' => $contract instanceof Location ? $contract->type_contrat : null,
+                'template' => $template
+            ]);
 
             $pdf = Pdf::loadView($template, $data);
             $pdf->setPaper('A4', 'portrait');
@@ -49,19 +55,27 @@ class ContractPdfService
                 'pdf_generated_at' => now()
             ]);
 
+            Log::info('✅ PDF généré avec succès', [
+                'contract_id' => $contract->id,
+                'type' => $type,
+                'type_contrat' => $contract instanceof Location ? $contract->type_contrat : null,
+                'pdf_path' => $pdfPath
+            ]);
+
             return $pdfPath;
 
         } catch (\Exception $e) {
-            Log::error('Erreur génération PDF contrat:', [
+            Log::error('❌ Erreur génération PDF contrat:', [
                 'contract_id' => $contract->id,
                 'type' => $type,
-                'error' => $e->getMessage()
+                'type_contrat' => $contract instanceof Location ? $contract->type_contrat : null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             return false;
         }
     }
-
     /**
      * Obtenir les données pour le PDF de location
      */
@@ -294,11 +308,31 @@ class ContractPdfService
     /**
      * Obtenir le template approprié
      */
-    private function getTemplate($type)
+    /**
+     * Obtenir le template approprié selon le type de contrat
+     */
+    private function getTemplate($type, $contract = null)
     {
-        return $type === 'vente' ? 'contrats.vente' : 'contrats.location';
-    }
+        if ($type === 'vente') {
+            return 'contrats.vente';
+        }
 
+        // Pour les locations, choisir le template selon le type_contrat
+        if ($type === 'location' && $contract instanceof Location) {
+            switch ($contract->type_contrat) {
+                case 'bail_classique':
+                    return 'contrats.bail-classique';
+                case 'bail_meuble':
+                    return 'contrats.bail-meuble';
+                case 'bail_commercial':
+                    return 'contrats.bail-commercial';
+                default:
+                    return 'contrats.bail-classique'; // Template par défaut
+            }
+        }
+
+        return 'contrats.location'; // Fallback
+    }
     /**
      * Générer le nom de fichier PDF
      */
@@ -313,10 +347,12 @@ class ContractPdfService
         } else {
             $bailleur = str_replace(' ', '_', $contract->bien->proprietaire->name);
             $locataire = str_replace(' ', '_', $contract->client->name);
-            return "contrat_location_{$bailleur}_{$locataire}_{$contract->id}_{$date}.pdf";
+
+            // ✅ Inclure le type de contrat dans le nom
+            $typeContrat = $contract->type_contrat ?? 'location';
+            return "contrat_{$typeContrat}_{$bailleur}_{$locataire}_{$contract->id}_{$date}.pdf";
         }
     }
-
     /**
      * Télécharger le PDF
      */
@@ -341,7 +377,9 @@ class ContractPdfService
     {
         try {
             $data = ($type === 'vente') ? $this->getVentePdfData($contract) : $this->getLocationPdfData($contract);
-            $template = $this->getTemplate($type);
+
+            // ✅ MODIFICATION : Passer le contrat
+            $template = $this->getTemplate($type, $contract);
 
             $pdf = Pdf::loadView($template, $data);
             $pdf->setPaper('A4', 'portrait');
@@ -356,7 +394,11 @@ class ContractPdfService
                 ->header('Content-Disposition', 'inline; filename="' . $this->getPdfFileName($contract, $type) . '"');
 
         } catch (\Exception $e) {
-            Log::error('Erreur prévisualisation PDF:', ['error' => $e->getMessage()]);
+            Log::error('Erreur prévisualisation PDF:', [
+                'error' => $e->getMessage(),
+                'type' => $type,
+                'type_contrat' => $contract instanceof Location ? $contract->type_contrat : null
+            ]);
             return false;
         }
     }

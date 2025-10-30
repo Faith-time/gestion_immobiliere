@@ -1,11 +1,13 @@
 <?php
 
+use App\Http\Controllers\AppartementController;
 use App\Http\Controllers\AuthentificationController;
 use App\Http\Controllers\AvisRetardController;
 use App\Http\Controllers\BienController;
 use App\Http\Controllers\CategorieController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ClientDocumentController;
+use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocationController;
@@ -75,6 +77,22 @@ Route::middleware('authenticate')->group(function () {
 
     Route::get('/debug/signature/{bien}', [BienController::class, 'debugSignatureData'])->name('debug.signature');
 
+    Route::prefix('/biens/{bien}/appartements')
+        ->controller(AppartementController::class)
+        ->name('appartements.')
+        ->group(function () {
+            // Liste des appartements d'un bien
+            Route::get('/', 'index')->name('index');
+
+            // Afficher le formulaire d'édition
+            Route::get('/{appartement}/edit', 'edit')->name('edit');
+
+            // Mettre à jour un appartement
+            Route::put('/{appartement}', 'update')->name('update');
+
+            // Supprimer un appartement
+            Route::delete('/{appartement}', 'destroy')->name('destroy');
+        });
     /*
     |--------------------------------------------------------------------------
     | Routes des Propriétaires
@@ -84,6 +102,13 @@ Route::middleware('authenticate')->group(function () {
         Route::get('/demande', 'create')->name('demande');
         Route::post('/store', 'store')->name('store');
     });
+    Route::get('/dashboard/proprietaire', [BienController::class, 'dashboardProprietaire'])
+        ->name('dashboard.proprietaire');
+
+    // Détails d'un bien pour le propriétaire
+    Route::get('/biens/{bien}/details-proprietaire', [BienController::class, 'detailsBienProprietaire'])
+        ->name('biens.details-proprietaire');
+
 
     /*
     |--------------------------------------------------------------------------
@@ -181,31 +206,48 @@ Route::middleware('authenticate')->group(function () {
         });
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Routes des Locations
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('/locations')->controller(LocationController::class)->name('locations.')->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::get('/create', 'create')->name('create');
-        Route::post('/', 'store')->name('store');
-        Route::get('/{location}', 'show')->name('show');
-        Route::get('/{location}/edit', 'edit')->name('edit');
-        Route::put('/{location}', 'update')->name('update');
-        Route::delete('/{location}', 'destroy')->name('destroy');
+/*
+|--------------------------------------------------------------------------
+| Routes des Locations - VERSION COMPLÈTE
+|--------------------------------------------------------------------------
+*/
+Route::prefix('/locations')->controller(LocationController::class)->name('locations.')->group(function () {
+    Route::get('/mes-loyers', 'mesLoyers')->name('mes-loyers');
 
-        Route::prefix('/{location}')->group(function () {
-            Route::get('/contrat/download', 'downloadContract')->name('contract.download');
-            Route::get('/contrat/preview', 'previewContract')->name('contract.preview');
-            Route::get('/signature', 'showSignaturePage')->name('signature.show');
-            Route::post('/signature/bailleur', 'signByBailleur')->name('signature.bailleur');
-            Route::post('/signature/locataire', 'signByLocataire')->name('signature.locataire');
-            Route::delete('/signature/{signatoryType}', 'cancelSignature')
-                ->name('signature.cancel')
-                ->where('signatoryType', 'bailleur|locataire');
-        });
-    });
+    Route::get('/', 'index')->name('index');
+    Route::get('/create', 'create')->name('create');
+    Route::post('/', 'store')->name('store');
+    Route::get('/{location}', 'show')->name('show');
+    Route::get('/{location}/edit', 'edit')->name('edit');
+    Route::put('/{location}', 'update')->name('update');
+    Route::delete('/{location}', 'destroy')->name('destroy');
+
+    // Routes pour le contrat PDF
+    Route::get('/{location}/contrat/download', 'downloadContract')->name('contract.download');
+    Route::get('/{location}/contrat/preview', 'previewContract')->name('contract.preview');
+
+    // 🆕 ROUTES DE GESTION DES LOYERS MENSUELS
+    Route::post('/{location}/payer-loyer', 'payerLoyer')->name('payer-loyer');
+    Route::get('/{location}/loyer/{mois}', 'detailsLoyerMois')->name('loyer.details');
+
+    // Routes admin
+    Route::post('/{location}/valider-paiement', 'validerPaiementLocation')->name('valider-paiement');
+    Route::post('/{location}/terminer', 'terminerLocation')->name('terminer');
+});
+
+// Routes de signature (déjà existantes - gardez-les telles quelles)
+Route::prefix('/signature')->controller(LocationController::class)->name('signature.')->group(function () {
+    Route::get('/{location}', 'showSignaturePage')->name('show');
+    Route::post('/{location}/bailleur', 'signByBailleur')->name('bailleur');
+    Route::post('/{location}/locataire', 'signByLocataire')->name('locataire');
+    Route::delete('/{location}/{signatoryType}', 'cancelSignature')
+        ->name('cancel')
+        ->where('signatoryType', 'bailleur|locataire');
+});
+
+Route::post('/locations/{location}/test-notifications', [LocationController::class, 'testNotifications'])
+    ->name('locations.test.notifications');
+// ✅ Routes de signature HORS du groupe locations
 
     Route::post('/locations/{location}/test-notifications', [LocationController::class, 'testNotifications'])
         ->name('locations.test.notifications');
@@ -219,8 +261,11 @@ Route::middleware('authenticate')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');
         Route::get('/{document}', 'show')->name('show');
+        Route::put('/{document}', 'update')->name('update'); // ✅ Route de mise à jour
         Route::delete('/{document}', 'destroy')->name('destroy');
         Route::get('/{document}/download', 'download')->name('download');
+
+        // Routes admin
         Route::post('/{document}/valider', 'valider')->name('valider');
         Route::post('/{document}/refuser', 'refuser')->name('refuser');
     });
@@ -270,6 +315,39 @@ Route::middleware('authenticate')->group(function () {
         Route::post('/test-mailtrap', 'testMailtrap')->name('test-mailtrap');
     });
 
+    Route::get('/admin/dashboard-global', [BienController::class, 'dashboardAdminGlobal'])
+        ->name('dashboard.admin.global');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Routes des Commissions
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('/commissions')->controller(CommissionController::class)->name('commissions.')->group(function () {
+        // Routes principales
+        Route::get('/', 'index')->name('index');
+        Route::get('/dashboard', 'dashboard')->name('dashboard');
+
+        // Gestion des paiements
+        Route::post('/{id}/marquer-payee', 'marquerPayee')->name('marquer-payee');
+
+        // Calculs et répartitions
+        Route::post('/calculer-repartition', 'calculerRepartition')->name('calculer-repartition');
+
+        // Locations - Commissions mensuelles
+        Route::get('/location/{locationId}/recapitulatif', 'recapitulatifLocation')->name('recapitulatif-location');
+        Route::get('/location/{locationId}/mois-courant', 'commissionMoisCourant')->name('mois-courant');
+        Route::get('/location/{locationId}/a-venir', 'commissionsAVenir')->name('a-venir');
+        Route::post('/location/{locationId}/renouvellement', 'genererRenouvellement')->name('generer-renouvellement');
+
+        // Rapports et exports
+        Route::get('/rapport/periode', 'rapport')->name('rapport');
+        Route::get('/export/csv', 'export')->name('export');
+
+        // Détails d'une commission (à mettre en dernier pour éviter les conflits)
+        Route::get('/{id}', 'show')->name('show');
+    });
+
     /*
     |--------------------------------------------------------------------------
     | Routes du Chat
@@ -308,6 +386,16 @@ Route::middleware('authenticate')->group(function () {
 
         // Supprimer une conversation (admin uniquement)
         Route::delete('/{conversation}', 'destroy')->name('destroy');
+    });
+
+    Route::prefix('/client-dossiers')->controller(\App\Http\Controllers\ClientDossierController::class)->name('client-dossiers.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{dossier}', 'show')->name('show');
+        Route::get('/{dossier}/edit', 'edit')->name('edit');
+        Route::put('/{dossier}', 'update')->name('update');
+        Route::delete('/{dossier}', 'destroy')->name('destroy');
     });
 });
 

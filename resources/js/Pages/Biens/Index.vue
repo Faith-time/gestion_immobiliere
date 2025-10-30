@@ -17,9 +17,8 @@ const showRejectionModal = ref(false)
 const rejectionReason = ref('')
 
 const filteredBiens = computed(() => {
-    let filtered = props.biens
+    let filtered = props.biens || []
 
-    // Filtrage par terme de recherche
     if (searchTerm.value) {
         filtered = filtered.filter(bien =>
             bien.title.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
@@ -29,7 +28,6 @@ const filteredBiens = computed(() => {
         )
     }
 
-    // Filtrage par statut
     if (selectedStatus.value) {
         filtered = filtered.filter(bien => bien.status === selectedStatus.value)
     }
@@ -37,40 +35,47 @@ const filteredBiens = computed(() => {
     return filtered
 })
 
-// Vérifier si l'utilisateur est admin
 const isAdmin = computed(() => {
     return props.userRoles && props.userRoles.includes('admin')
 })
 
-// Vérifier si l'utilisateur est propriétaire
 const isProprietaire = computed(() => {
     return props.userRoles && props.userRoles.includes('proprietaire')
 })
 
-// Compter les biens par statut
 const biensStats = computed(() => {
     return {
-        total: props.biens.length,
-        en_validation: props.biens.filter(b => b.status === 'en_validation').length,
-        disponible: props.biens.filter(b => b.status === 'disponible').length,
-        loue: props.biens.filter(b => b.status === 'loue').length,
-        vendu: props.biens.filter(b => b.status === 'vendu').length,
-        reserve: props.biens.filter(b => b.status === 'reserve').length,
+        total: props.biens?.length || 0,
+        en_validation: props.biens?.filter(b => b.status === 'en_validation').length || 0,
+        disponible: props.biens?.filter(b => b.status === 'disponible').length || 0,
+        loue: props.biens?.filter(b => b.status === 'loue').length || 0,
+        vendu: props.biens?.filter(b => b.status === 'vendu').length || 0,
+        reserve: props.biens?.filter(b => b.status === 'reserve').length || 0,
     }
 })
 
-// Fonction pour vérifier si l'utilisateur peut voir les boutons PDF
+// ✅ Vérifier si un bien est de catégorie "Appartement"
+const isAppartementCategory = (bien) => {
+    return bien.category && bien.category.name.toLowerCase() === 'appartement'
+}
+
+// ✅ Récupérer les stats d'occupation pour un bien de type appartement
+const getOccupationStats = (bien) => {
+    if (!isAppartementCategory(bien) || !bien.occupation_stats) {
+        return null
+    }
+    return bien.occupation_stats
+}
+
 const canAccessPdf = (bien) => {
     if (!bien.mandat || bien.mandat.statut !== 'actif') {
         return false
     }
 
-    // Admin peut toujours accéder
     if (isAdmin.value) {
         return true
     }
 
-    // Propriétaire peut accéder à ses propres biens
     if (isProprietaire.value && bien.proprietaire_id === getCurrentUserId()) {
         return true
     }
@@ -78,7 +83,6 @@ const canAccessPdf = (bien) => {
     return false
 }
 
-// Fonction pour obtenir l'ID de l'utilisateur actuel
 const getCurrentUserId = () => {
     return usePage().props.auth?.user?.id || null
 }
@@ -155,13 +159,17 @@ const showBien = (bien) => {
     router.visit(route('biens.show', bien.id))
 }
 
+// ✅ Accéder à la page de gestion des appartements
+const voirAppartements = (bien) => {
+    router.visit(route('appartements.index', bien.id))
+}
+
 const deleteBien = (bien) => {
     if (confirm(`Êtes-vous sûr de vouloir supprimer le bien "${bien.title}" ? Cette action est irréversible.`)) {
         router.delete(route('biens.destroy', bien.id))
     }
 }
 
-// Fonctions de validation pour admin
 const openValidationModal = (bien) => {
     selectedBien.value = bien
     showValidationModal.value = true
@@ -220,7 +228,6 @@ const filterByStatus = (status) => {
     selectedStatus.value = selectedStatus.value === status ? '' : status
 }
 
-// Fonctions PDF corrigées
 const downloadMandatPdf = (bien) => {
     if (!bien.mandat) {
         alert('Aucun mandat trouvé pour ce bien')
@@ -277,18 +284,15 @@ const showSignaturePage = (bien) => {
     router.visit(route('biens.mandat.sign', bien.id))
 }
 
-// Fonction pour vérifier si l'utilisateur peut signer
 const canSignMandat = (bien) => {
     if (!bien.mandat || bien.mandat.statut !== 'actif') {
         return false
     }
 
-    // Propriétaire peut toujours signer son mandat
     if (isProprietaire.value && bien.proprietaire_id === getCurrentUserId()) {
         return true
     }
 
-    // Admin peut signer pour l'agence
     if (isAdmin.value) {
         return true
     }
@@ -296,7 +300,6 @@ const canSignMandat = (bien) => {
     return false
 }
 
-// Fonction pour obtenir le statut de signature
 const getSignatureStatusBadge = (mandat) => {
     if (!mandat.signature_status) {
         return { text: 'Non signé', color: 'bg-gray-100 text-gray-800 border-gray-200' }
@@ -310,12 +313,27 @@ const getSignatureStatusBadge = (mandat) => {
 
     return statusMap[mandat.signature_status] || statusMap['non_signe']
 }
+
+const getFirstImageUrl = (bien) => {
+    // Pour les appartements, essayer d'abord les images générales (sans appartement_id)
+    if (bien.images && bien.images.length > 0) {
+        // Privilégier les images générales du bien
+        const generalImage = bien.images.find(img => !img.appartement_id)
+        if (generalImage) {
+            return generalImage.url || `/storage/${generalImage.chemin_image}`
+        }
+
+        // Sinon prendre la première image disponible
+        const firstImage = bien.images[0]
+        return firstImage.url || `/storage/${firstImage.chemin_image}`
+    }
+    return '/images/placeholder.jpg'
+}
 </script>
 
 <template>
-
     <div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-green-50">
-        <!-- Header avec animation -->
+        <!-- Header -->
         <div class="relative overflow-hidden bg-gradient-to-r from-blue-600 via-green-600 to-indigo-800 py-16">
             <div class="absolute inset-0 bg-black/20"></div>
             <div class="absolute -top-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
@@ -359,7 +377,7 @@ const getSignatureStatusBadge = (mandat) => {
                     </div>
                     <div
                         @click="filterByStatus('loue')"
-                        :class="{'ring-2 ring-white': selectedStatus === 'loué'}"
+                        :class="{'ring-2 ring-white': selectedStatus === 'loue'}"
                         class="bg-blue-500/20 backdrop-blur-sm rounded-xl p-4 text-center cursor-pointer hover:bg-blue-500/30 transition-all duration-300"
                     >
                         <div class="text-2xl font-bold text-white">{{ biensStats.loue }}</div>
@@ -367,7 +385,7 @@ const getSignatureStatusBadge = (mandat) => {
                     </div>
                     <div
                         @click="filterByStatus('vendu')"
-                        :class="{'ring-2 ring-white': selectedStatus === 'Vendu'}"
+                        :class="{'ring-2 ring-white': selectedStatus === 'vendu'}"
                         class="bg-red-500/20 backdrop-blur-sm rounded-xl p-4 text-center cursor-pointer hover:bg-red-500/30 transition-all duration-300"
                     >
                         <div class="text-2xl font-bold text-white">{{ biensStats.vendu }}</div>
@@ -418,7 +436,7 @@ const getSignatureStatusBadge = (mandat) => {
         <!-- Contenu principal -->
         <div class="max-w-7xl mx-auto px-4 py-8">
             <!-- Message si aucun bien -->
-            <div v-if="props.biens.length === 0" class="text-center py-16">
+            <div v-if="!props.biens || props.biens.length === 0" class="text-center py-16">
                 <div class="bg-white/70 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-12 mx-auto max-w-md">
                     <div class="w-24 h-24 bg-gradient-to-br from-blue-100 to-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                         <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -470,16 +488,10 @@ const getSignatureStatusBadge = (mandat) => {
                         <!-- Image -->
                         <div class="relative h-56 overflow-hidden">
                             <img
-                                v-if="bien.image"
-                                :src="`/storage/${bien.image}`"
+                                :src="getFirstImageUrl(bien)"
                                 :alt="bien.title"
                                 class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                             />
-                            <div v-else class="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                                <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                            </div>
 
                             <!-- Badges de statut -->
                             <div class="absolute top-4 left-4 flex flex-col space-y-2">
@@ -488,8 +500,7 @@ const getSignatureStatusBadge = (mandat) => {
                                 </span>
                                 <span
                                     v-if="bien.mandat"
-                                    :class="`px-3 py-1 rounded-full text-xs font-semibold border ${getMandatTypeColor(bien.mandat.type_mandat)}`"
-                                >
+                                    :class="`px-3 py-1 rounded-full text-xs font-semibold border ${getMandatTypeColor(bien.mandat.type_mandat)}`">
                                     {{ getMandatTypeLabel(bien.mandat.type_mandat) }}
                                 </span>
                                 <span
@@ -504,7 +515,6 @@ const getSignatureStatusBadge = (mandat) => {
                             <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col space-y-2">
                                 <!-- Actions pour admin -->
                                 <template v-if="isAdmin">
-                                    <!-- Bouton de validation -->
                                     <button
                                         v-if="bien.status === 'en_validation'"
                                         @click="openValidationModal(bien)"
@@ -513,82 +523,6 @@ const getSignatureStatusBadge = (mandat) => {
                                     >
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                    </button>
-                                    <!-- Bouton de rejet -->
-                                    <button
-                                        v-if="bien.status === 'en_validation'"
-                                        @click="openRejectionModal(bien)"
-                                        class="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 shadow-lg"
-                                        title="Rejeter le bien"
-                                    >
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                </template>
-
-                                <!-- Actions communes -->
-                                <button
-                                    @click="showBien(bien)"
-                                    class="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 shadow-lg"
-                                    title="Voir les détails"
-                                >
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                </button>
-                                <button
-                                    @click="editBien(bien)"
-                                    class="p-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors duration-200 shadow-lg"
-                                    title="Modifier"
-                                >
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
-                                <button
-                                    @click="deleteBien(bien)"
-                                    class="p-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200 shadow-lg"
-                                    title="Supprimer"
-                                >
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
-
-                                <!-- BOUTONS PDF -->
-                                <template v-if="canAccessPdf(bien)">
-                                    <button
-                                        @click="downloadMandatPdf(bien)"
-                                        class="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200 shadow-lg"
-                                        title="Télécharger le mandat PDF"
-                                    >
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                    </button>
-
-                                    <button
-                                        @click="previewMandatPdf(bien)"
-                                        class="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200 shadow-lg"
-                                        title="Prévisualiser le mandat PDF"
-                                    >
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                    </button>
-
-                                    <button
-                                        v-if="isAdmin"
-                                        @click="regenerateMandatPdf(bien)"
-                                        class="p-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors duration-200 shadow-lg"
-                                        title="Régénérer le mandat PDF"
-                                    >
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                         </svg>
                                     </button>
                                 </template>
@@ -636,8 +570,60 @@ const getSignatureStatusBadge = (mandat) => {
                                 <span class="text-sm truncate">{{ bien.address }}, {{ bien.city }}</span>
                             </div>
 
-                            <!-- Caractéristiques -->
-                            <div class="flex items-center space-x-4 text-sm text-gray-600 mb-4">
+                            <!-- ✅ SECTION APPARTEMENTS - Nouveau design -->
+                            <div v-if="isAppartementCategory(bien) && getOccupationStats(bien)" class="mb-4 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-xl">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center">
+                                        <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                        </svg>
+                                        <span class="font-bold text-indigo-800 text-sm">Immeuble d'appartements</span>
+                                    </div>
+                                    <button
+                                        @click="voirAppartements(bien)"
+                                        class="text-xs text-indigo-600 hover:text-indigo-700 font-semibold underline"
+                                    >
+                                        Gérer →
+                                    </button>
+                                </div>
+
+                                <!-- Statistiques d'occupation -->
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="bg-white/60 rounded-lg p-3">
+                                        <div class="text-2xl font-bold text-indigo-600">{{ getOccupationStats(bien).total }}</div>
+                                        <div class="text-xs text-gray-600">Appartements</div>
+                                    </div>
+                                    <div class="bg-white/60 rounded-lg p-3">
+                                        <div class="text-2xl font-bold text-green-600">{{ getOccupationStats(bien).disponibles }}</div>
+                                        <div class="text-xs text-gray-600">Disponibles</div>
+                                    </div>
+                                    <div class="bg-white/60 rounded-lg p-3">
+                                        <div class="text-2xl font-bold text-blue-600">{{ getOccupationStats(bien).loues }}</div>
+                                        <div class="text-xs text-gray-600">Loués</div>
+                                    </div>
+                                    <div class="bg-white/60 rounded-lg p-3">
+                                        <div class="text-2xl font-bold text-purple-600">{{ getOccupationStats(bien).taux_occupation }}%</div>
+                                        <div class="text-xs text-gray-600">Occupation</div>
+                                    </div>
+                                </div>
+
+                                <!-- Barre de progression -->
+                                <div class="mt-3">
+                                    <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                        <span>Taux d'occupation</span>
+                                        <span class="font-semibold">{{ getOccupationStats(bien).taux_occupation }}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div
+                                            class="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-500"
+                                            :style="`width: ${getOccupationStats(bien).taux_occupation}%`"
+                                        ></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Caractéristiques standards (pour les biens non-appartement) -->
+                            <div v-else class="flex items-center space-x-4 text-sm text-gray-600 mb-4">
                                 <div v-if="bien.superficy" class="flex items-center">
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
@@ -656,6 +642,27 @@ const getSignatureStatusBadge = (mandat) => {
                                     </svg>
                                     {{ bien.bathrooms }} sdb
                                 </div>
+                            </div>
+
+                            <div v-if="bien.kitchens" class="flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                </svg>
+                                {{ bien.kitchens }} cui.
+                            </div>
+                            <div v-if="bien.living_rooms" class="flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                {{ bien.living_rooms }} salon(s)
+                            </div>
+
+                            <!-- Nombre d'images -->
+                            <div v-if="bien.images && bien.images.length > 0" class="mb-4 text-sm text-gray-500">
+                                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                {{ bien.images.length }} photo{{ bien.images.length > 1 ? 's' : '' }}
                             </div>
 
                             <!-- Catégorie -->
@@ -679,7 +686,7 @@ const getSignatureStatusBadge = (mandat) => {
                                         class="flex-1 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs transition-colors duration-200 flex items-center justify-center"
                                     >
                                         <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                                         </svg>
                                         Télécharger
                                     </button>
@@ -705,7 +712,7 @@ const getSignatureStatusBadge = (mandat) => {
                                 </div>
                             </div>
 
-                            <!-- SECTION SIGNATURE ÉLECTRONIQUE - UNE SEULE FOIS -->
+                            <!-- SECTION SIGNATURE ÉLECTRONIQUE -->
                             <div v-if="bien.mandat && bien.mandat.statut === 'actif'" class="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
                                 <div class="text-xs text-indigo-800 mb-2 font-medium flex items-center">
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -714,7 +721,6 @@ const getSignatureStatusBadge = (mandat) => {
                                     Signature électronique
                                 </div>
 
-                                <!-- Statut de signature -->
                                 <div v-if="bien.mandat.signature_status" class="mb-2">
                                     <span :class="`text-xs px-2 py-1 rounded-full border ${getSignatureStatusBadge(bien.mandat).color}`">
                                         {{ getSignatureStatusBadge(bien.mandat).text }}
@@ -795,7 +801,7 @@ const getSignatureStatusBadge = (mandat) => {
                             </div>
 
                             <!-- Actions principales standard -->
-                            <div class="flex space-x-2">
+                            <div v-if="!isAdmin" class="flex space-x-2">
                                 <button
                                     @click="showBien(bien)"
                                     class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 text-sm"
@@ -803,10 +809,40 @@ const getSignatureStatusBadge = (mandat) => {
                                     Voir
                                 </button>
                                 <button
+                                    v-if="!isAppartementCategory(bien)"
                                     @click="editBien(bien)"
                                     class="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors duration-200 text-sm"
                                 >
                                     Modifier
+                                </button>
+                                <button
+                                    v-else
+                                    @click="voirAppartements(bien)"
+                                    class="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors duration-200 text-sm"
+                                >
+                                    Gérer
+                                </button>
+                                <button
+                                    @click="deleteBien(bien)"
+                                    class="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors duration-200 text-sm"
+                                >
+                                    Supprimer
+                                </button>
+                            </div>
+                            <!-- Actions pour admin -->
+                            <div v-else class="flex space-x-2">
+                                <button
+                                    @click="showBien(bien)"
+                                    class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 text-sm"
+                                >
+                                    Voir détails
+                                </button>
+                                <button
+                                    v-if="isAppartementCategory(bien)"
+                                    @click="voirAppartements(bien)"
+                                    class="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors duration-200 text-sm"
+                                >
+                                    Appartements
                                 </button>
                             </div>
                         </div>
@@ -843,7 +879,6 @@ const getSignatureStatusBadge = (mandat) => {
                 @click.stop
             >
                 <div class="p-6">
-                    <!-- Header -->
                     <div class="flex items-center justify-between mb-6">
                         <h3 class="text-xl font-bold text-gray-800 flex items-center">
                             <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -861,7 +896,6 @@ const getSignatureStatusBadge = (mandat) => {
                         </button>
                     </div>
 
-                    <!-- Contenu -->
                     <div v-if="selectedBien" class="mb-6">
                         <div class="bg-gray-50 rounded-lg p-4 mb-4">
                             <h4 class="font-semibold text-gray-800 mb-2">{{ selectedBien.title }}</h4>
@@ -904,7 +938,6 @@ const getSignatureStatusBadge = (mandat) => {
                         </div>
                     </div>
 
-                    <!-- Actions -->
                     <div class="flex space-x-3">
                         <button
                             @click="closeValidationModal"
@@ -937,11 +970,10 @@ const getSignatureStatusBadge = (mandat) => {
                 @click.stop
             >
                 <div class="p-6">
-                    <!-- Header -->
                     <div class="flex items-center justify-between mb-6">
                         <h3 class="text-xl font-bold text-gray-800 flex items-center">
                             <svg class="w-6 h-6 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
                             Rejet du bien
                         </h3>
@@ -955,7 +987,6 @@ const getSignatureStatusBadge = (mandat) => {
                         </button>
                     </div>
 
-                    <!-- Contenu -->
                     <div v-if="selectedBien" class="mb-6">
                         <div class="bg-gray-50 rounded-lg p-4 mb-4">
                             <h4 class="font-semibold text-gray-800 mb-2">{{ selectedBien.title }}</h4>
@@ -980,7 +1011,7 @@ const getSignatureStatusBadge = (mandat) => {
                         <div class="bg-red-50 border border-red-200 rounded-lg p-4">
                             <div class="flex items-center mb-2">
                                 <svg class="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
                                 <span class="font-medium text-red-800">Action de rejet</span>
                             </div>
@@ -990,7 +1021,6 @@ const getSignatureStatusBadge = (mandat) => {
                         </div>
                     </div>
 
-                    <!-- Actions -->
                     <div class="flex space-x-3">
                         <button
                             @click="closeRejectionModal"
@@ -1079,5 +1109,10 @@ const getSignatureStatusBadge = (mandat) => {
 .modal-content-enter-from, .modal-content-leave-to {
     opacity: 0;
     transform: scale(0.9) translateY(-50px);
+}
+
+/* Animation de la barre de progression */
+.bg-gradient-to-r {
+    transition: width 0.5s ease-in-out;
 }
 </style>

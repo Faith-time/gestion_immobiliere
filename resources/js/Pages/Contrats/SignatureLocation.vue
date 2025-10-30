@@ -455,8 +455,8 @@ const submitSignature = async () => {
     try {
         // Utilisation des routes définies dans votre contrôleur
         const url = signatoryType.value === 'bailleur'
-            ? route('locations.signature.bailleur', props.location.id)
-            : route('locations.signature.locataire', props.location.id)
+            ? route('signature.bailleur', props.location.id)
+            : route('signature.locataire', props.location.id)
 
         const response = await fetch(url, {
             method: 'POST',
@@ -466,7 +466,7 @@ const submitSignature = async () => {
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
-                signature_data: data
+                signature: data
             })
         })
 

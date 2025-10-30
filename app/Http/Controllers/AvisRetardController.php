@@ -309,7 +309,7 @@ class AvisRetardController extends Controller
             'jours_retard' => 'nullable|integer|min:1|max:365'
         ]);
 
-        $mailtrapService = new \App\Services\MailtrapEmailService();
+        $mailtrapService = new \App\Services\GestionPaiementLoyerService();
 
         try {
             switch ($request->type) {

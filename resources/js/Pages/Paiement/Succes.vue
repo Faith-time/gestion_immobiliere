@@ -329,7 +329,7 @@ const voirVente = () => {
 
 const voirLocation = () => {
     if (props.actionsDisponibles.location?.id) {
-        router.visit(route('locations.show', props.actionsDisponibles.location.id))
+        // router.visit(route('locations.show', props.actionsDisponibles.location.id))
     }
 }
 

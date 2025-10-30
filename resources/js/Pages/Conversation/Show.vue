@@ -206,8 +206,28 @@ const getFileIcon = (fileType) => {
 }
 
 const getOtherUserFromConv = (conv) => {
-    return isAdmin.value ? conv.client : conv.admin
+    // Si je suis admin, afficher le client
+    if (isAdmin.value) {
+        return conv.client || { name: 'Client', id: null }
+    }
+    // Si je suis client, afficher l'admin
+    return conv.admin || { name: 'Admin', id: null }
 }
+
+const debugConversation = computed(() => {
+    if (!props.conversations?.[0]) return null
+    const conv = props.conversations[0]
+    console.log('Debug conversation:', {
+        conversationId: conv.id,
+        clientId: conv.client_id,
+        clientName: conv.client?.name,
+        adminId: conv.admin_id,
+        adminName: conv.admin?.name,
+        currentUserId: currentUser.value?.id,
+        isAdmin: isAdmin.value
+    })
+    return conv
+})
 
 const showConversation = (conversation) => {
     router.visit(route('conversations.show', conversation.id))
@@ -225,6 +245,28 @@ const closeNewConversationModal = () => {
     }
 }
 
+const formatMessageWithLinks = (text) => {
+    if (!text) return '';
+
+    // Échapper le HTML pour la sécurité
+    let escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    // Remplacer les retours à la ligne par <br>
+    escaped = escaped.replace(/\n/g, '<br>');
+
+    // Détecter et rendre cliquables les URLs
+    const urlPattern = /(https?:\/\/[^\s<]+)/gi;
+    escaped = escaped.replace(urlPattern, (match) => {
+        return `<a href="${match}" target="_blank" class="text-blue-500 underline hover:text-blue-700 font-medium">${match}</a>`;
+    });
+
+    return escaped;
+}
 const createConversation = () => {
     router.post(route('conversations.store'), newConversation.value, {
         onSuccess: () => {
@@ -434,10 +476,8 @@ watch(() => props.conversation.messages?.length, () => {
                                 </div>
                             </a>
 
-                            <!-- Texte -->
-                            <p v-if="message.message" class="whitespace-pre-wrap break-words">
-                                {{ message.message }}
-                            </p>
+                            <!-- Texte avec liens cliquables -->
+                            <p v-if="message.message" class="whitespace-pre-wrap break-words" v-html="formatMessageWithLinks(message.message)"></p>
 
                             <!-- Heure et statut -->
                             <div class="flex items-center justify-end space-x-1 mt-1">
@@ -550,6 +590,7 @@ watch(() => props.conversation.messages?.length, () => {
                             </svg>
                         </button>
                     </div>
+
 
                     <!-- Formulaire -->
                     <form @submit.prevent="createConversation">

@@ -238,59 +238,6 @@ class ContractElectronicSignatureService
     }
 
     /**
-     * Annuler une signature - MODIFIÉ pour annuler les notifications
-     */
-    public function cancelSignature($contract, $signatoryType, $contractType)
-    {
-        try {
-            if ($contractType === 'location') {
-                if ($signatoryType === 'bailleur') {
-                    $contract->update([
-                        'bailleur_signature_data' => null,
-                        'bailleur_signed_at' => null,
-                        'bailleur_signature_ip' => null,
-                    ]);
-                } elseif ($signatoryType === 'locataire') {
-                    $contract->update([
-                        'locataire_signature_data' => null,
-                        'locataire_signed_at' => null,
-                        'locataire_signature_ip' => null,
-                    ]);
-                }
-                $this->updateLocationSignatureStatus($contract);
-
-                // NOUVEAU: Annuler les notifications si nécessaire
-                if ($contract->signature_status !== 'entierement_signe') {
-                    $this->contractNotificationService->annulerNotificationsProgrammees($contract);
-                }
-            }
-
-            // Régénérer le PDF
-            if ($contract->signature_status !== 'non_signe') {
-                $this->generateSignedPdf($contract, $contractType);
-            }
-
-            Log::info('Signature annulée', [
-                'contract_id' => $contract->id,
-                'contract_type' => $contractType,
-                'signatory_type' => $signatoryType,
-                'new_status' => $contract->signature_status
-            ]);
-
-            return true;
-
-        } catch (\Exception $e) {
-            Log::error('Erreur annulation signature:', [
-                'contract_id' => $contract->id,
-                'contract_type' => $contractType,
-                'signatory_type' => $signatoryType,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
      * Vérifier si une location est signée par le bailleur
      */
     public function isLocationSignedByBailleur(Location $location)
@@ -443,5 +390,137 @@ class ContractElectronicSignatureService
     public function canVenteBeSignedByAcheteur(Vente $vente)
     {
         return $vente->status !== 'annulee' && !$this->isVenteSignedByAcheteur($vente);
+    }
+
+    /**
+     * Méthode unifiée pour signer un contrat
+     */
+    public function signContract($contract, $signatoryType, $signatureData, $ipAddress = null)
+    {
+        try {
+            // Déterminer le type de contrat
+            $contractType = $contract instanceof Location ? 'location' : 'vente';
+
+            if ($contractType === 'location') {
+                if ($signatoryType === 'bailleur') {
+                    $success = $this->signLocationByBailleur($contract, $signatureData);
+                } elseif ($signatoryType === 'locataire') {
+                    $success = $this->signLocationByLocataire($contract, $signatureData);
+                } else {
+                    throw new \Exception('Type de signataire invalide pour une location');
+                }
+            } else {
+                if ($signatoryType === 'vendeur') {
+                    $success = $this->signVenteByVendeur($contract, $signatureData);
+                } elseif ($signatoryType === 'acheteur') {
+                    $success = $this->signVenteByAcheteur($contract, $signatureData);
+                } else {
+                    throw new \Exception('Type de signataire invalide pour une vente');
+                }
+            }
+
+            if ($success) {
+                return [
+                    'success' => true,
+                    'message' => 'Signature enregistrée avec succès'
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Erreur lors de l\'enregistrement de la signature'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Erreur signature contrat:', [
+                'contract_id' => $contract->id,
+                'signatory_type' => $signatoryType,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Annuler une signature - Version mise à jour
+     */
+    public function cancelSignature($contract, $signatoryType, $contractType = null)
+    {
+        try {
+            // Auto-détection du type si non fourni
+            if ($contractType === null) {
+                $contractType = $contract instanceof Location ? 'location' : 'vente';
+            }
+
+            if ($contractType === 'location') {
+                if ($signatoryType === 'bailleur') {
+                    $contract->update([
+                        'bailleur_signature_data' => null,
+                        'bailleur_signed_at' => null,
+                        'bailleur_signature_ip' => null,
+                    ]);
+                } elseif ($signatoryType === 'locataire') {
+                    $contract->update([
+                        'locataire_signature_data' => null,
+                        'locataire_signed_at' => null,
+                        'locataire_signature_ip' => null,
+                    ]);
+                }
+                $this->updateLocationSignatureStatus($contract);
+
+                // Annuler les notifications si nécessaire
+                if ($contract->signature_status !== 'entierement_signe') {
+                    $this->contractNotificationService->annulerNotificationsProgrammees($contract);
+                }
+            } elseif ($contractType === 'vente') {
+                if ($signatoryType === 'vendeur') {
+                    $contract->update([
+                        'vendeur_signature_data' => null,
+                        'vendeur_signed_at' => null,
+                        'vendeur_signature_ip' => null,
+                    ]);
+                } elseif ($signatoryType === 'acheteur') {
+                    $contract->update([
+                        'acheteur_signature_data' => null,
+                        'acheteur_signed_at' => null,
+                        'acheteur_signature_ip' => null,
+                    ]);
+                }
+                $this->updateVenteSignatureStatus($contract);
+            }
+
+            // Régénérer le PDF
+            if ($contract->signature_status !== 'non_signe') {
+                $this->generateSignedPdf($contract, $contractType);
+            }
+
+            Log::info('Signature annulée', [
+                'contract_id' => $contract->id,
+                'contract_type' => $contractType,
+                'signatory_type' => $signatoryType,
+                'new_status' => $contract->signature_status
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Signature annulée avec succès'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Erreur annulation signature:', [
+                'contract_id' => $contract->id,
+                'signatory_type' => $signatoryType,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage()
+            ];
+        }
     }
 }

@@ -1,5 +1,4 @@
 <?php
-// app/Models/User.php
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -116,7 +115,6 @@ class User extends Authenticatable
         return $this->hasMany(ConversationMessage::class, 'sender_id');
     }
 
-    // Obtenir toutes les conversations avec le nombre de messages non lus
     public function getConversationsWithUnread()
     {
         return $this->conversations()
@@ -129,5 +127,11 @@ class User extends Authenticatable
             });
     }
 
-
+    /**
+     * Relation avec le dossier client
+     */
+    public function dossierClient()
+    {
+        return $this->hasOne(ClientDossier::class, 'client_id');
+    }
 }

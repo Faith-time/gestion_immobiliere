@@ -17,6 +17,41 @@
                             <p class="text-gray-600">Vous allez être redirigé vers PayDunya pour effectuer le paiement sécurisé</p>
                         </div>
 
+                        <!-- Alerte fractionnement si nécessaire -->
+                        <div v-if="infoFractionnement" class="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                            <div class="flex items-start">
+                                <svg class="w-5 h-5 text-orange-500 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <div class="flex-1">
+                                    <p class="text-orange-800 font-medium mb-2">Paiement en plusieurs tranches</p>
+                                    <p class="text-orange-700 text-sm mb-3">
+                                        Le montant à payer dépasse la limite PayDunya ({{ formatPrice(infoFractionnement.limite_paydunya) }} FCFA).
+                                        Le paiement sera effectué en {{ infoFractionnement.nombre_tranches }} tranches.
+                                    </p>
+                                    <div class="space-y-2">
+                                        <div class="flex justify-between text-sm">
+                                            <span class="text-gray-600">Montant total restant:</span>
+                                            <span class="font-semibold">{{ formatPrice(infoFractionnement.montant_restant_total) }} FCFA</span>
+                                        </div>
+                                        <div class="flex justify-between text-sm">
+                                            <span class="text-gray-600">Cette tranche:</span>
+                                            <span class="font-semibold text-green-600">{{ formatPrice(infoFractionnement.montant_a_payer) }} FCFA</span>
+                                        </div>
+                                        <div v-if="infoFractionnement.pourcentage_paye > 0" class="mt-3">
+                                            <div class="flex justify-between text-sm mb-1">
+                                                <span class="text-gray-600">Progression:</span>
+                                                <span class="font-semibold">{{ infoFractionnement.pourcentage_paye.toFixed(1) }}%</span>
+                                            </div>
+                                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                                <div class="bg-green-600 h-2 rounded-full" :style="`width: ${infoFractionnement.pourcentage_paye}%`"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Détails du paiement -->
                         <div class="mb-8 bg-gray-50 rounded-lg p-6">
                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Détails du Paiement</h3>
@@ -33,14 +68,15 @@
                                 </div>
 
                                 <div class="flex justify-between items-center pt-3 border-t border-gray-200">
-                                    <span class="text-gray-600">Montant Total :</span>
+                                    <span class="text-gray-600">{{ infoFractionnement ? 'Montant de cette tranche' : 'Montant Total' }} :</span>
                                     <span class="text-2xl font-bold text-green-600">
-                                        {{ formatPrice(paiement.montant_total) }} FCFA
+                                        {{ formatPrice(paiement.montant_a_payer || paiement.montant_total) }} FCFA
                                     </span>
                                 </div>
 
-                                <div v-if="type === 'location'" class="text-sm text-gray-500 italic">
-                                    (Premier mois + Caution)
+                                <div v-if="type === 'location'" class="text-sm text-gray-500 space-y-1 pt-2 border-t">
+                                    <div>• Premier mois : {{ formatPrice(item.loyer_mensuel) }} FCFA</div>
+                                    <div>• Caution (2 mois) : {{ formatPrice(item.loyer_mensuel * 2) }} FCFA</div>
                                 </div>
                             </div>
                         </div>
@@ -129,10 +165,10 @@
 
                                 <button
                                     type="submit"
-                                    :disabled="processing"
+                                    :disabled="processing || !isFormValid"
                                     :class="{
-                                        'bg-blue-600 hover:bg-blue-700 text-white': !processing,
-                                        'bg-gray-400 text-gray-600 cursor-not-allowed': processing
+                                        'bg-blue-600 hover:bg-blue-700 text-white': !processing && isFormValid,
+                                        'bg-gray-400 text-gray-600 cursor-not-allowed': processing || !isFormValid
                                     }"
                                     class="px-8 py-3 font-semibold rounded-lg transition flex items-center"
                                 >
@@ -160,29 +196,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
 import Layout from '../Layout.vue'
-import { route } from 'ziggy-js'
 import axios from 'axios'
 
 const props = defineProps({
-    type: {
-        type: String,
-        required: true
-    },
-    item: {
-        type: Object,
-        required: true
-    },
-    paiement: {
-        type: Object,
-        required: true
-    },
-    user: {
-        type: Object,
-        required: true
-    }
+    type: String,
+    item: Object,
+    paiement: Object,
+    user: Object,
+    infoFractionnement: Object
 })
 
 const processing = ref(false)
@@ -192,7 +216,15 @@ const form = ref({
     customer_email: props.user.email || '',
     customer_phone: '',
     description: `Paiement ${props.type} #${props.paiement.id}`,
-    mode_paiement: ''
+    mode_paiement: '',
+    tranche_numero: props.infoFractionnement ? 1 : null
+})
+
+const isFormValid = computed(() => {
+    return form.value.customer_name.trim() !== '' &&
+        form.value.customer_email.trim() !== '' &&
+        form.value.customer_phone.trim() !== '' &&
+        form.value.mode_paiement !== ''
 })
 
 const formatPrice = (price) => {
@@ -210,19 +242,19 @@ const getTypeLabel = (type) => {
 
 const getPreviousUrl = () => {
     if (props.type === 'vente') {
-        return route('ventes.create', { bien_id: props.item.bien?.id })
+        return '/ventes'
     } else if (props.type === 'location') {
-        return route('locations.create', { bien_id: props.item.bien?.id })
+        return '/locations'
     } else if (props.type === 'reservation') {
-        return route('reservations.create', props.item.bien?.id)
+        return '/reservations'
     }
-    return route('home')
+    return '/'
 }
 
 const initierPaiement = async () => {
     if (processing.value) return
 
-    if (!form.value.customer_name || !form.value.customer_email || !form.value.customer_phone || !form.value.mode_paiement) {
+    if (!isFormValid.value) {
         alert('⚠️ Veuillez remplir tous les champs requis.')
         return
     }
@@ -230,27 +262,33 @@ const initierPaiement = async () => {
     processing.value = true
 
     try {
-        const response = await axios.post(route('paiement.initier'), form.value)
+        console.log('📤 Envoi requête paiement:', form.value)
+
+        const response = await axios.post('/paiement/initier', form.value)
+
+        console.log('📥 Réponse serveur:', response.data)
 
         if (response.data.success && response.data.payment_url) {
-            // Rediriger vers PayDunya
+            console.log('✅ Redirection vers PayDunya:', response.data.payment_url)
             window.location.href = response.data.payment_url
         } else {
             alert('❌ Erreur lors de l\'initiation du paiement : ' + (response.data.message || 'Erreur inconnue'))
             processing.value = false
         }
     } catch (error) {
-        console.error('Erreur initiation paiement:', error)
+        console.error('❌ Erreur initiation paiement:', error)
         alert('❌ Une erreur est survenue : ' + (error.response?.data?.message || error.message))
         processing.value = false
     }
 }
 
 onMounted(() => {
-    console.log('Page paiement chargée:', {
+    console.log('📄 Page paiement chargée:', {
         type: props.type,
         paiement_id: props.paiement.id,
-        montant: props.paiement.montant_total
+        montant: props.paiement.montant_a_payer || props.paiement.montant_total,
+        fractionnement: props.infoFractionnement ? 'oui' : 'non',
+        item: props.item
     })
 })
 </script>
