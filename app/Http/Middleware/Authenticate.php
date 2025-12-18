@@ -17,13 +17,18 @@ class Authenticate extends Middleware
             return null;
         }
 
+        // ✅ Pour les requêtes Inertia, retourner la route nommée
+        if ($request->hasHeader('X-Inertia')) {
+            return route('login');
+        }
+
         // Pour les requêtes API (Accept: application/json), ne pas rediriger
         if ($request->expectsJson()) {
             return null; // Ceci retournera une réponse 401 JSON
         }
 
         // Pour les routes web normales, rediriger vers la page de login
-        return url('/auth/showLogin');
+        return route('login'); // ✅ Utiliser route() au lieu de url()
     }
 
     /**

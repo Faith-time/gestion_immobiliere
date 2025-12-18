@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+@php use App\Models\ClientDossier; @endphp
+    <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -13,65 +14,88 @@
             color: #333;
             font-size: 12px;
         }
+
         .header {
             text-align: center;
             border-bottom: 2px solid #000;
             padding-bottom: 20px;
             margin-bottom: 30px;
         }
-        .header h1 {
-            font-size: 18px;
-            margin: 0;
-            text-transform: uppercase;
-            font-weight: bold;
-        }
+
         .partie {
             margin: 20px 0;
-            padding: 10px;
+            padding: 15px;
             background: #f8f9fa;
             border-left: 4px solid #007bff;
         }
+
         .partie h3 {
-            margin: 0 0 10px 0;
+            margin: 0 0 15px 0;
             font-size: 14px;
             font-weight: bold;
+            color: #007bff;
         }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .info-value {
+            color: #000;
+        }
+
         .article {
             margin: 20px 0;
         }
+
         .article-title {
             font-weight: bold;
             font-size: 13px;
             margin-bottom: 8px;
         }
+
         .article-content {
             margin-left: 15px;
             text-align: justify;
         }
+
         .bien-details {
             background: #f0f0f0;
             padding: 10px;
             margin: 8px 0;
             border-radius: 3px;
         }
+
         .prix {
             font-weight: bold;
             color: #d9534f;
         }
+
         .signatures {
             margin-top: 40px;
             width: 100%;
         }
+
         .signatures table {
             width: 100%;
             border-collapse: collapse;
         }
+
         .signatures td {
             width: 50%;
             text-align: center;
             vertical-align: top;
             padding: 10px;
         }
+
         .signature-box {
             border: 1px solid #ddd;
             min-height: 120px;
@@ -79,6 +103,7 @@
             background: #fafafa;
             padding: 5px;
         }
+
         .signature-image {
             max-width: 200px;
             max-height: 80px;
@@ -88,6 +113,7 @@
             border: 1px solid #ddd;
             background: white;
         }
+
         .signature-placeholder {
             color: #999;
             font-style: italic;
@@ -95,6 +121,7 @@
             text-align: center;
             line-height: 1.4;
         }
+
         .signature-info {
             position: absolute;
             bottom: 5px;
@@ -104,16 +131,19 @@
             font-size: 10px;
             color: #666;
         }
+
         .signature-date {
             font-size: 9px;
             color: #666;
             margin-top: 3px;
         }
+
         .date-lieu {
             text-align: right;
             margin: 25px 0;
             font-style: italic;
         }
+
         .footer {
             margin-top: 30px;
             padding-top: 15px;
@@ -122,9 +152,11 @@
             color: #666;
             text-align: center;
         }
+
         .text-center {
             text-align: center;
         }
+
         .signature-status {
             margin: 20px 0;
             padding: 15px;
@@ -132,16 +164,19 @@
             text-align: center;
             font-weight: bold;
         }
+
         .signature-status.fully-signed {
             background: #d4edda;
             border: 1px solid #c3e6cb;
             color: #155724;
         }
+
         .signature-status.partially-signed {
             background: #fff3cd;
             border: 1px solid #ffeeba;
             color: #856404;
         }
+
         .signature-status.not-signed {
             background: #f8d7da;
             border: 1px solid #f5c6cb;
@@ -153,7 +188,8 @@
 <div class="header">
     <h1>{{ $titre_contrat }}</h1>
     @if(isset($signature_status))
-        <div class="signature-status {{ $signature_status === 'entierement_signe' ? 'fully-signed' : ($signature_status === 'partiellement_signe' ? 'partially-signed' : 'not-signed') }}">
+        <div
+            class="signature-status {{ $signature_status === 'entierement_signe' ? 'fully-signed' : ($signature_status === 'partiellement_signe' ? 'partially-signed' : 'not-signed') }}">
             @if($signature_status === 'entierement_signe')
                 ✓ DOCUMENT ENTIÈREMENT SIGNÉ
             @elseif($signature_status === 'partiellement_signe')
@@ -167,17 +203,60 @@
 
 <div class="partie">
     <h3>Le Vendeur :</h3>
-    <p><strong>{{ $vendeur->name }}</strong>, propriétaire du bien situé au {{ $bien->address }}, {{ $bien->city }}</p>
+    <div class="info-grid">
+        <div class="info-label">Nom et Prénoms :</div>
+        <div class="info-value">{{ $vendeur->name }}</div>
+
+        <div class="info-label">Téléphone :</div>
+        <div class="info-value">{{ $vendeur->telephone ?? $vendeur->phone ?? 'Non renseigné' }}</div>
+
+        <div class="info-label">Email :</div>
+        <div class="info-value">{{ $vendeur->email }}</div>
+
+        <div class="info-label">Adresse du bien :</div>
+        <div class="info-value">{{ $bien->address }}, {{ $bien->city }}</div>
+    </div>
 </div>
 
 <div class="partie">
     <h3>L'Acheteur :</h3>
-    <p><strong>{{ $acheteur->name }}</strong>, domicilié {{ $acheteur->email }}</p>
-</div>
+    @php
+if (isset($vente)) {
+    $dossierAcheteur = ClientDossier::where('client_id', $vente->acheteur->id)->first();
+}
+    @endphp
+    <div class="info-grid">
+        <div class="info-label">Nom et Prénoms :</div>
+        <div class="info-value">{{ $vente->acheteur->name }}
+        </div>
 
+        <div class="info-label">Téléphone :</div>
+        <div class="info-value">
+            {{ $dossierAcheteur ? $dossierAcheteur->telephone_contact : 'Non renseigné' }}
+
+        </div>
+
+        <div class="info-label">Profession :</div>
+        <div class="info-value">{{ $dossierAcheteur->profession ?? 'Non renseignée' }}</div>
+
+        @if($dossierAcheteur && $dossierAcheteur->numero_cni)
+            <div class="info-label">Numéro CNI :</div>
+            <div class="info-value">{{ $dossierAcheteur->numero_cni }}</div>
+        @endif
+
+        <div class="info-label">Email :</div>
+        {{ $vente->acheteur->email }}
+
+        @if($dossierAcheteur && $dossierAcheteur->personne_contact)
+            <div class="info-label">Personne à contacter :</div>
+            <div class="info-value">{{ $dossierAcheteur->personne_contact }}</div>
+        @endif
+    </div>
+</div>
 <div class="partie">
     <h3>L'Agence Immobilière :</h3>
-    <p><strong>{{ $agence['nom'] }}</strong>, {{ $agence['adresse'] }}, {{ $agence['ville'] }}, représentée par {{ $agence['representant'] }}</p>
+    <p><strong>{{ $agence['nom'] }}</strong>, {{ $agence['adresse'] }}, {{ $agence['ville'] }}, représentée
+        par {{ $agence['representant'] }}</p>
 </div>
 
 <div class="text-center" style="margin: 25px 0; font-weight: bold; font-size: 14px;">
@@ -191,10 +270,16 @@
             <strong>{{ $bien->title }}</strong><br>
             Superficie : {{ number_format($bien->superficy, 0, ',', ' ') }} m²<br>
             Nombre de pièces : {{ $bien->rooms }}<br>
-            @if($bien->bathrooms) Nombre de salles de bains : {{ $bien->bathrooms }}<br> @endif
-            @if($bien->floors) Nombre d'étages : {{ $bien->floors }}<br> @endif
+            @if($bien->bathrooms)
+                Nombre de salles de bains : {{ $bien->bathrooms }}<br>
+            @endif
+            @if($bien->floors)
+                Nombre d'étages : {{ $bien->floors }}<br>
+            @endif
             Adresse : {{ $bien->address }}, {{ $bien->city }}<br>
-            @if($bien->description) Description : {{ $bien->description }} @endif
+            @if($bien->description)
+                Description : {{ $bien->description }}
+            @endif
         </div>
     </div>
 </div>
@@ -244,11 +329,12 @@
                 <div><strong>Le Vendeur</strong></div>
                 <div class="signature-box">
                     @if(isset($vendeur_signature) && $vendeur_signature['is_signed'] && $vendeur_signature['data'])
-                        <img src="{{ $vendeur_signature['data'] }}" alt="Signature vendeur" class="signature-image" />
+                        <img src="{{ $vendeur_signature['data'] }}" alt="Signature vendeur" class="signature-image"/>
                         <div class="signature-info">
                             {{ $vendeur->name }}<br>
                             <div class="signature-date">
-                                Signé le {{ \Carbon\Carbon::parse($vendeur_signature['signed_at'])->format('d/m/Y à H:i') }}
+                                Signé
+                                le {{ \Carbon\Carbon::parse($vendeur_signature['signed_at'])->format('d/m/Y à H:i') }}
                             </div>
                         </div>
                     @else
@@ -263,17 +349,18 @@
                 <div><strong>L'Acheteur</strong></div>
                 <div class="signature-box">
                     @if(isset($acheteur_signature) && $acheteur_signature['is_signed'] && $acheteur_signature['data'])
-                        <img src="{{ $acheteur_signature['data'] }}" alt="Signature acheteur" class="signature-image" />
+                        <img src="{{ $acheteur_signature['data'] }}" alt="Signature acheteur" class="signature-image"/>
                         <div class="signature-info">
-                            {{ $acheteur->name }}<br>
+                            {{ $vente->acheteur->name }}
                             <div class="signature-date">
-                                Signé le {{ \Carbon\Carbon::parse($acheteur_signature['signed_at'])->format('d/m/Y à H:i') }}
+                                Signé
+                                le {{ \Carbon\Carbon::parse($acheteur_signature['signed_at'])->format('d/m/Y à H:i') }}
                             </div>
                         </div>
                     @else
                         <div class="signature-placeholder">
                             Aucune signature<br>
-                            {{ $acheteur->name }}
+                            {{ $vente->acheteur->name }}
                         </div>
                     @endif
                 </div>

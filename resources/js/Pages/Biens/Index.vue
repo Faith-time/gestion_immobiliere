@@ -5,9 +5,33 @@ import { route } from 'ziggy-js'
 import { usePage } from '@inertiajs/vue3'
 
 const props = defineProps({
-    biens: Array,
-    userRoles: Array,
+    biens: {
+        type: Array,
+        required: true,
+        default: () => []
+    },
+    userRoles: {
+        type: Array,
+        required: true,
+        default: () => []
+    },
+    isAdmin: {
+        type: Boolean,
+        default: false
+    },
+    isProprietaire: {
+        type: Boolean,
+        default: false
+    }
 })
+
+const page = usePage()
+console.log('📋 Routes Ziggy disponibles:', page.props.ziggy)
+console.log('📋 Route biens.create:', route('biens.create'))
+console.log('📋 Toutes les routes biens:',
+    Object.keys(page.props.ziggy?.routes || {})
+        .filter(name => name.startsWith('biens'))
+)
 
 const searchTerm = ref('')
 const selectedStatus = ref('')
@@ -67,8 +91,14 @@ const getOccupationStats = (bien) => {
     return bien.occupation_stats
 }
 
+
 const canAccessPdf = (bien) => {
-    if (!bien.mandat || bien.mandat.statut !== 'actif') {
+    if (!bien.mandat) {
+        return false
+    }
+
+    // ✅ CORRECTION : Permettre l'accès si le mandat est actif OU entièrement signé
+    if (bien.mandat.statut !== 'actif' && bien.mandat.signature_status !== 'entierement_signe') {
         return false
     }
 
@@ -148,7 +178,17 @@ const formatDate = (date) => {
 }
 
 const createBien = () => {
-    router.visit(route('biens.create'))
+    // 🔍 DEBUG : Afficher l'URL générée
+    const url = route('biens.create')
+    console.log('🔗 URL générée par route():', url)
+    console.log('🔗 URL complète:', window.location.origin + url)
+
+    // Vérifier que la route existe
+    try {
+        router.visit(url)
+    } catch (error) {
+        console.error('❌ Erreur lors de la navigation:', error)
+    }
 }
 
 const editBien = (bien) => {
@@ -239,9 +279,13 @@ const downloadMandatPdf = (bien) => {
         return
     }
 
-    window.open(route('biens.download-mandat-pdf', bien.id), '_blank')
-}
+    // ✅ Utiliser le PDF signé si entièrement signé
+    const routeName = bien.mandat.signature_status === 'entierement_signe'
+        ? 'biens.mandat.download-signed'
+        : 'biens.download-mandat-pdf'
 
+    window.open(route(routeName, bien.id), '_blank')  // ✅ CORRECTION
+}
 const previewMandatPdf = (bien) => {
     if (!bien.mandat) {
         alert('Aucun mandat trouvé pour ce bien')
@@ -253,7 +297,12 @@ const previewMandatPdf = (bien) => {
         return
     }
 
-    window.open(route('biens.preview-mandat-pdf', bien.id), '_blank')
+    // ✅ Utiliser le PDF signé si entièrement signé
+    const routeName = bien.mandat.signature_status === 'entierement_signe'
+        ? 'biens.mandat.preview-signed'
+        : 'biens.preview-mandat-pdf'
+
+    window.open(route(routeName, bien.id), '_blank')
 }
 
 const regenerateMandatPdf = (bien) => {
@@ -285,19 +334,48 @@ const showSignaturePage = (bien) => {
 }
 
 const canSignMandat = (bien) => {
-    if (!bien.mandat || bien.mandat.statut !== 'actif') {
+    // ✅ CORRECTION : Permettre la signature si mandat actif MÊME si bien en_validation
+    if (!bien.mandat) {
         return false
     }
 
-    if (isProprietaire.value && bien.proprietaire_id === getCurrentUserId()) {
-        return true
+    // Le mandat doit être actif (validé par admin)
+    if (bien.mandat.statut !== 'actif') {
+        return false
     }
 
+    // Le propriétaire peut signer son propre bien
+    if (isProprietaire.value && bien.proprietaire_id === getCurrentUserId()) {
+        return !bien.mandat.proprietaire_signed_at // Si pas déjà signé
+    }
+
+    // L'admin peut signer pour l'agence
     if (isAdmin.value) {
-        return true
+        return !bien.mandat.agence_signed_at // Si pas déjà signé
     }
 
     return false
+}
+
+// ✅ NOUVEAU : Fonction pour savoir qui doit signer
+const getSignatureMessage = (bien) => {
+    if (!bien.mandat || bien.mandat.statut !== 'actif') {
+        return null
+    }
+
+    const propSigned = bien.mandat.proprietaire_signed_at
+    const agenceSigned = bien.mandat.agence_signed_at
+
+    if (!propSigned && !agenceSigned) {
+        return 'En attente de signatures'
+    }
+    if (propSigned && !agenceSigned) {
+        return 'En attente de signature agence'
+    }
+    if (!propSigned && agenceSigned) {
+        return 'En attente de signature propriétaire'
+    }
+    return 'Mandat entièrement signé'
 }
 
 const getSignatureStatusBadge = (mandat) => {
@@ -497,6 +575,14 @@ const getFirstImageUrl = (bien) => {
                             <div class="absolute top-4 left-4 flex flex-col space-y-2">
                                 <span :class="`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(bien.status)}`">
                                     {{ getStatusLabel(bien.status) }}
+                                </span>
+
+                                <!-- ✅ NOUVEAU : Badge de signature -->
+                                <span
+                                    v-if="bien.status === 'en_validation' && bien.mandat && bien.mandat.statut === 'actif'"
+                                    class="px-3 py-1 rounded-full text-xs font-semibold border bg-orange-100 text-orange-800 border-orange-200"
+                                >
+                                    {{ getSignatureMessage(bien) }}
                                 </span>
                                 <span
                                     v-if="bien.mandat"
@@ -778,6 +864,48 @@ const getFirstImageUrl = (bien) => {
                                 </div>
                             </div>
 
+                            <div v-if="isAdmin && bien.status === 'en_validation' && bien.property_title_url"
+                                 class="mb-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-xl">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center">
+                                        <svg class="w-5 h-5 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <span class="font-bold text-amber-800 text-sm">📋 Titre de Propriété</span>
+                                    </div>
+                                    <span class="text-xs bg-amber-200 text-amber-900 px-2 py-1 rounded-full font-semibold">
+            Critère de validation
+        </span>
+                                </div>
+
+                                <p class="text-xs text-amber-700 mb-3">
+                                    ⚠️ Vérifiez le document avant de valider le bien
+                                </p>
+
+                                <div class="flex space-x-2">
+                                    <a
+                                        :href="bien.property_title_url"
+                                        target="_blank"
+                                        class="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors duration-200 text-sm flex items-center justify-center"
+                                    >
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        Consulter le document
+                                    </a>
+
+                                    <a
+                                        :href="bien.property_title_url"
+                                        download
+                                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200 text-sm flex items-center justify-center"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
                             <!-- Actions principales pour admin -->
                             <div v-if="isAdmin && bien.status === 'en_validation'" class="flex space-x-2 mb-4">
                                 <button
@@ -959,6 +1087,31 @@ const getFirstImageUrl = (bien) => {
             </div>
         </div>
 
+        <div class="bg-amber-50 border-2 border-amber-300 rounded-lg p-4 mb-4">
+
+            <div v-if="selectedBien && selectedBien.property_title_url" class="flex space-x-2">
+                <a
+                    :href="selectedBien.property_title_url"
+                    target="_blank"
+                    class="flex-1 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm transition-colors flex items-center justify-center"
+                >
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Consulter
+                </a>
+                <a
+                    :href="selectedBien.property_title_url"
+                    download
+                    class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition-colors flex items-center justify-center"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3" />
+                    </svg>
+                </a>
+            </div>
+
+        </div>
         <!-- Modal de rejet -->
         <div
             v-if="showRejectionModal"

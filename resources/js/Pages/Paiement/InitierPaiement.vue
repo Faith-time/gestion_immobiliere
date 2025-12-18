@@ -62,9 +62,11 @@
                                     <span class="font-semibold capitalize">{{ getTypeLabel(type) }}</span>
                                 </div>
 
-                                <div v-if="item.bien" class="flex justify-between items-center">
+                                <div v-if="item.bien || (type === 'location' && item.reservation?.bien)" class="flex justify-between items-center">
                                     <span class="text-gray-600">Bien :</span>
-                                    <span class="font-semibold text-right">{{ item.bien.title }}</span>
+                                                                <span class="font-semibold text-right">
+                                    {{ item.bien?.title || item.reservation?.bien?.title }}
+                                </span>
                                 </div>
 
                                 <div class="flex justify-between items-center pt-3 border-t border-gray-200">

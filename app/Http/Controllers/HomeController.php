@@ -29,14 +29,16 @@ class HomeController extends Controller
             $biensQuery->where('city', 'like', '%' . $request->city . '%');
         }
 
-        // Filtre par prix minimum
-        if ($request->filled('minPrice')) {
-            $biensQuery->where('price', '>=', $request->minPrice);
-        }
-
-        // Filtre par prix maximum
-        if ($request->filled('maxPrice')) {
-            $biensQuery->where('price', '<=', $request->maxPrice);
+        // Filtre par prix - UTILISATION DE whereBetween pour inclure les bornes
+        if ($request->filled('minPrice') && $request->filled('maxPrice')) {
+            $biensQuery->whereBetween('price', [
+                (float) $request->minPrice,
+                (float) $request->maxPrice
+            ]);
+        } elseif ($request->filled('minPrice')) {
+            $biensQuery->where('price', '>=', (float) $request->minPrice);
+        } elseif ($request->filled('maxPrice')) {
+            $biensQuery->where('price', '<=', (float) $request->maxPrice);
         }
 
         // Filtre par adresse
@@ -53,47 +55,38 @@ class HomeController extends Controller
 
         // Filtre par nombre de chambres
         if ($request->filled('rooms')) {
-            if ($request->rooms === '5+' || $request->rooms >= 5) {
+            $rooms = $request->rooms;
+            if ($rooms === '5' || $rooms == '5+' || $rooms >= 5) {
                 $biensQuery->where('rooms', '>=', 5);
             } else {
-                $biensQuery->where('rooms', '>=', $request->rooms);
+                $biensQuery->where('rooms', '>=', (int) $rooms);
             }
         }
 
         // Filtre par nombre de salles de bain
         if ($request->filled('bathrooms')) {
-            if ($request->bathrooms === '4+' || $request->bathrooms >= 4) {
+            $bathrooms = $request->bathrooms;
+            if ($bathrooms === '4' || $bathrooms == '4+' || $bathrooms >= 4) {
                 $biensQuery->where('bathrooms', '>=', 4);
             } else {
-                $biensQuery->where('bathrooms', '>=', $request->bathrooms);
+                $biensQuery->where('bathrooms', '>=', (int) $bathrooms);
             }
         }
 
         // Filtre par nombre d'étages
         if ($request->filled('floors')) {
-            $biensQuery->where('floors', '>=', $request->floors);
+            $floors = $request->floors;
+            if ($floors === '4' || $floors == '4+' || $floors >= 4) {
+                $biensQuery->where('floors', '>=', 4);
+            } else {
+                $biensQuery->where('floors', '>=', (int) $floors);
+            }
         }
 
         // ==================== RÉCUPÉRATION DES DONNÉES ====================
 
         // Récupérer tous les biens correspondants aux critères
         $biens = $biensQuery->get();
-
-        // 🔍 Debug : Vérifier les images du premier bien
-        if ($biens->isNotEmpty() && app()->environment('local')) {
-            \Log::info('Debug Home - Premier bien:', [
-                'id' => $biens[0]->id,
-                'title' => $biens[0]->title,
-                'images_count' => $biens[0]->images->count(),
-                'first_image' => $biens[0]->images->first()
-                    ? [
-                        'id' => $biens[0]->images->first()->id,
-                        'chemin_image' => $biens[0]->images->first()->chemin_image,
-                        'url' => $biens[0]->images->first()->url
-                    ]
-                    : null
-            ]);
-        }
 
         // Transformer les biens pour s'assurer que les images sont bien sérialisées
         $biensFormatted = $biens->map(function($bien) {
@@ -125,7 +118,7 @@ class HomeController extends Controller
                         'id' => $image->id,
                         'libelle' => $image->libelle,
                         'chemin_image' => $image->chemin_image,
-                        'url' => asset('storage/' . $image->chemin_image), // Utilise asset() pour une URL complète
+                        'url' => asset('storage/' . $image->chemin_image),
                     ];
                 }),
             ];
@@ -141,7 +134,7 @@ class HomeController extends Controller
         $cities = Bien::where('status', 'disponible')
             ->distinct()
             ->pluck('city')
-            ->filter() // Enlever les valeurs null
+            ->filter()
             ->sort()
             ->values();
 
@@ -158,7 +151,6 @@ class HomeController extends Controller
             'filters' => $request->only([
                 'city', 'minPrice', 'maxPrice', 'address', 'category', 'rooms', 'bathrooms', 'floors'
             ]),
-
         ]);
     }
 
@@ -171,29 +163,41 @@ class HomeController extends Controller
             'total' => $biens->count(),
             'maisons' => 0,
             'appartements' => 0,
-            'luxury' => 0,
-            'recent' => 0
+            'terrains' => 0,
+            'studios' => 0,
+            'vente' => 0,
+            'location' => 0,
         ];
 
         foreach ($biens as $bien) {
-            // Compter les maisons
-            if ($bien->category && stripos($bien->category->name, 'maison') !== false) {
-                $stats['maisons']++;
+            // Compter par catégorie
+            if ($bien->category) {
+                $categoryName = strtolower($bien->category->name);
+
+                if (stripos($categoryName, 'maison') !== false) {
+                    $stats['maisons']++;
+                }
+
+                if (stripos($categoryName, 'appartement') !== false) {
+                    $stats['appartements']++;
+                }
+
+                if (stripos($categoryName, 'terrain') !== false) {
+                    $stats['terrains']++;
+                }
+
+                if (stripos($categoryName, 'studio') !== false) {
+                    $stats['studios']++;
+                }
             }
 
-            // Compter les appartements
-            if ($bien->category && stripos($bien->category->name, 'appartement') !== false) {
-                $stats['appartements']++;
-            }
-
-            // Compter les biens de luxe (prix >= 50M FCFA)
-            if ($bien->price >= 50000000) {
-                $stats['luxury']++;
-            }
-
-            // Compter les biens récents (moins de 30 jours)
-            if ($bien->created_at && $bien->created_at->diffInDays(now()) <= 30) {
-                $stats['recent']++;
+            // Compter par type de mandat
+            if ($bien->mandat) {
+                if ($bien->mandat->type_mandat === 'vente') {
+                    $stats['vente']++;
+                } elseif ($bien->mandat->type_mandat === 'gestion_locative') {
+                    $stats['location']++;
+                }
             }
         }
 

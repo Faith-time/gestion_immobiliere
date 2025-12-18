@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Mandat;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ElectronicSignatureService
@@ -14,90 +15,6 @@ class ElectronicSignatureService
     public function __construct(MandatPdfService $mandatPdfService)
     {
         $this->mandatPdfService = $mandatPdfService;
-    }
-
-    /**
-     * Signer le mandat par le propriétaire
-     */
-    public function signByProprietaire(Mandat $mandat, $signatureData)
-    {
-        try {
-            // Valider les données de signature
-            if (!$this->validateSignatureData($signatureData)) {
-                throw new \Exception('Données de signature invalides');
-            }
-
-            // Signer le mandat
-            $mandat->signByProprietaire($signatureData, request()->ip());
-
-            // CORRECTION : Recharger le mandat pour avoir les dernières données
-            $mandat->refresh();
-
-            // Générer le PDF avec la signature
-            $this->generateSignedPdf($mandat);
-
-            // Log de l'action
-            Log::info('Mandat signé par propriétaire', [
-                'mandat_id' => $mandat->id,
-                'bien_id' => $mandat->bien_id,
-                'proprietaire_id' => $mandat->bien->proprietaire_id,
-                'signed_at' => $mandat->proprietaire_signed_at,
-                'ip' => $mandat->proprietaire_signature_ip,
-                'signature_status' => $mandat->signature_status
-            ]);
-
-            return true;
-
-        } catch (\Exception $e) {
-            Log::error('Erreur signature propriétaire', [
-                'mandat_id' => $mandat->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            throw $e;
-        }
-    }
-
-    /**
-     * Signer le mandat par l'agence
-     */
-    public function signByAgence(Mandat $mandat, $signatureData)
-    {
-        try {
-            // Valider les données de signature
-            if (!$this->validateSignatureData($signatureData)) {
-                throw new \Exception('Données de signature invalides');
-            }
-
-            // Signer le mandat
-            $mandat->signByAgence($signatureData, request()->ip());
-
-            // CORRECTION : Recharger le mandat pour avoir les dernières données
-            $mandat->refresh();
-
-            // Générer le PDF avec la signature
-            $this->generateSignedPdf($mandat);
-
-            // Log de l'action
-            Log::info('Mandat signé par agence', [
-                'mandat_id' => $mandat->id,
-                'bien_id' => $mandat->bien_id,
-                'signed_at' => $mandat->agence_signed_at,
-                'ip' => $mandat->agence_signature_ip,
-                'signature_status' => $mandat->signature_status
-            ]);
-
-            return true;
-
-        } catch (\Exception $e) {
-            Log::error('Erreur signature agence', [
-                'mandat_id' => $mandat->id,
-                'error' => $e->getMessage()
-            ]);
-
-            throw $e;
-        }
     }
 
     /**
@@ -667,6 +584,142 @@ class ElectronicSignatureService
         } catch (\Exception $e) {
             Log::error('Erreur prévisualisation PDF:', ['error' => $e->getMessage()]);
             return false;
+        }
+    }
+
+
+    public function finaliserBienApresSignature(Mandat $mandat)
+    {
+        if (!$mandat->isFullySigned()) {
+            return false;
+        }
+
+        DB::beginTransaction();
+        try {
+            // 1. Générer le PDF signé
+            $this->generateSignedPdf($mandat);
+
+            // 2. Passer le bien à DISPONIBLE
+            $mandat->bien->update([
+                'status' => 'disponible'
+            ]);
+
+            DB::commit();
+
+            Log::info('✅ Bien finalisé après signature complète', [
+                'bien_id' => $mandat->bien_id,
+                'mandat_id' => $mandat->id
+            ]);
+
+            return true;
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('❌ Erreur finalisation bien après signature', [
+                'error' => $e->getMessage(),
+                'mandat_id' => $mandat->id
+            ]);
+            return false;
+        }
+    }
+
+    public function signByProprietaire(Mandat $mandat, $signatureData)
+    {
+        \DB::beginTransaction();
+
+        try {
+            $ipAddress = request()->ip();
+
+            $mandat->update([
+                'proprietaire_signature_data' => $signatureData,
+                'proprietaire_signed_at' => now(),
+                'proprietaire_signature_ip' => $ipAddress,
+            ]);
+
+            // ✅ Recharger pour avoir les dernières données
+            $mandat->refresh();
+
+            // ✅ Mettre à jour le statut de signature
+            $mandat->updateSignatureStatus();
+
+
+
+            // ✅ NOUVEAU : Activer le bien si signature complète
+            if ($mandat->isFullySigned()) {
+
+
+                $activated = $mandat->activateBienIfFullySigned();
+
+                // Régénérer le PDF avec signatures
+                try {
+                    $pdfPath = $this->generateSignedPdf($mandat);
+                } catch (\Exception $e) {
+                    \Log::error('❌ Erreur génération PDF signé', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            \DB::commit();
+
+            return $mandat->fresh();
+
+        } catch (\Exception $e) {
+            \DB::rollback();
+            \Log::error('❌ Erreur signature propriétaire', [
+                'mandat_id' => $mandat->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function signByAgence(Mandat $mandat, $signatureData)
+    {
+        \DB::beginTransaction();
+
+        try {
+            $ipAddress = request()->ip();
+
+            $mandat->update([
+                'agence_signature_data' => $signatureData,
+                'agence_signed_at' => now(),
+                'agence_signature_ip' => $ipAddress,
+            ]);
+
+            // ✅ Recharger pour avoir les dernières données
+            $mandat->refresh();
+
+            // ✅ Mettre à jour le statut de signature
+            $mandat->updateSignatureStatus();
+
+            // ✅ NOUVEAU : Activer le bien si signature complète
+            if ($mandat->isFullySigned()) {
+                $activated = $mandat->activateBienIfFullySigned();
+
+                // Régénérer le PDF avec signatures
+                try {
+                    $pdfPath = $this->generateSignedPdf($mandat);
+                } catch (\Exception $e) {
+                    \Log::error('❌ Erreur génération PDF signé', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            \DB::commit();
+
+            return $mandat->fresh();
+
+        } catch (\Exception $e) {
+            \DB::rollback();
+            \Log::error('❌ Erreur signature agence', [
+                'mandat_id' => $mandat->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
         }
     }
 }

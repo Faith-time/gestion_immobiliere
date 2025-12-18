@@ -34,7 +34,11 @@ const isAdmin = computed(() => {
 })
 
 const otherUser = computed(() => {
-    return isAdmin.value ? props.conversation.client : props.conversation.admin
+    if (isAdmin.value) {
+        return props.conversation.client || { name: 'Client', id: null }
+    } else {
+        return { name: 'Cauris Immo', id: props.conversation.admin?.id || null }
+    }
 })
 
 const filteredConversations = computed(() => {
@@ -59,29 +63,6 @@ const scrollToBottom = (smooth = true) => {
                 top: messagesContainer.value.scrollHeight,
                 behavior: smooth ? 'smooth' : 'auto'
             })
-        }
-    })
-}
-
-const sendMessage = () => {
-    const message = messageInput.value.trim()
-
-    if (!message && !selectedFile.value) return
-
-    const formData = new FormData()
-    if (message) formData.append('message', message)
-    if (selectedFile.value) formData.append('file', selectedFile.value)
-
-    router.post(route('conversations.message', props.conversation.id), formData, {
-        preserveScroll: true,
-        onSuccess: () => {
-            messageInput.value = ''
-            clearFile()
-            scrollToBottom()
-        },
-        onError: (errors) => {
-            console.error('Erreur:', errors)
-            alert('Erreur lors de l\'envoi du message')
         }
     })
 }
@@ -206,28 +187,12 @@ const getFileIcon = (fileType) => {
 }
 
 const getOtherUserFromConv = (conv) => {
-    // Si je suis admin, afficher le client
     if (isAdmin.value) {
         return conv.client || { name: 'Client', id: null }
+    } else {
+        return { name: 'Cauris Immo', id: conv.admin?.id || null }
     }
-    // Si je suis client, afficher l'admin
-    return conv.admin || { name: 'Admin', id: null }
 }
-
-const debugConversation = computed(() => {
-    if (!props.conversations?.[0]) return null
-    const conv = props.conversations[0]
-    console.log('Debug conversation:', {
-        conversationId: conv.id,
-        clientId: conv.client_id,
-        clientName: conv.client?.name,
-        adminId: conv.admin_id,
-        adminName: conv.admin?.name,
-        currentUserId: currentUser.value?.id,
-        isAdmin: isAdmin.value
-    })
-    return conv
-})
 
 const showConversation = (conversation) => {
     router.visit(route('conversations.show', conversation.id))
@@ -245,28 +210,30 @@ const closeNewConversationModal = () => {
     }
 }
 
-const formatMessageWithLinks = (text) => {
+const formatMessageWithMarkdown = (text) => {
     if (!text) return '';
 
-    // Échapper le HTML pour la sécurité
-    let escaped = text
+    let formatted = text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 
-    // Remplacer les retours à la ligne par <br>
-    escaped = escaped.replace(/\n/g, '<br>');
+    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold">$1</strong>');
+    formatted = formatted.replace(/\*(.+?)\*(?!\*)/g, '<em class="italic">$1</em>');
+    formatted = formatted.replace(/^## (.+)$/gm, '<h3 class="text-lg font-bold mt-2 mb-1">$1</h3>');
+    formatted = formatted.replace(/^- (.+)$/gm, '<li class="ml-4">• $1</li>');
+    formatted = formatted.replace(/\n/g, '<br>');
 
-    // Détecter et rendre cliquables les URLs
     const urlPattern = /(https?:\/\/[^\s<]+)/gi;
-    escaped = escaped.replace(urlPattern, (match) => {
-        return `<a href="${match}" target="_blank" class="text-blue-500 underline hover:text-blue-700 font-medium">${match}</a>`;
+    formatted = formatted.replace(urlPattern, (match) => {
+        return `<a href="${match}" target="_blank" class="underline hover:opacity-80 font-medium">🔗 ${match}</a>`;
     });
 
-    return escaped;
+    return formatted;
 }
+
 const createConversation = () => {
     router.post(route('conversations.store'), newConversation.value, {
         onSuccess: () => {
@@ -279,10 +246,43 @@ const createConversation = () => {
     })
 }
 
+// ✅ CORRECTION : Simplifier l'envoi de message
+const sendMessage = () => {
+    const message = messageInput.value.trim()
+
+    if (!message && !selectedFile.value) return
+
+    const formData = new FormData()
+    if (message) formData.append('message', message)
+    if (selectedFile.value) formData.append('file', selectedFile.value)
+
+    // Sauvegarder l'état actuel
+    const currentScrollHeight = messagesContainer.value?.scrollHeight || 0
+
+    router.post(route('conversations.message', props.conversation.id), formData, {
+        preserveScroll: false, // ✅ Permettre le scroll
+        onSuccess: () => {
+            messageInput.value = ''
+            clearFile()
+
+            // ✅ Attendre le prochain tick pour scroller
+            nextTick(() => {
+                scrollToBottom(false)
+            })
+        },
+        onError: (errors) => {
+            console.error('Erreur:', errors)
+            alert('Erreur lors de l\'envoi du message')
+        }
+    })
+}
+
+// ✅ CORRECTION : Simplifier le polling
 onMounted(() => {
     scrollToBottom(false)
     markAsRead()
 
+    // Polling toutes les 3 secondes
     pollingInterval = setInterval(() => {
         router.reload({
             only: ['conversation', 'conversations'],
@@ -297,11 +297,15 @@ onUnmounted(() => {
     if (typingTimeout) clearTimeout(typingTimeout)
 })
 
-watch(() => props.conversation.messages?.length, () => {
-    scrollToBottom()
+// ✅ Scroller automatiquement quand de nouveaux messages arrivent
+watch(() => props.conversation.messages?.length, (newLength, oldLength) => {
+    if (newLength > oldLength) {
+        nextTick(() => {
+            scrollToBottom(true)
+        })
+    }
 })
 </script>
-
 <template>
     <div class="flex h-screen bg-gray-100">
         <!-- Sidebar - Liste des conversations -->
@@ -352,7 +356,7 @@ watch(() => props.conversation.messages?.length, () => {
                     <!-- Avatar -->
                     <div class="flex-shrink-0 mr-3">
                         <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
-                            {{ getOtherUserFromConv(conv).name?.charAt(0).toUpperCase() || 'A' }}
+                            {{ getOtherUserFromConv(conv).name?.charAt(0).toUpperCase() || 'C' }}
                         </div>
                     </div>
 
@@ -460,7 +464,49 @@ watch(() => props.conversation.messages?.length, () => {
                                 />
                             </div>
 
-                            <!-- Fichier -->
+
+                            <!-- ✅ NOUVEAU : Affichage spécial pour les quittances PDF -->
+                            <div v-else-if="message.type === 'file' && message.file_name?.includes('quittance')" class="space-y-2">
+                                <!-- Icône et titre quittance -->
+                                <div class="flex items-center space-x-3 p-3 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+                                    <div class="flex-shrink-0">
+                                        <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-bold text-green-800 text-sm">📄 Quittance officielle</p>
+                                        <p class="text-xs text-green-600 truncate">{{ message.file_name }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- Boutons d'action -->
+                                <div class="flex space-x-2">
+                                    <a
+                                        :href="message.file_url"
+                                        target="_blank"
+                                        class="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        <span>Voir</span>
+                                    </a>
+                                    <a
+                                        :href="message.file_url"
+                                        :download="message.file_name"
+                                        class="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        <span>Télécharger</span>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- ✅ Fichier classique (non-quittance) -->
                             <a
                                 v-else-if="message.type === 'file'"
                                 :href="message.file_url"
@@ -476,8 +522,14 @@ watch(() => props.conversation.messages?.length, () => {
                                 </div>
                             </a>
 
-                            <!-- Texte avec liens cliquables -->
-                            <p v-if="message.message" class="whitespace-pre-wrap break-words" v-html="formatMessageWithLinks(message.message)"></p>
+                            <!-- Texte avec liens cliquables et mise en forme markdown -->
+                            <div v-if="message.message" class="prose prose-sm max-w-none">
+                                <div
+                                    class="whitespace-pre-wrap break-words"
+                                    :class="message.sender_id === currentUser.id ? 'text-white' : 'text-gray-900'"
+                                    v-html="formatMessageWithMarkdown(message.message)"
+                                ></div>
+                            </div>
 
                             <!-- Heure et statut -->
                             <div class="flex items-center justify-end space-x-1 mt-1">

@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             BiensWithMandatsSeeder::class,
             AppartementsSeeder::class,
             UpdateKitchensLivingRoomsSeeder::class,
+            VisiteurRoleSeeder::class,
         ]);
     }
 }

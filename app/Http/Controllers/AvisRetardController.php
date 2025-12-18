@@ -4,24 +4,27 @@ namespace App\Http\Controllers;
 
 use App\Models\Location;
 use App\Models\AvisRetard;
-use App\Models\User;
-use App\Notifications\RappelPaiementLoyer;
-use App\Notifications\AvisRetardPaiement;
-use Carbon\Carbon;
+use App\Services\NotificationLoyerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 
 class AvisRetardController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationLoyerService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     /**
      * Afficher le tableau de bord des avis de retard
      */
     public function index()
     {
-        $avisRetards = AvisRetard::with(['location.bien', 'location.client'])
+        $avisRetards = AvisRetard::with(['location.reservation.bien', 'location.client'])
             ->latest()
             ->paginate(20);
 
@@ -32,75 +35,45 @@ class AvisRetardController extends Controller
     }
 
     /**
-     * Envoyer les rappels de paiement (J-5)
+     * ✅ MODIFIÉ : Utiliser le nouveau service
      */
     public function envoyerRappels()
     {
-        $dateRappel = Carbon::today()->addDays(5);
+        try {
+            $result = $this->notificationService->envoyerRappelsMensuels();
 
-        // Récupérer toutes les locations actives
-        $locations = Location::with(['client', 'bien.proprietaire'])
-            ->where('statut', 'active')
-            ->get();
+            return response()->json($result);
+        } catch (\Exception $e) {
+            Log::error('❌ Erreur envoi rappels', [
+                'error' => $e->getMessage()
+            ]);
 
-        $rappelsEnvoyes = 0;
-
-        foreach ($locations as $location) {
-            $prochaineDatePaiement = $this->calculerProchaineDatePaiement($location);
-
-            if ($prochaineDatePaiement && $prochaineDatePaiement->isSameDay($dateRappel)) {
-                // Vérifier si un rappel n'a pas déjà été envoyé pour cette période
-                if (!$this->rappelDejaEnvoye($location, $prochaineDatePaiement)) {
-                    $this->envoyerRappelPaiement($location, $prochaineDatePaiement);
-                    $rappelsEnvoyes++;
-                }
-            }
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de l\'envoi des rappels'
+            ], 500);
         }
-
-        Log::info("Rappels de paiement envoyés: {$rappelsEnvoyes}");
-
-        return response()->json([
-            'success' => true,
-            'message' => "{$rappelsEnvoyes} rappel(s) de paiement envoyé(s)",
-            'rappels_envoyes' => $rappelsEnvoyes
-        ]);
     }
 
     /**
-     * Envoyer les avis de retard
+     * ✅ MODIFIÉ : Utiliser le nouveau service
      */
     public function envoyerAvisRetards()
     {
-        $dateAujourdhui = Carbon::today();
+        try {
+            $result = $this->notificationService->envoyerAvisRetards();
 
-        // Récupérer toutes les locations actives
-        $locations = Location::with(['client', 'bien.proprietaire'])
-            ->where('statut', 'active')
-            ->get();
+            return response()->json($result);
+        } catch (\Exception $e) {
+            Log::error('❌ Erreur envoi avis retard', [
+                'error' => $e->getMessage()
+            ]);
 
-        $avisEnvoyes = 0;
-
-        foreach ($locations as $location) {
-            $derniereDatePaiement = $this->calculerDerniereDatePaiement($location);
-
-            if ($derniereDatePaiement && $dateAujourdhui->isAfter($derniereDatePaiement)) {
-                $joursRetard = $dateAujourdhui->diffInDays($derniereDatePaiement);
-
-                // Vérifier si un avis n'a pas déjà été envoyé pour cette période
-                if (!$this->avisRetardDejaEnvoye($location, $derniereDatePaiement)) {
-                    $this->creerEtEnvoyerAvisRetard($location, $derniereDatePaiement, $joursRetard);
-                    $avisEnvoyes++;
-                }
-            }
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de l\'envoi des avis de retard'
+            ], 500);
         }
-
-        Log::info("Avis de retard envoyés: {$avisEnvoyes}");
-
-        return response()->json([
-            'success' => true,
-            'message' => "{$avisEnvoyes} avis de retard envoyé(s)",
-            'avis_envoyes' => $avisEnvoyes
-        ]);
     }
 
     /**
@@ -111,149 +84,29 @@ class AvisRetardController extends Controller
         try {
             DB::beginTransaction();
 
-            $rappelsResult = $this->envoyerRappels();
-            $avisResult = $this->envoyerAvisRetards();
+            $rappelsResult = $this->notificationService->envoyerRappelsMensuels();
+            $avisResult = $this->notificationService->envoyerAvisRetards();
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Notifications traitées avec succès',
-                'rappels' => $rappelsResult->original['rappels_envoyes'],
-                'avis' => $avisResult->original['avis_envoyes']
+                'rappels' => $rappelsResult['rappels_envoyes'] ?? 0,
+                'avis' => $avisResult['avis_envoyes'] ?? 0
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Erreur lors du traitement des notifications: ' . $e->getMessage());
+            Log::error('❌ Erreur traitement notifications', [
+                'error' => $e->getMessage()
+            ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors du traitement des notifications'
             ], 500);
         }
-    }
-
-    /**
-     * Calculer la prochaine date de paiement pour une location
-     */
-    private function calculerProchaineDatePaiement(Location $location)
-    {
-        $dateDebut = Carbon::parse($location->date_debut);
-        $maintenant = Carbon::now();
-
-        // Calculer le nombre de mois écoulés depuis le début de la location
-        $moisEcoules = $dateDebut->diffInMonths($maintenant);
-
-        // La prochaine échéance est le même jour du mois suivant
-        return $dateDebut->copy()->addMonths($moisEcoules + 1);
-    }
-
-    /**
-     * Calculer la dernière date de paiement attendue
-     */
-    private function calculerDerniereDatePaiement(Location $location)
-    {
-        $dateDebut = Carbon::parse($location->date_debut);
-        $maintenant = Carbon::now();
-
-        // Calculer le nombre de mois écoulés depuis le début
-        $moisEcoules = $dateDebut->diffInMonths($maintenant);
-
-        // Si on est passé le jour de paiement du mois en cours
-        $jourPaiement = $dateDebut->day;
-        $paiementMoisCourant = $maintenant->copy()->day($jourPaiement);
-
-        if ($maintenant->isAfter($paiementMoisCourant)) {
-            return $paiementMoisCourant;
-        } else {
-            // Le paiement du mois précédent
-            return $dateDebut->copy()->addMonths($moisEcoules);
-        }
-    }
-
-    /**
-     * Vérifier si un rappel a déjà été envoyé
-     */
-    private function rappelDejaEnvoye(Location $location, Carbon $datePaiement)
-    {
-        return AvisRetard::where('location_id', $location->id)
-            ->where('type', 'rappel')
-            ->where('date_echeance', $datePaiement->format('Y-m-d'))
-            ->exists();
-    }
-
-    /**
-     * Vérifier si un avis de retard a déjà été envoyé
-     */
-    private function avisRetardDejaEnvoye(Location $location, Carbon $datePaiement)
-    {
-        return AvisRetard::where('location_id', $location->id)
-            ->where('type', 'retard')
-            ->where('date_echeance', $datePaiement->format('Y-m-d'))
-            ->exists();
-    }
-
-    /**
-     * Envoyer un rappel de paiement
-     */
-    private function envoyerRappelPaiement(Location $location, Carbon $datePaiement)
-    {
-        // Créer l'enregistrement du rappel
-        $avis = AvisRetard::create([
-            'location_id' => $location->id,
-            'type' => 'rappel',
-            'date_echeance' => $datePaiement,
-            'montant_du' => $location->loyer_mensuel,
-            'statut' => 'envoye',
-            'date_envoi' => now()
-        ]);
-
-        // Envoyer les notifications
-        $location->client->notify(new RappelPaiementLoyer($location, $datePaiement));
-
-        // Notifier aussi le propriétaire
-        if ($location->bien->proprietaire) {
-            $location->bien->proprietaire->notify(new RappelPaiementLoyer($location, $datePaiement, true));
-        }
-
-        Log::info("Rappel de paiement envoyé", [
-            'location_id' => $location->id,
-            'client_id' => $location->client_id,
-            'date_echeance' => $datePaiement->format('Y-m-d')
-        ]);
-    }
-
-    /**
-     * Créer et envoyer un avis de retard
-     */
-    private function creerEtEnvoyerAvisRetard(Location $location, Carbon $datePaiement, int $joursRetard)
-    {
-        // Créer l'enregistrement de l'avis de retard
-        $avis = AvisRetard::create([
-            'location_id' => $location->id,
-            'type' => 'retard',
-            'date_echeance' => $datePaiement,
-            'montant_du' => $location->loyer_mensuel,
-            'jours_retard' => $joursRetard,
-            'statut' => 'envoye',
-            'date_envoi' => now()
-        ]);
-
-        // Envoyer les notifications
-        $location->client->notify(new AvisRetardPaiement($location, $datePaiement, $joursRetard));
-
-        // Notifier aussi le propriétaire
-        if ($location->bien->proprietaire) {
-            $location->bien->proprietaire->notify(new AvisRetardPaiement($location, $datePaiement, $joursRetard, true));
-        }
-
-        Log::info("Avis de retard envoyé", [
-            'location_id' => $location->id,
-            'client_id' => $location->client_id,
-            'jours_retard' => $joursRetard,
-            'montant' => $location->loyer_mensuel
-        ]);
     }
 
     /**
@@ -291,49 +144,10 @@ class AvisRetardController extends Controller
      */
     public function show(AvisRetard $avisRetard)
     {
-        $avisRetard->load(['location.bien', 'location.client']);
+        $avisRetard->load(['location.reservation.bien', 'location.client']);
 
         return Inertia::render('AvisRetard/Show', [
             'avisRetard' => $avisRetard
         ]);
-    }
-
-    /**
-     * Tester l'envoi d'emails via Mailtrap
-     */
-    public function testMailtrap(Request $request)
-    {
-        $request->validate([
-            'type' => 'required|in:connexion,rappel,retard',
-            'location_id' => 'nullable|exists:locations,id',
-            'jours_retard' => 'nullable|integer|min:1|max:365'
-        ]);
-
-        $mailtrapService = new \App\Services\GestionPaiementLoyerService();
-
-        try {
-            switch ($request->type) {
-                case 'connexion':
-                    $result = $mailtrapService->testerConnexion();
-                    break;
-
-                case 'rappel':
-                    $result = $mailtrapService->testerRappelPaiement($request->location_id);
-                    break;
-
-                case 'retard':
-                    $joursRetard = $request->jours_retard ?: 7;
-                    $result = $mailtrapService->testerAvisRetard($request->location_id, $joursRetard);
-                    break;
-            }
-
-            return response()->json($result);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors du test: ' . $e->getMessage()
-            ], 500);
-        }
     }
 }

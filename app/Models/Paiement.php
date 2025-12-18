@@ -19,6 +19,7 @@ class Paiement extends Model
         'mode_paiement',
         'statut',
         'date_transaction',
+        'mois_concerne',
         'vente_id',
         'location_id',
         'reservation_id'
@@ -26,6 +27,7 @@ class Paiement extends Model
 
     protected $casts = [
         'date_transaction' => 'datetime',
+        'mois_concerne' => 'date',
         'montant_total' => 'decimal:2',
         'montant_paye' => 'decimal:2',
         'montant_restant' => 'decimal:2',

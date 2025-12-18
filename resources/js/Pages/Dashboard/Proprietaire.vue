@@ -106,8 +106,8 @@
                 <div class="biens-section">
                     <div v-if="biens.length === 0" class="empty-state">
                         <i class="fas fa-home"></i>
-                        <h3>Aucun bien avec mandat actif</h3>
-                        <p>Vos biens apparaîtront ici une fois qu'ils auront un mandat actif.</p>
+                        <h3>Aucun de vos bien n'a été acheté ou loué pour le moment</h3>
+                        <p>Vos biens apparaîtront ici une fois qu'ils auront acheté ou mis en location</p>
                     </div>
 
                     <div v-for="bien in biens" :key="bien.id" class="bien-card">
@@ -134,13 +134,7 @@
                                     </span>
                                 </div>
                             </div>
-                            <Link
-                                :href="route('biens.details-proprietaire', bien.id)"
-                                class="btn-details"
-                            >
-                                <i class="fas fa-eye"></i>
-                                Voir détails
-                            </Link>
+
                         </div>
 
                         <!-- Stats du bien (location seulement) -->
@@ -162,15 +156,6 @@
                                     <div>
                                         <div class="mini-stat-label">Ce mois</div>
                                         <div class="mini-stat-value">{{ formatMontant(bien.recettes.mois_courant) }}</div>
-                                    </div>
-                                </div>
-                                <div class="mini-stat">
-                                    <div class="mini-stat-icon icon-info">
-                                        <i class="fas fa-check-circle"></i>
-                                    </div>
-                                    <div>
-                                        <div class="mini-stat-label">Payés</div>
-                                        <div class="mini-stat-value">{{ formatMontant(bien.loyers_stats.payes) }}</div>
                                     </div>
                                 </div>
                                 <div class="mini-stat">

@@ -41,14 +41,16 @@ class ConversationMessage extends Model
         return $this->belongsTo(User::class, 'sender_id');
     }
 
-    // Obtenir l'URL complète du fichier
-    public function getFileUrlAttribute(): ?string
+    // ✅ ACCESSEUR : URL complète du fichier
+    public function getFileUrlAttribute()
     {
-        if ($this->file_path) {
-            return asset('storage/' . $this->file_path);
+        if (!$this->file_path) {
+            return null;
         }
-        return null;
+
+        return asset('storage/' . $this->file_path);
     }
+
 
     // Marquer le message comme lu
     public function markAsRead(): void

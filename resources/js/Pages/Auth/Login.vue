@@ -21,176 +21,505 @@ const submit = () => {
 const signup = () => {
     router.visit(route('register'))
 }
+
+const props = defineProps({
+    message: {
+        type: String,
+        default: null
+    }
+})
 </script>
 
 <template>
     <div class="auth-container">
+        <div v-if="message" class="alert alert-info mb-4">
+            <i class="fas fa-info-circle me-2"></i>
+            {{ message }}
+        </div>
         <div class="login-card">
-            <!-- Section gauche bleue -->
+            <!-- Section gauche avec branding -->
             <div class="auth-left">
-                <h2 class="auth-title">Bienvenue !</h2>
-                <p class="auth-desc">
-                    Connectez-vous à votre espace pour gérer vos biens immobiliers avec efficacité.
-                </p>
+                <div class="logo-wrapper">
+                    <div class="logo-container">
+                        <img src="/resources/js/assets/images/cauris_immo_logo.jpg" alt="Cauris Immo" class="company-logo" />
+                    </div>
+                </div>
+
+                <h1 class="brand-title">Cauris Immo</h1>
+                <p class="brand-subtitle">Plateforme de gestion immobilière</p>
+
+                <div class="features-list">
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                            </svg>
+                        </div>
+                        <div class="feature-text">
+                            <h4>Gestion complète</h4>
+                            <p>Maisons, appartements, terrains & studios</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg>
+                        </div>
+                        <div class="feature-text">
+                            <h4>Espaces dédiés</h4>
+                            <p>Propriétaires et clients</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                        </div>
+                        <div class="feature-text">
+                            <h4>Sécurisé</h4>
+                            <p>Vos données protégées</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Section droite blanche -->
+            <!-- Section droite avec formulaire -->
             <div class="auth-right">
-                <h3 class="auth-subtitle">Se connecter</h3>
-                <form @submit.prevent="submit">
+                <div class="form-header">
+                    <h2 class="form-title">Connexion</h2>
+                    <p class="form-subtitle">Accédez à votre espace personnel</p>
+                </div>
+
+                <form @submit.prevent="submit" class="auth-form">
                     <div class="form-group">
-                        <label>Email</label>
-                        <input
-                            v-model="form.email"
-                            type="email"
-                            class="neu-input"
-                            :class="{ 'is-invalid': form.errors.email }"
-                            required
-                        />
-                        <div v-if="form.errors.email" class="text-danger text-sm mt-1">{{ form.errors.email }}</div>
+                        <label class="form-label">Adresse email</label>
+                        <div class="input-wrapper">
+                            <input
+                                v-model="form.email"
+                                type="email"
+                                class="neu-input"
+                                :class="{ 'input-error': form.errors.email }"
+                                placeholder="exemple@email.com"
+                                required
+                            />
+                        </div>
+                        <div v-if="form.errors.email" class="error-message">
+                            {{ form.errors.email }}
+                        </div>
                     </div>
 
-                    <div class="form-group mt-4">
-                        <label>Mot de passe</label>
-                        <input
-                            v-model="form.password"
-                            type="password"
-                            class="neu-input"
-                            :class="{ 'is-invalid': form.errors.password }"
-                            required
-                        />
-                        <div v-if="form.errors.password" class="text-danger text-sm mt-1">{{ form.errors.password }}</div>
+                    <div class="form-group">
+                        <label class="form-label">Mot de passe</label>
+                        <div class="input-wrapper">
+                            <input
+                                v-model="form.password"
+                                type="password"
+                                class="neu-input"
+                                :class="{ 'input-error': form.errors.password }"
+                                placeholder="••••••••"
+                                required
+                            />
+                        </div>
+                        <div v-if="form.errors.password" class="error-message">
+                            {{ form.errors.password }}
+                        </div>
                     </div>
 
-                    <div class="d-grid gap-3 mt-5">
+                    <div class="forgot-password">
+                        <a href="#" class="link-text">Mot de passe oublié ?</a>
+                    </div>
+
+                    <div class="button-group">
                         <button
                             type="submit"
-                            class="neu-button"
+                            class="neu-button neu-button-primary"
                             :disabled="form.processing"
                         >
-                            <span v-if="form.processing" class="spinner-border spinner-border-sm me-2"></span>
-                            Se connecter
+                            <span v-if="form.processing" class="spinner"></span>
+                            <span v-else>Se connecter</span>
                         </button>
-                        <button type="button" class="neu-button-outline" @click="signup">
-                            Pas encore de compte ? Créez-en un
+
+                        <button type="button" class="neu-button neu-button-secondary" @click="signup">
+                            Créer un compte
                         </button>
                     </div>
                 </form>
+
+                <div class="user-info">
+                    <div class="info-badges">
+                        <span class="info-badge">Espace Propriétaires</span>
+                        <span class="info-badge">Espace Clients</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <style scoped>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
 .auth-container {
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background: #ecf0f3;
+    background: #e0e5ec;
     padding: 2rem;
 }
 
 .login-card {
     display: flex;
-    max-width: 1000px;
+    max-width: 1100px;
     width: 100%;
-    border-radius: 20px;
+    min-height: 650px;
+    border-radius: 30px;
     overflow: hidden;
-    box-shadow: 12px 12px 24px #c8d0e7, -12px -12px 24px #ffffff;
+    background: #e0e5ec;
+    box-shadow: 20px 20px 60px #bec3c9, -20px -20px 60px #ffffff;
 }
 
-/* Left (bleu moderne) */
+/* Section gauche - Branding neumorphique */
 .auth-left {
     flex: 1;
-    background: #3b82f6; /* Bleu moderne (tailwind blue-500) */
-    color: white;
+    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
     padding: 3rem;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    text-align: center;
+    position: relative;
 }
 
-.auth-title {
-    font-size: 2rem;
+.auth-left::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+}
+
+.logo-wrapper {
+    margin-bottom: 2rem;
+}
+
+.logo-container {
+    width: 200px;
+    height: 200px;
+    border-radius: 30px;
+    background: white;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.company-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.brand-title {
+    font-size: 2.5rem;
     font-weight: 700;
-    margin-bottom: 1rem;
+    color: white;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.5px;
+    position: relative;
+    z-index: 1;
 }
 
-.auth-desc {
+.brand-subtitle {
     font-size: 1rem;
-    max-width: 300px;
-    opacity: 0.9;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 3rem;
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
 }
 
-.auth-image {
-    width: 80%;
-    max-width: 250px;
-    margin-top: 2rem;
+.features-list {
+    width: 100%;
+    max-width: 380px;
+    position: relative;
+    z-index: 1;
 }
 
-/* Right (blanc) */
+.feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.feature-item:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(5px);
+}
+
+.feature-icon {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.feature-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.feature-text h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 0.25rem;
+}
+
+.feature-text p {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.4;
+}
+
+/* Section droite - Formulaire neumorphique */
 .auth-right {
     flex: 1;
-    background: #ffffff;
-    padding: 3rem;
+    background: #e0e5ec;
+    padding: 3rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
-.auth-subtitle {
-    font-size: 1.5rem;
-    color: #111;
-    font-weight: 600;
-    margin-bottom: 2rem;
+.form-header {
+    margin-bottom: 2.5rem;
     text-align: center;
 }
 
-.form-group label {
-    font-weight: 600;
+.form-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2d3748;
     margin-bottom: 0.5rem;
-    display: inline-block;
+}
+
+.form-subtitle {
+    font-size: 0.95rem;
+    color: #718096;
+}
+
+.auth-form {
+    width: 100%;
+}
+
+.form-group {
+    margin-bottom: 1.75rem;
+}
+
+.form-label {
+    display: block;
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.input-wrapper {
+    position: relative;
 }
 
 .neu-input {
     width: 100%;
-    padding: 12px 16px;
-    border-radius: 10px;
-    background: #f0f0f3;
+    padding: 1rem 1.25rem;
     border: none;
-    box-shadow: inset 3px 3px 6px #d1d9e6, inset -3px -3px 6px #ffffff;
+    border-radius: 15px;
     font-size: 1rem;
+    color: #2d3748;
+    background: #e0e5ec;
+    box-shadow: inset 6px 6px 12px #bec3c9, inset -6px -6px 12px #ffffff;
+    transition: all 0.3s ease;
     outline: none;
 }
 
-/* Boutons */
-.neu-button {
-    background: #3b82f6;
-    color: white;
-    padding: 12px;
-    border-radius: 10px;
-    font-weight: bold;
-    border: none;
-    box-shadow: 3px 3px 8px #b1b5c4, -3px -3px 8px #ffffff;
-    transition: 0.3s ease;
+.neu-input:focus {
+    box-shadow: inset 8px 8px 16px #bec3c9, inset -8px -8px 16px #ffffff;
 }
 
-.neu-button:hover {
-    background: #2563eb;
+.neu-input::placeholder {
+    color: #a0aec0;
 }
 
-.neu-button-outline {
-    background: transparent;
-    border: 2px solid #3b82f6;
+.input-error {
+    box-shadow: inset 6px 6px 12px #d9a5a5, inset -6px -6px 12px #ffffff;
+}
+
+.error-message {
+    color: #e53e3e;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    font-weight: 500;
+}
+
+.forgot-password {
+    text-align: right;
+    margin-bottom: 2rem;
+}
+
+.link-text {
     color: #3b82f6;
-    padding: 10px;
-    border-radius: 10px;
-    font-weight: bold;
-    transition: 0.3s ease;
+    font-size: 0.9rem;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
 }
 
-.neu-button-outline:hover {
-    background: #3b82f6;
+.link-text:hover {
+    color: #2563eb;
+}
+
+.button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.neu-button {
+    width: 100%;
+    padding: 1rem;
+    border: none;
+    border-radius: 15px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.neu-button-primary {
+    background: linear-gradient(145deg, #3b82f6, #2563eb);
     color: white;
+    box-shadow: 8px 8px 16px #bec3c9, -8px -8px 16px #ffffff;
+}
+
+.neu-button-primary:hover:not(:disabled) {
+    box-shadow: 12px 12px 24px #bec3c9, -12px -12px 24px #ffffff;
+    transform: translateY(-2px);
+}
+
+.neu-button-primary:active:not(:disabled) {
+    box-shadow: inset 4px 4px 8px #2563eb, inset -4px -4px 8px #3b82f6;
+    transform: translateY(0);
+}
+
+.neu-button-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.neu-button-secondary {
+    background: #e0e5ec;
+    color: #4a5568;
+    box-shadow: 8px 8px 16px #bec3c9, -8px -8px 16px #ffffff;
+}
+
+.neu-button-secondary:hover {
+    box-shadow: 12px 12px 24px #bec3c9, -12px -12px 24px #ffffff;
+    transform: translateY(-2px);
+}
+
+.neu-button-secondary:active {
+    box-shadow: inset 4px 4px 8px #bec3c9, inset -4px -4px 8px #ffffff;
+    transform: translateY(0);
+}
+
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.user-info {
+    margin-top: 2.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid #cbd5e0;
+}
+
+.info-badges {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.info-badge {
+    padding: 0.625rem 1.25rem;
+    background: #e0e5ec;
+    color: #4a5568;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    box-shadow: 6px 6px 12px #bec3c9, -6px -6px 12px #ffffff;
+}
+
+/* Responsive */
+@media (max-width: 968px) {
+    .login-card {
+        flex-direction: column;
+    }
+
+    .auth-left {
+        padding: 2rem;
+    }
+
+    .brand-title {
+        font-size: 2rem;
+    }
+
+    .features-list {
+        max-width: 100%;
+    }
+
+    .auth-right {
+        padding: 2rem 1.5rem;
+    }
 }
 </style>

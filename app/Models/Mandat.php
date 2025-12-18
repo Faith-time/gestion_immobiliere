@@ -23,7 +23,6 @@ class Mandat extends Model
         'statut',
         'pdf_path',
         'pdf_generated_at',
-        // Nouveaux champs de signature
         'proprietaire_signature_data',
         'proprietaire_signed_at',
         'proprietaire_signature_ip',
@@ -62,6 +61,54 @@ class Mandat extends Model
         return !is_null($this->agence_signed_at) && !is_null($this->agence_signature_data);
     }
 
+    /**
+     * Activer le bien après signature complète
+     */
+    public function activateBienIfFullySigned()
+    {
+        // Recharger le mandat pour avoir les dernières données
+        $this->refresh();
+
+        if ($this->isFullySigned() && $this->bien) {
+            $ancienStatut = $this->bien->status;
+
+            \Log::info('🔄 Tentative activation bien après signature', [
+                'mandat_id' => $this->id,
+                'bien_id' => $this->bien->id,
+                'is_fully_signed' => $this->isFullySigned(),
+                'signature_status' => $this->signature_status,
+                'bien_status_actuel' => $ancienStatut
+            ]);
+
+            // ✅ Passer le bien à "disponible" si c'était "en_validation"
+            if ($ancienStatut === 'en_validation') {
+                $this->bien->update(['status' => 'disponible']);
+
+                \Log::info('✅ Bien passé à disponible après signature complète', [
+                    'bien_id' => $this->bien->id,
+                    'mandat_id' => $this->id,
+                    'ancien_statut' => $ancienStatut,
+                    'nouveau_statut' => $this->bien->fresh()->status
+                ]);
+
+                return true;
+            } else {
+                \Log::info('ℹ️ Bien non en validation, pas de changement de statut', [
+                    'bien_id' => $this->bien->id,
+                    'statut_actuel' => $ancienStatut
+                ]);
+            }
+        } else {
+            \Log::info('⚠️ Conditions non remplies pour activation', [
+                'mandat_id' => $this->id,
+                'is_fully_signed' => $this->isFullySigned(),
+                'has_bien' => $this->bien ? true : false,
+                'signature_status' => $this->signature_status
+            ]);
+        }
+
+        return false;
+    }
     public function isFullySigned()
     {
         return $this->signature_status === 'entierement_signe';
@@ -169,10 +216,14 @@ class Mandat extends Model
 
         // Configuration de l'agence
         $agence = [
-            'nom' => 'Votre Agence Immobilière',
-            'adresse' => '123 Avenue de l\'Immobilier',
-            'ville' => 'Dakar',
-            'representant' => 'M. Directeur',
+            'nom' => 'CAURIS IMMOBILIER',
+            'adresse' => 'Keur Massar Rond Point Jaxaay P.A.U 14',
+            'ville' => 'Keur Massar',
+            'representant' => 'Cauris Immobilier',
+            'rc' => 'SN.DKR.2009.A.11649',
+            'ninea' => '009017189',
+            'tel' => '77 448 32 28 / 77 516 72 28 / 76 785 98 48',
+            'email' => 'jacobleyla@hotmail.fr',
         ];
 
         $data = [
@@ -181,7 +232,7 @@ class Mandat extends Model
             'proprietaire' => $proprietaire,
             'agence' => $agence,
             'date_creation' => now()->format('d/m/Y'),
-            'ville_signature' => 'Dakar',
+            'ville_signature' => 'Keur Massar',
         ];
 
         if ($this->type_mandat === 'vente') {
@@ -189,14 +240,20 @@ class Mandat extends Model
             $data['objet'] = "Le mandant confie au mandataire le mandat " .
                 ($this->type_mandat_vente === 'exclusif' ? 'exclusif' : '') .
                 " de vendre son bien immobilier.";
-        } else {
-            $data['titre_mandat'] = 'MANDAT DE GÉRANCE';
-            $data['objet'] = "Le mandant confie au mandataire la gestion de son bien immobilier.";
+        }
+        if ($this->type_mandat === 'gestion_locative') {
+            $loyerMensuel = (float) $bien->price;
+            $tauxCommission = 10.00; // ← TOUJOURS 10% pour gérance
+            $commissionMensuelle = round(($loyerMensuel * $tauxCommission) / 100, 2);
+
+            $data['loyer_mensuel'] = $loyerMensuel;
+            $data['taux_commission'] = $tauxCommission;
+            $data['commission_mensuelle'] = $commissionMensuelle;
+            $data['net_proprietaire'] = $loyerMensuel - $commissionMensuelle;
         }
 
         return $data;
     }
-
     public function getTypeMandatLabel()
     {
         if ($this->type_mandat === 'vente') {

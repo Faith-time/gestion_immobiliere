@@ -19,7 +19,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'authenticate' => \App\Http\Middleware\Authenticate::class
+            'authenticate' => \App\Http\Middleware\Authenticate::class,
+            'optional.auth' => \App\Http\Middleware\OptionalAuth::class,
+            'require.authenticated' => \App\Http\Middleware\RequireAuthenticatedUser::class, // ⬅️ NOUVEAU
+        ]);
+
+        $middleware->alias([
+            'authenticate' => \App\Http\Middleware\Authenticate::class,
+            'optional.auth' => \App\Http\Middleware\OptionalAuth::class,
         ]);
 
         $middleware->group('api', [
@@ -40,6 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
         \App\Console\Commands\SurveillerQueueNotifications::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
+        $schedule->command('guests:cleanup')->daily();
 
         $schedule->command('loyer:notifications --type=all')
             ->dailyAt('08:00')

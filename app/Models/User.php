@@ -16,6 +16,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'is_guest',
+        'session_id',
     ];
 
     protected $hidden = [
@@ -27,7 +29,18 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'is_guest' => 'boolean',
     ];
+
+    public function isGuest(): bool
+    {
+        return $this->is_guest === true;
+    }
+
+    public function isAuthenticated(): bool
+    {
+        return !$this->is_guest;
+    }
 
     // Relations
     public function biens()

@@ -35,24 +35,16 @@
                         <div class="text-sm text-orange-100">En attente</div>
                     </div>
                     <div
-                        @click="filterByStatus('confirmee')"
-                        :class="{'ring-2 ring-white': selectedStatus === 'confirmee'}"
+                        @click="filterByStatus('confirmée')"
+                        :class="{'ring-2 ring-white': selectedStatus === 'confirmée'}"
                         class="bg-green-500/20 backdrop-blur-sm rounded-xl p-4 text-center cursor-pointer hover:bg-green-500/30 transition-all duration-300"
                     >
                         <div class="text-2xl font-bold text-white">{{ reservationsStats.confirmee }}</div>
                         <div class="text-sm text-green-100">Confirmée</div>
                     </div>
                     <div
-                        @click="filterByStatus('payee')"
-                        :class="{'ring-2 ring-white': selectedStatus === 'payee'}"
-                        class="bg-blue-500/20 backdrop-blur-sm rounded-xl p-4 text-center cursor-pointer hover:bg-blue-500/30 transition-all duration-300"
-                    >
-                        <div class="text-2xl font-bold text-white">{{ reservationsStats.payee }}</div>
-                        <div class="text-sm text-blue-100">Payée</div>
-                    </div>
-                    <div
-                        @click="filterByStatus('annulee')"
-                        :class="{'ring-2 ring-white': selectedStatus === 'annulee'}"
+                        @click="filterByStatus('annulée')"
+                        :class="{'ring-2 ring-white': selectedStatus === 'annulée'}"
                         class="bg-red-500/20 backdrop-blur-sm rounded-xl p-4 text-center cursor-pointer hover:bg-red-500/30 transition-all duration-300"
                     >
                         <div class="text-2xl font-bold text-white">{{ reservationsStats.annulee }}</div>
@@ -188,55 +180,66 @@
                                 </div>
                             </div>
 
-                            <!-- Documents fournis -->
+                            <!-- Documents du dossier client -->
                             <div class="mb-4">
                                 <h5 class="font-medium text-gray-700 mb-2 flex items-center">
                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
-                                    Documents fournis ({{ reservation.client_documents.length }})
+                                    Dossier client
                                 </h5>
-                                <div v-if="reservation.client_documents.length > 0" class="space-y-2">
-                                    <div
-                                        v-for="document in reservation.client_documents"
-                                        :key="document.id"
-                                        class="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
-                                    >
-                                        <div class="flex items-center">
-                                            <span class="text-xs font-medium text-gray-600">
-                                                {{ getDocumentTypeLabel(document.type_document) }}
-                                            </span>
-                                        </div>
-                                        <div class="flex items-center space-x-2">
-                                            <span :class="`px-2 py-1 rounded text-xs font-medium ${getDocumentStatusColor(document.statut)}`">
-                                                {{ getDocumentStatusLabel(document.statut) }}
-                                            </span>
-                                            <a
-                                                :href="`/storage/${document.fichier_path}`"
-                                                target="_blank"
-                                                class="text-blue-600 hover:text-blue-700"
-                                                title="Voir le document"
-                                            >
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                </svg>
-                                            </a>
-                                        </div>
+                                <div v-if="reservation.dossier_client" class="space-y-2">
+                                    <!-- Numéro CNI -->
+                                    <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                                        <span class="text-xs font-medium text-gray-600">Numéro CNI</span>
+                                        <span class="text-xs font-semibold text-gray-800">{{ reservation.dossier_client.numero_cni }}</span>
+                                    </div>
+
+                                    <!-- Carte d'identité -->
+                                    <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                                        <span class="text-xs font-medium text-gray-600">Photo CNI</span>
+                                        <a
+                                            v-if="reservation.dossier_client.carte_identite_path"
+                                            :href="`/storage/${reservation.dossier_client.carte_identite_path}`"
+                                            target="_blank"
+                                            class="text-blue-600 hover:text-blue-700"
+                                            title="Voir la CNI"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        </a>
+                                        <span v-else class="text-xs text-red-600">Non fournie</span>
+                                    </div>
+
+                                    <!-- Dernière quittance -->
+                                    <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                                        <span class="text-xs font-medium text-gray-600">Dernière quittance</span>
+                                        <a
+                                            v-if="reservation.dossier_client.derniere_quittance_path"
+                                            :href="`/storage/${reservation.dossier_client.derniere_quittance_path}`"
+                                            target="_blank"
+                                            class="text-blue-600 hover:text-blue-700"
+                                            title="Voir la quittance"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        </a>
+                                        <span v-else class="text-xs text-gray-500">Non fournie</span>
                                     </div>
                                 </div>
                                 <div v-else class="text-sm text-gray-500 italic">
-                                    Aucun document fourni
+                                    Aucun dossier fourni
                                 </div>
                             </div>
 
                             <!-- Motif de rejet si annulée -->
-                            <div v-if="reservation.statut === 'annulee' && reservation.motif_rejet" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <div v-if="reservation.statut === 'annulée' && reservation.motif_rejet" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                                 <div class="text-xs font-medium text-red-800 mb-1">Motif du rejet:</div>
                                 <div class="text-xs text-red-600">{{ reservation.motif_rejet }}</div>
-                                <div v-if="reservation.rejected_at" class="text-xs text-red-500 mt-1">
-                                    Rejeté le {{ formatDate(reservation.rejected_at) }}
-                                </div>
                             </div>
 
                             <!-- Actions principales -->
@@ -288,11 +291,11 @@
         <!-- Modal de validation -->
         <div
             v-if="showValidationModal"
-            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
             @click="closeValidationModal"
         >
             <div
-                class="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 transform transition-all duration-300"
+                class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full transform transition-all duration-300 max-h-[90vh] overflow-y-auto"
                 @click.stop
             >
                 <div class="p-6">
@@ -335,14 +338,41 @@
                                     <span class="font-medium">Montant:</span><br>
                                     {{ formatPrice(selectedReservation.montant) }} FCFA
                                 </div>
-                                <div>
-                                    <span class="font-medium">Date réservation:</span><br>
-                                    {{ formatDate(selectedReservation.date_reservation) }}
+                            </div>
+                        </div>
+
+                        <!-- Aperçu des documents -->
+                        <div v-if="selectedReservation.dossier_client" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                            <h5 class="font-semibold text-blue-800 mb-3">Documents du dossier</h5>
+
+                            <!-- CNI -->
+                            <div class="mb-4">
+                                <p class="text-sm font-medium text-gray-700 mb-2">
+                                    Numéro CNI: <span class="font-bold">{{ selectedReservation.dossier_client.numero_cni }}</span>
+                                </p>
+                                <div v-if="selectedReservation.dossier_client.carte_identite_path">
+                                    <p class="text-xs text-gray-600 mb-2">Photo de la carte d'identité:</p>
+                                    <img
+                                        :src="`/storage/${selectedReservation.dossier_client.carte_identite_path}`"
+                                        alt="Carte d'identité"
+                                        class="max-w-full h-auto rounded border-2 border-gray-300 cursor-pointer hover:border-blue-500 transition"
+                                        @click="openImageModal(`/storage/${selectedReservation.dossier_client.carte_identite_path}`)"
+                                    />
                                 </div>
-                                <div>
-                                    <span class="font-medium">Documents:</span><br>
-                                    {{ selectedReservation.client_documents.length }} fourni(s)
-                                </div>
+                            </div>
+
+                            <!-- Quittance -->
+                            <div v-if="selectedReservation.dossier_client.derniere_quittance_path">
+                                <p class="text-xs text-gray-600 mb-2">Dernière quittance de loyer (reçu de paiement):</p>
+                                <img
+                                    :src="`/storage/${selectedReservation.dossier_client.derniere_quittance_path}`"
+                                    alt="Dernière quittance"
+                                    class="max-w-full h-auto rounded border-2 border-gray-300 cursor-pointer hover:border-blue-500 transition"
+                                    @click="openImageModal(`/storage/${selectedReservation.dossier_client.derniere_quittance_path}`)"
+                                />
+                            </div>
+                            <div v-else>
+                                <p class="text-sm text-gray-500 italic">Aucune quittance de loyer fournie</p>
                             </div>
                         </div>
 
@@ -354,14 +384,9 @@
                                 <span class="font-medium text-green-800">Action de validation</span>
                             </div>
                             <p class="text-sm text-green-700">
-                                En validant cette réservation, vous confirmez que:
+                                En validant cette réservation, vous confirmez que le numéro CNI, la photo de la carte d'identité
+                                et la dernière quittance de loyer (si fournie) sont conformes.
                             </p>
-                            <ul class="text-sm text-green-700 mt-2 ml-4 space-y-1">
-                                <li>• Les documents fournis sont conformes et complets</li>
-                                <li>• La réservation peut être confirmée</li>
-                                <li>• Le client pourra procéder au paiement</li>
-                                <li>• Tous les documents seront automatiquement validés</li>
-                            </ul>
                         </div>
                     </div>
 
@@ -390,11 +415,11 @@
         <!-- Modal de rejet -->
         <div
             v-if="showRejectionModal"
-            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
             @click="closeRejectionModal"
         >
             <div
-                class="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 transform transition-all duration-300"
+                class="bg-white rounded-2xl shadow-2xl max-w-lg w-full transform transition-all duration-300"
                 @click.stop
             >
                 <div class="p-6">
@@ -433,29 +458,22 @@
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Motif du rejet <span class="text-red-500">*</span>
-                            </label>
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                            <div class="flex items-center mb-2">
+                                <svg class="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="font-medium text-red-800">Raison du rejet</span>
+                            </div>
+                            <p class="text-sm text-red-700 mb-3">
+                                Veuillez indiquer la raison du rejet de cette réservation (optionnel).
+                            </p>
                             <textarea
                                 v-model="rejectionReason"
                                 rows="4"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-                                placeholder="Expliquez pourquoi cette réservation est rejetée (documents non conformes, informations manquantes, etc.)"
-                                required
+                                class="w-full px-3 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                placeholder="Ex: Documents non conformes, CNI expirée, quittance manquante..."
                             ></textarea>
-                        </div>
-
-                        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-                            <div class="flex items-center mb-2">
-                                <svg class="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                                <span class="font-medium text-red-800">Action de rejet</span>
-                            </div>
-                            <p class="text-sm text-red-700">
-                                Le client sera notifié du rejet et le bien sera remis en disponible pour d'autres clients.
-                            </p>
                         </div>
                     </div>
 
@@ -469,8 +487,7 @@
                         </button>
                         <button
                             @click="rejectReservation"
-                            :disabled="!rejectionReason.trim()"
-                            class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors duration-200 flex items-center justify-center"
                         >
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -481,177 +498,200 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modal d'aperçu d'image -->
+        <div
+            v-if="showImageModal"
+            class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
+            @click="closeImageModal"
+        >
+            <div class="relative max-w-6xl w-full">
+                <button
+                    @click="closeImageModal"
+                    class="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors bg-black/50 rounded-full p-2"
+                >
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <img
+                    :src="selectedImage"
+                    alt="Aperçu du document"
+                    class="max-w-full max-h-[90vh] mx-auto rounded-lg shadow-2xl"
+                    @click.stop
+                />
+            </div>
+        </div>
     </div>
 </template>
 
 <script setup>
-import { router } from '@inertiajs/vue3'
-import { ref, computed } from 'vue'
-import { route } from 'ziggy-js'
+import { ref, computed } from 'vue';
+import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
     reservations: Array,
-    userRoles: Array,
-})
+    userRoles: Array
+});
 
-const searchTerm = ref('')
-const selectedStatus = ref('')
-const showValidationModal = ref(false)
-const selectedReservation = ref(null)
-const showRejectionModal = ref(false)
-const rejectionReason = ref('')
+const searchTerm = ref('');
+const selectedStatus = ref('');
+const showValidationModal = ref(false);
+const showRejectionModal = ref(false);
+const showImageModal = ref(false);
+const selectedReservation = ref(null);
+const selectedImage = ref('');
+const rejectionReason = ref('');
 
-const filteredReservations = computed(() => {
-    let filtered = props.reservations
-
-    // Filtrage par terme de recherche
-    if (searchTerm.value) {
-        const term = searchTerm.value.toLowerCase()
-        filtered = filtered.filter(reservation =>
-            reservation.client.name.toLowerCase().includes(term) ||
-            reservation.client.email.toLowerCase().includes(term) ||
-            reservation.bien.title.toLowerCase().includes(term) ||
-            reservation.bien.city.toLowerCase().includes(term)
-        )
-    }
-
-    // Filtrage par statut
-    if (selectedStatus.value) {
-        filtered = filtered.filter(reservation => reservation.statut === selectedStatus.value)
-    }
-
-    return filtered
-})
-
-// Compter les réservations par statut
+// Statistiques des réservations
 const reservationsStats = computed(() => {
     return {
         total: props.reservations.length,
         en_attente: props.reservations.filter(r => r.statut === 'en_attente').length,
-        confirmee: props.reservations.filter(r => r.statut === 'confirmee').length,
-        payee: props.reservations.filter(r => r.statut === 'payee').length,
-        annulee: props.reservations.filter(r => r.statut === 'annulee').length,
-    }
-})
+        confirmee: props.reservations.filter(r => r.statut === 'confirmée').length,
+        payee: props.reservations.filter(r => r.statut === 'payée').length,
+        annulee: props.reservations.filter(r => r.statut === 'annulée').length,
+    };
+});
 
-const getStatusColor = (status) => {
-    const colors = {
-        'en_attente': 'bg-orange-100 text-orange-800 border-orange-200',
-        'confirmee': 'bg-green-100 text-green-800 border-green-200',
-        'payee': 'bg-blue-100 text-blue-800 border-blue-200',
-        'annulee': 'bg-red-100 text-red-800 border-red-200',
-    }
-    return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200'
-}
+// Réservations filtrées
+const filteredReservations = computed(() => {
+    let filtered = props.reservations;
 
-const getStatusLabel = (status) => {
-    const labels = {
-        'en_attente': 'En attente',
-        'confirmee': 'Confirmée',
-        'payee': 'Payée',
-        'annulee': 'Annulée',
+    // Filtre par statut
+    if (selectedStatus.value) {
+        filtered = filtered.filter(r => r.statut === selectedStatus.value);
     }
-    return labels[status] || status
-}
 
-const getDocumentStatusColor = (status) => {
-    const colors = {
-        'en_attente': 'bg-orange-100 text-orange-800',
-        'valide': 'bg-green-100 text-green-800',
-        'refuse': 'bg-red-100 text-red-800',
+    // Filtre par recherche
+    if (searchTerm.value) {
+        const search = searchTerm.value.toLowerCase();
+        filtered = filtered.filter(r => {
+            return (
+                r.client.name.toLowerCase().includes(search) ||
+                r.client.email.toLowerCase().includes(search) ||
+                r.bien.title.toLowerCase().includes(search) ||
+                r.bien.city.toLowerCase().includes(search) ||
+                (r.dossier_client?.numero_cni && r.dossier_client.numero_cni.toLowerCase().includes(search))
+            );
+        });
     }
-    return colors[status] || 'bg-gray-100 text-gray-800'
-}
 
-const getDocumentStatusLabel = (status) => {
-    const labels = {
-        'en_attente': 'En attente',
-        'valide': 'Validé',
-        'refuse': 'Refusé',
-    }
-    return labels[status] || status
-}
+    return filtered;
+});
 
-const getDocumentTypeLabel = (type) => {
-    const labels = {
-        'justificatif_domicile': 'Justificatif de domicile',
-        'piece_identite': 'Pièce d\'identité',
-        'justificatif_revenus': 'Justificatif de revenus',
-        'autre': 'Autre document'
-    }
-    return labels[type] || type
-}
-
+// Fonctions utilitaires
 const formatPrice = (price) => {
-    return new Intl.NumberFormat('fr-FR').format(price)
-}
+    return new Intl.NumberFormat('fr-FR').format(price);
+};
 
 const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('fr-FR')
-}
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+};
 
-const showReservation = (reservation) => {
-    router.visit(route('reservations.show', reservation.id))
-}
+const getStatusColor = (statut) => {
+    const colors = {
+        'en_attente': 'bg-orange-100 text-orange-800',
+        'confirmée': 'bg-green-100 text-green-800',
+        'payée': 'bg-blue-100 text-blue-800',
+        'annulée': 'bg-red-100 text-red-800'
+    };
+    return colors[statut] || 'bg-gray-100 text-gray-800';
+};
 
-// Fonctions de validation pour admin
+const getStatusLabel = (statut) => {
+    const labels = {
+        'en_attente': 'En attente',
+        'confirmée': 'Confirmée',
+        'payée': 'Payée',
+        'annulée': 'Annulée'
+    };
+    return labels[statut] || statut;
+};
+
+// Gestion des filtres
+const filterByStatus = (status) => {
+    selectedStatus.value = status;
+};
+
+// Gestion des modals
 const openValidationModal = (reservation) => {
-    selectedReservation.value = reservation
-    showValidationModal.value = true
-}
+    selectedReservation.value = reservation;
+    showValidationModal.value = true;
+};
 
 const closeValidationModal = () => {
-    showValidationModal.value = false
-    selectedReservation.value = null
-}
-
-const validateReservation = () => {
-    if (selectedReservation.value) {
-        router.post(route('admin.reservations.valider', selectedReservation.value.id), {}, {
-            onSuccess: () => {
-                closeValidationModal()
-                router.reload()
-            },
-            onError: (errors) => {
-                console.error('Erreur lors de la validation:', errors)
-                alert('Erreur lors de la validation de la réservation')
-            }
-        })
-    }
-}
+    showValidationModal.value = false;
+    selectedReservation.value = null;
+};
 
 const openRejectionModal = (reservation) => {
-    selectedReservation.value = reservation
-    rejectionReason.value = ''
-    showRejectionModal.value = true
-}
+    selectedReservation.value = reservation;
+    rejectionReason.value = '';
+    showRejectionModal.value = true;
+};
 
 const closeRejectionModal = () => {
-    showRejectionModal.value = false
-    selectedReservation.value = null
-    rejectionReason.value = ''
-}
+    showRejectionModal.value = false;
+    selectedReservation.value = null;
+    rejectionReason.value = '';
+};
 
-const rejectReservation = () => {
-    if (selectedReservation.value && rejectionReason.value.trim()) {
-        router.post(route('admin.reservations.rejeter', selectedReservation.value.id), {
-            motif_rejet: rejectionReason.value
-        }, {
+const openImageModal = (imageUrl) => {
+    selectedImage.value = imageUrl;
+    showImageModal.value = true;
+};
+
+const closeImageModal = () => {
+    showImageModal.value = false;
+    selectedImage.value = '';
+};
+
+// Actions
+const validateReservation = () => {
+    if (!selectedReservation.value) return;
+
+    router.post(
+        `/admin/reservations/${selectedReservation.value.id}/valider`,
+        {},
+        {
             onSuccess: () => {
-                closeRejectionModal()
-                router.reload()
+                closeValidationModal();
             },
             onError: (errors) => {
-                console.error('Erreur lors du rejet:', errors)
-                alert('Erreur lors du rejet de la réservation')
+                console.error('Erreur validation:', errors);
             }
-        })
-    }
-}
+        }
+    );
+};
 
-const filterByStatus = (status) => {
-    selectedStatus.value = selectedStatus.value === status ? '' : status
-}
+const rejectReservation = () => {
+    if (!selectedReservation.value) return;
+
+    router.post(
+        `/admin/reservations/${selectedReservation.value.id}/rejeter`,
+        {
+            motif_rejet: rejectionReason.value || 'Documents non conformes'
+        },
+        {
+            onSuccess: () => {
+                closeRejectionModal();
+            },
+            onError: (errors) => {
+                console.error('Erreur rejet:', errors);
+            }
+        }
+    );
+};
+
+const showReservation = (reservation) => {
+    router.visit(`/reservations/${reservation.id}`);
+};
 </script>
 
 <style scoped>
@@ -660,45 +700,5 @@ const filterByStatus = (status) => {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-}
-
-/* Animation au chargement */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.grid > div {
-    animation: fadeInUp 0.6s ease-out;
-}
-
-.grid > div:nth-child(1) { animation-delay: 0.1s; }
-.grid > div:nth-child(2) { animation-delay: 0.2s; }
-.grid > div:nth-child(3) { animation-delay: 0.3s; }
-.grid > div:nth-child(4) { animation-delay: 0.4s; }
-.grid > div:nth-child(5) { animation-delay: 0.5s; }
-.grid > div:nth-child(6) { animation-delay: 0.6s; }
-
-/* Animation des statistiques */
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.05);
-    }
-    100% {
-        transform: scale(1);
-    }
-}
-
-.grid > div:hover {
-    animation: pulse 0.3s ease-in-out;
 }
 </style>

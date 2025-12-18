@@ -46,14 +46,15 @@ class Appartement extends Model
     public function locationActive()
     {
         return $this->hasOneThrough(
-            Location::class,
-            Reservation::class,
-            'appartement_id',
-            'reservation_id',
-            'id',
-            'id'
+            Location::class,           // Modèle final
+            Reservation::class,        // Modèle intermédiaire
+            'appartement_id',          // Clé étrangère sur reservations
+            'reservation_id',          // Clé étrangère sur locations
+            'id',                      // Clé locale sur appartements
+            'id'                       // Clé locale sur reservations
         )
-            ->whereIn('locations.statut', ['active', 'en_attente_paiement'])
+            ->whereIn('locations.statut', ['active', 'en_retard'])
+            ->where('reservations.statut', 'confirmee')
             ->latest('locations.created_at');
     }
 

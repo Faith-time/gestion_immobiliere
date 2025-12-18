@@ -7,49 +7,56 @@ use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
-    /**
-     * The root template that's loaded on the first page visit.
-     *
-     * @see https://inertiajs.com/server-side-setup#root-template
-     * @var string
-     */
     protected $rootView = 'app';
 
-    /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     * @param  \Illuminate\Http\Request  $request
-     * @return string|null
-     */
     public function version(Request $request): ?string
     {
         return parent::version($request);
     }
 
-    /**
-     * Defines the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
-     * @param  \Illuminate\Http\Request  $request
-     * @return array
-     */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
+        $userData = null;
+        if ($user) {
+            $userData = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'is_guest' => (bool) $user->is_guest,
+                'session_id' => $user->session_id,
+                'roles' => $user->roles->pluck('name')->toArray(),
+                'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+            ];
+
+            \Log::info('🔍 Inertia sharing user data', [
+                'user_id' => $user->id,
+                'is_guest' => $user->is_guest,
+                'is_guest_bool' => (bool) $user->is_guest,
+                'roles' => $userData['roles'],
+                'email' => $user->email
+            ]);
+        }
+
         return array_merge(parent::share($request), [
             'auth' => [
-                'user' => $request->user() ? [
-                    'id' => $request->user()->id,
-                    'name' => $request->user()->name,
-                    'email' => $request->user()->email,
-                    // ✅ Formatez les rôles correctement
-                    'roles' => $request->user()->getRoleNames()->toArray(), // ['admin', 'proprietaire', etc.]
-                ] : null,
+                'user' => $userData,
             ],
+
+            // ✅ NE PAS ajouter Ziggy ici
+            // Les routes sont injectées via @routes dans app.blade.php
+
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'info' => fn () => $request->session()->get('info'),
             ],
+
+            'errors' => fn () => $request->session()->get('errors')
+                ? $request->session()->get('errors')->getBag('default')->getMessages()
+                : (object) [],
         ]);
     }
 }

@@ -1,4 +1,5 @@
 <template>
+
     <div class="site-mobile-menu site-navbar-target">
         <div class="site-mobile-menu-header">
             <div class="site-mobile-menu-close">
@@ -339,35 +340,45 @@
                 <!-- Sidebar -->
                 <div class="col-lg-4">
                     <div class="property-sidebar">
-                        <!-- Appartement sélectionné -->
-                        <div v-if="isAppartementCategory && selectedAppartement"
-                             class="selected-appartement-card mb-4 p-4 bg-light border-success border-2 rounded shadow">
-                            <h5 class="text-success mb-3">
-                                <i class="fas fa-check-circle me-2"></i>
-                                Appartement sélectionné
-                            </h5>
-                            <div class="mb-3">
-                                <strong>{{ selectedAppartement.numero }}</strong><br>
-                                <small class="text-muted">{{ getEtageLabel(selectedAppartement.etage) }}</small>
-                            </div>
-                            <div class="row g-2 small">
-                                <div class="col-6">
-                                    <i class="fas fa-ruler-combined text-primary me-1"></i>
-                                    {{ selectedAppartement.superficie }} m²
+
+                        <!-- ✅ ALERTE PROPRIÉTAIRE - TRÈS VISIBLE -->
+                        <div v-if="isProprietaire" class="owner-alert mb-4 p-4 rounded shadow-lg">
+                            <div class="text-center mb-3">
+                                <div class="owner-icon mb-3">
+                                    <i class="fas fa-user-shield"></i>
                                 </div>
-                                <div class="col-6">
-                                    <i class="fas fa-bed text-primary me-1"></i>
-                                    {{ selectedAppartement.chambres }} ch.
+                                <h4 class="text-white fw-bold mb-2">
+                                    Vous êtes le propriétaire
+                                </h4>
+                                <p class="text-white-50 mb-0">
+                                    Vous ne pouvez pas réserver votre propre bien
+                                </p>
+                            </div>
+
+                            <div class="owner-info bg-white bg-opacity-10 rounded p-3 mb-3">
+                                <div class="d-flex align-items-start gap-2 mb-2">
+                                    <i class="fas fa-info-circle text-white mt-1"></i>
+                                    <div class="text-white small">
+                                        En tant que propriétaire, vous avez déjà accès à toutes les fonctionnalités de gestion de ce bien
+                                    </div>
                                 </div>
                             </div>
-                            <button @click="deselectionnerAppartement"
-                                    class="btn btn-sm btn-outline-secondary w-100 mt-3">
-                                Changer d'appartement
-                            </button>
+
+                            <div class="d-grid gap-2">
+                                <Link :href="route('biens.edit', bien.id)" class="btn btn-light btn-lg">
+                                    <i class="fas fa-edit me-2"></i>
+                                    Gérer ce bien
+                                </Link>
+                                <Link :href="route('dashboard.proprietaire')" class="btn btn-outline-light">
+                                    <i class="fas fa-tachometer-alt me-2"></i>
+                                    Mon tableau de bord
+                                </Link>
+                            </div>
                         </div>
 
-                        <!-- Carte visite -->
-                        <div v-if="canTakeAction" class="visit-card mb-4 p-4 bg-light border-primary border-2 rounded shadow">
+                        <!-- Carte visite (masquée pour propriétaire) -->
+                        <div v-if="!isProprietaire && canTakeAction"
+                             class="visit-card mb-4 p-4 bg-light border-primary border-2 rounded shadow">
                             <h4 class="text-primary mb-3">
                                 <i class="fas fa-calendar-check me-2"></i>
                                 Planifier une visite
@@ -375,22 +386,28 @@
                             <p class="text-muted mb-3">
                                 Visitez {{ isAppartementCategory ? 'l\'immeuble' : 'la propriété' }} avant de réserver
                             </p>
+
+                            <!-- ✅ Bouton avec vérification d'authentification -->
                             <button
-                                @click="ouvrirModalVisite"
-                                class="btn btn-primary btn-lg w-100 mb-3"
-                                :disabled="!canTakeVisiteAction || visiteEnCours"
-                                :class="{ 'disabled-action': !canTakeVisiteAction }">
+                                @click="isAuthenticatedUser ? ouvrirModalVisite() : redirectToLogin()"
+                                class="btn btn-primary btn-lg w-100 mb-3">
                                 <i class="fas fa-eye me-2"></i>
                                 Prendre rendez-vous
                             </button>
-                            <div class="alert alert-info mb-0 small">
+
+                            <!-- ✅ Message différent selon le statut -->
+                            <div v-if="!isAuthenticatedUser" class="alert alert-warning mb-0 small">
+                                <i class="fas fa-sign-in-alt me-2"></i>
+                                <strong>Connexion requise</strong> pour prendre rendez-vous
+                            </div>
+                            <div v-else class="alert alert-info mb-0 small">
                                 <i class="fas fa-info-circle me-2"></i>
                                 Visite gratuite sans engagement
                             </div>
                         </div>
 
-                        <!-- Carte réservation -->
-                        <div class="reservation-card mb-4 p-4 bg-white border rounded shadow-sm">
+                        <!-- Carte réservation (masquée pour propriétaire) -->
+                        <div v-if="!isProprietaire" class="reservation-card mb-4 p-4 bg-white border rounded shadow-sm">
                             <h4 class="text-center mb-3">Intéressé par cette propriété ?</h4>
                             <div class="text-center mb-3">
                                 <span class="fs-4 fw-bold text-primary">{{ formatPrice(bien.price) }} FCFA</span>
@@ -399,18 +416,18 @@
                             <!-- Immeubles -->
                             <div v-if="isAppartementCategory">
                                 <div v-if="hasAppartementDisponible" class="d-grid gap-2">
+                                    <!-- ✅ Bouton avec vérification d'authentification -->
                                     <button
-                                        @click="ouvrirModalReservation"
-                                        class="btn btn-success btn-lg py-3"
-                                        :disabled="!canTakeReservationAction || reservationEnCours"
-                                        :class="{ 'disabled-action': !canTakeReservationAction }">
+                                        @click="isAuthenticatedUser ? ouvrirModalReservation() : redirectToLogin()"
+                                        class="btn btn-success btn-lg py-3">
                                         <i class="fas fa-handshake me-2"></i>
-                                        {{ reservationEnCours ? 'Réservation...' : 'Réserver cet appartement' }}
+                                        Réserver cet appartement
                                     </button>
 
-                                    <div v-if="!selectedAppartement" class="alert alert-warning small mb-0">
-                                        <i class="fas fa-hand-pointer me-1"></i>
-                                        Sélectionnez un appartement disponible ci-dessus
+                                    <!-- ✅ Message d'alerte pour visiteurs -->
+                                    <div v-if="!isAuthenticatedUser" class="alert alert-warning mb-3 small">
+                                        <i class="fas fa-sign-in-alt me-2"></i>
+                                        <strong>Connexion requise</strong> pour réserver un appartement
                                     </div>
 
                                     <div class="small text-muted text-center">
@@ -428,11 +445,7 @@
                                         <i class="fas fa-building me-2"></i>
                                         Tous les appartements sont occupés
                                     </div>
-                                    <button class="btn btn-secondary btn-lg py-3 w-100 disabled-action" disabled>
-                                        <i class="fas fa-ban me-2"></i>
-                                        Aucun appartement disponible
-                                    </button>
-                                    <button class="btn btn-outline-primary w-100 mt-2" @click="contacterAgent">
+                                    <button class="btn btn-outline-primary w-100" @click="contacterAgent">
                                         <i class="fas fa-bell me-2"></i>Être notifié
                                     </button>
                                 </div>
@@ -441,12 +454,20 @@
                             <!-- Autres biens -->
                             <div v-else>
                                 <div v-if="bien.status === 'disponible'" class="d-grid gap-2">
-                                    <button @click="ouvrirModalReservation"
-                                            class="btn btn-success btn-lg py-3"
-                                            :disabled="reservationEnCours">
+                                    <!-- ✅ Bouton avec vérification d'authentification -->
+                                    <button
+                                        @click="isAuthenticatedUser ? ouvrirModalReservation() : redirectToLogin()"
+                                        class="btn btn-success btn-lg py-3">
                                         <i class="fas fa-handshake me-2"></i>
-                                        {{ reservationEnCours ? 'Réservation...' : 'Réserver ce bien' }}
+                                        Réserver ce bien
                                     </button>
+
+                                    <!-- ✅ Message d'alerte pour visiteurs -->
+                                    <div v-if="!isAuthenticatedUser" class="alert alert-warning mb-3 small">
+                                        <i class="fas fa-sign-in-alt me-2"></i>
+                                        <strong>Connexion requise</strong> pour réserver ce bien
+                                    </div>
+
                                     <button class="btn btn-outline-primary" @click="contacterAgent">
                                         <i class="fas fa-phone me-2"></i>Contacter l'agent
                                     </button>
@@ -454,7 +475,7 @@
                                 <div v-else class="text-center">
                                     <div class="alert alert-secondary mb-3">
                                         <i class="fas fa-info-circle me-2"></i>
-                                        Ce bien n'est pas disponible ({{ getStatusText(bien.status) }})
+                                        Ce bien n'est pas disponible
                                     </div>
                                 </div>
                             </div>
@@ -504,7 +525,7 @@
             <!-- Retour -->
             <div class="row mt-5">
                 <div class="col-12 text-center">
-                    <Link :href="route('biens.index')" class="btn btn-outline-primary btn-lg px-5">
+                    <Link :href="route('biens.catalogue')" class="btn btn-outline-primary btn-lg px-5">
                         <i class="fas fa-arrow-left me-2"></i>Retour à la liste
                     </Link>
                 </div>
@@ -633,6 +654,10 @@ const props = defineProps({
     bien: {
         type: Object,
         required: true
+    },
+    auth: {
+        type: Object,
+        default: () => ({})
     }
 })
 
@@ -641,6 +666,16 @@ const reservationEnCours = ref(false)
 const visiteEnCours = ref(false)
 const selectedAppartement = ref(null)
 let modalInstance = null
+
+// ✅ Vérifier si l'utilisateur est authentifié (pas un visiteur)
+const isAuthenticatedUser = computed(() => {
+    return props.auth?.user && !props.auth.user.is_guest
+})
+
+// Vérifier si l'utilisateur connecté est le propriétaire du bien
+const isProprietaire = computed(() => {
+    return props.bien.proprietaire_id === props.auth?.user?.id
+})
 
 // Vérifier si c'est un immeuble d'appartements
 const isAppartementCategory = computed(() => {
@@ -826,7 +861,21 @@ const previousImage = () => {
     }
 }
 
+// ✅ NOUVELLE FONCTION : Rediriger vers la connexion
+const redirectToLogin = () => {
+    router.visit(route('login'), {
+        method: 'get',
+        preserveState: false
+    })
+}
+
 const ouvrirModalReservation = () => {
+    // ✅ Vérifier si l'utilisateur est authentifié
+    if (!isAuthenticatedUser.value) {
+        redirectToLogin()
+        return
+    }
+
     // Pour les immeubles, vérifier qu'un appartement est sélectionné
     if (isAppartementCategory.value && !selectedAppartement.value) {
         alert('Veuillez sélectionner un appartement disponible avant de réserver.')
@@ -854,9 +903,18 @@ const ouvrirModalReservation = () => {
 }
 
 const confirmerReservation = () => {
-    if (reservationEnCours.value) return
-    if (!canTakeReservationAction.value) return
+    if (reservationEnCours.value) {
+        console.log('⏳ Réservation déjà en cours...')
+        return
+    }
 
+    if (!canTakeReservationAction.value) {
+        console.log('❌ Action non disponible')
+        alert('Cette action n\'est pas disponible.')
+        return
+    }
+
+    // Fermer le modal
     const modalElement = document.getElementById('modalConfirmationReservation')
     if (modalElement && typeof window.bootstrap !== 'undefined') {
         const modal = window.bootstrap.Modal.getInstance(modalElement)
@@ -865,25 +923,57 @@ const confirmerReservation = () => {
 
     reservationEnCours.value = true
 
+    // ✅ Construction des paramètres pour la route
+    const params = {
+        bien_id: props.bien.id
+    }
+
+    // ✅ Ajouter appartement_id si un appartement est sélectionné
+    if (isAppartementCategory.value && selectedAppartement.value) {
+        params.appartement_id = selectedAppartement.value.id
+
+        console.log('✅ Réservation d\'appartement:', {
+            bien_id: props.bien.id,
+            appartement_id: selectedAppartement.value.id,
+            appartement_numero: selectedAppartement.value.numero
+        })
+    } else {
+        console.log('✅ Réservation de bien complet:', {
+            bien_id: props.bien.id
+        })
+    }
+
+    // ✅ Utiliser router.visit() d'Inertia au lieu de window.location.href
     nextTick(() => {
-        let url = route('reservations.create', { bien_id: props.bien.id })
-
-        // ✅ Ajouter appartement_id si disponible
-        if (isAppartementCategory.value && selectedAppartement.value) {
-            url = route('reservations.create', {
-                bien_id: props.bien.id,
-                appartement_id: selectedAppartement.value.id
-            })
-
-            console.log('✅ Redirection avec URL:', url)
-            console.log('✅ Appartement sélectionné:', selectedAppartement.value.id)
-        }
-
-        window.location.href = url
+        router.visit(route('reservations.create', params), {
+            method: 'get',
+            preserveState: false,
+            preserveScroll: false,
+            onStart: () => {
+                console.log('🚀 Début de la navigation...')
+            },
+            onSuccess: () => {
+                console.log('✅ Navigation réussie')
+            },
+            onError: (errors) => {
+                console.error('❌ Erreur navigation:', errors)
+                reservationEnCours.value = false
+                alert('Erreur lors de la navigation. Veuillez réessayer.')
+            },
+            onFinish: () => {
+                console.log('✅ Navigation terminée')
+            }
+        })
     })
 }
 
 const ouvrirModalVisite = () => {
+    // ✅ Vérifier si l'utilisateur est authentifié
+    if (!isAuthenticatedUser.value) {
+        redirectToLogin()
+        return
+    }
+
     if (!canTakeVisiteAction.value) {
         if (isAppartementCategory.value) {
             alert('Aucun appartement disponible actuellement.')
@@ -908,13 +998,6 @@ const ouvrirModalVisite = () => {
 
 const contacterAgent = () => {
     alert('Fonctionnalité en cours de développement')
-}
-
-const voirProprieteSimilaires = () => {
-    router.visit(route('biens.index', {
-        categorie: props.bien.categorie_id,
-        ville: props.bien.city
-    }))
 }
 
 const partagerSur = (plateforme) => {
@@ -1018,34 +1101,6 @@ onMounted(() => {
     50% {
         transform: scale(1.1);
     }
-}
-
-/* Carte appartement sélectionné */
-.selected-appartement-card {
-    animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Boutons désactivés */
-.disabled-action {
-    cursor: not-allowed !important;
-    opacity: 0.6;
-    pointer-events: none;
-}
-
-.disabled-action:hover {
-    transform: none !important;
-    box-shadow: none !important;
 }
 
 /* Carousel */
@@ -1243,7 +1298,7 @@ onMounted(() => {
     border-color: #17a2b8;
 }
 
-.btn-primary:hover:not(.disabled-action) {
+.btn-primary:hover {
     background-color: #138496;
     border-color: #117a8b;
 }
@@ -1253,7 +1308,7 @@ onMounted(() => {
     border-color: #28a745;
 }
 
-.btn-success:hover:not(.disabled-action) {
+.btn-success:hover {
     background-color: #218838;
     border-color: #1e7e34;
 }
@@ -1373,6 +1428,87 @@ onMounted(() => {
 .modal-header {
     background: linear-gradient(135deg, #e8f5f7 0%, #ffffff 100%);
     border-radius: 15px 15px 0 0;
+}
+
+/* Alerte propriétaire - Très visible */
+.owner-alert {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    border: 3px solid #bd2130;
+    animation: slideDown 0.5s ease-out;
+    position: relative;
+    overflow: hidden;
+}
+
+.owner-alert::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shine 3s infinite;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes shine {
+    to {
+        left: 100%;
+    }
+}
+
+.owner-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: white;
+    animation: pulse-icon 2s infinite;
+}
+
+@keyframes pulse-icon {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+    }
+}
+
+.owner-info {
+    backdrop-filter: blur(10px);
+}
+
+.text-white-50 {
+    color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.btn-light:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-outline-light:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: white;
 }
 
 @media (max-width: 768px) {

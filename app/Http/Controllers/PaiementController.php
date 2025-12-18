@@ -9,6 +9,8 @@ use App\Models\Reservation;
 use App\Services\CommissionService;
 use App\Services\ContractPdfService;
 use App\Services\PaydunyaService;
+use App\Services\QuittanceService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,22 +21,26 @@ class PaiementController extends Controller
     protected $contractPdfService;
     protected $paydunya;
     protected $commissionService;
+    protected $quittanceService;
+
 
     const PAYDUNYA_MAX_AMOUNT = 3000000;
 
-    public function __construct(CommissionService $commissionService)
+    public function __construct(CommissionService $commissionService,QuittanceService $quittanceService)
     {
         $this->contractPdfService = app(ContractPdfService::class);
         $this->paydunya = new PaydunyaService();
         $this->commissionService = $commissionService;
+        $this->quittanceService = $quittanceService;
     }
 
     private function getActionsDisponibles(Paiement $paiement)
     {
+        // ✅ CORRECTION: Relations correctes
         $paiement->load([
             'reservation.bien.mandat',
             'vente.bien.mandat',
-            'location.bien.mandat'
+            'location.reservation.bien.mandat'  // ✅ Via reservation
         ]);
 
         $actions = [
@@ -68,7 +74,10 @@ class PaiementController extends Controller
                         $actions['peutProcederVente'] = true;
                     }
                 } elseif ($mandat->type_mandat === 'gestion_locative' && $bien->status !== 'loue') {
-                    $locationExistante = Location::where('bien_id', $bien->id)
+                    // ✅ Vérifier via la relation reservation
+                    $locationExistante = Location::whereHas('reservation', function($query) use ($bien) {
+                        $query->where('bien_id', $bien->id);
+                    })
                         ->where('client_id', auth()->id())
                         ->whereIn('statut', ['active', 'en_cours'])
                         ->exists();
@@ -92,433 +101,6 @@ class PaiementController extends Controller
 
         return $actions;
     }
-
-    /**
-     * Afficher la page d'initiation de paiement
-     * Route: /paiement/initier/{id}/{paiement_id}
-     */
-    /**
-     * Afficher la page d'initiation de paiement
-     * Route: /paiement/initier/{id}/{paiement_id}
-     */
-    public function showInitierPaiement($id, $paiement_id)
-    {
-        try {
-            $paiement = Paiement::findOrFail($paiement_id);
-
-            $type = null;
-            $item = null;
-            $itemUserId = null;
-            $depotGarantie = null;
-            $prixTotal = null;
-            $premierMoisLoyer = null;
-
-            // ==========================================
-            // TRAITEMENT DES VENTES
-            // ==========================================
-            if ($paiement->vente_id) {
-                $type = 'vente';
-                $item = Vente::with(['reservation.bien.category', 'reservation.bien.mandat', 'acheteur'])
-                    ->findOrFail($paiement->vente_id);
-                $itemUserId = $item->acheteur_id;
-
-                // Charger le bien via la réservation
-                if ($item->reservation && $item->reservation->bien) {
-                    $item->bien = $item->reservation->bien;
-                }
-
-                // Calculer le montant en déduisant le dépôt de garantie (10%)
-                $prixVenteTotal = $item->prix_vente;
-                $depotGarantie = $prixVenteTotal * 0.10; // 10% du prix
-                $montantRestantAPayer = $prixVenteTotal - $depotGarantie; // 90% du prix
-
-                // Mettre à jour le montant total du paiement si nécessaire
-                if ($paiement->montant_total == $prixVenteTotal) {
-                    $paiement->update([
-                        'montant_total' => $montantRestantAPayer,
-                        'montant_restant' => $montantRestantAPayer - $paiement->montant_paye
-                    ]);
-                    $paiement->refresh();
-                }
-
-                Log::info('💰 Calcul paiement vente avec dépôt déduit', [
-                    'prix_vente_total' => $prixVenteTotal,
-                    'depot_garantie_10%' => $depotGarantie,
-                    'montant_a_payer_90%' => $montantRestantAPayer
-                ]);
-
-                $prixTotal = $prixVenteTotal;
-            }
-            // ==========================================
-            // TRAITEMENT DES RÉSERVATIONS
-            // ==========================================
-            elseif ($paiement->reservation_id) {
-                $type = 'reservation';
-                $item = Reservation::with(['bien.category', 'bien.mandat', 'client'])
-                    ->findOrFail($paiement->reservation_id);
-                $itemUserId = $item->client_id;
-
-                // Calculer le montant du dépôt pour les réservations
-                $bien = $item->bien;
-
-                if ($bien && $bien->mandat) {
-                    $typeMandat = $bien->mandat->type_mandat;
-
-                    if ($typeMandat === 'vente') {
-                        // Pour une vente : dépôt de garantie = 10% du prix
-                        $prixTotal = $bien->price;
-                        $depotGarantie = $prixTotal * 0.10;
-
-                        if ($paiement->montant_total != $depotGarantie) {
-                            $paiement->update([
-                                'montant_total' => $depotGarantie,
-                                'montant_restant' => $depotGarantie - $paiement->montant_paye
-                            ]);
-                            $paiement->refresh();
-
-                            Log::info('🔄 Montant paiement réservation vente corrigé', [
-                                'prix_bien' => $prixTotal,
-                                'depot_10%' => $depotGarantie
-                            ]);
-                        }
-
-                        Log::info('💰 Paiement réservation vente', [
-                            'prix_bien_total' => $prixTotal,
-                            'depot_garantie_10%' => $depotGarantie
-                        ]);
-
-                    } elseif ($typeMandat === 'gestion_locative') {
-                        // Pour une location : dépôt = 1 mois de loyer (100% du prix mensuel)
-                        $montantDepot = $bien->price;
-
-                        if ($paiement->montant_total != $montantDepot) {
-                            $paiement->update([
-                                'montant_total' => $montantDepot,
-                                'montant_restant' => $montantDepot - $paiement->montant_paye
-                            ]);
-                            $paiement->refresh();
-
-                            Log::info('🔄 Montant paiement réservation location corrigé', [
-                                'loyer_mensuel' => $montantDepot
-                            ]);
-                        }
-
-                        Log::info('💰 Paiement réservation location', [
-                            'loyer_mensuel' => $montantDepot,
-                            'type' => 'Dépôt de garantie (1 mois)'
-                        ]);
-
-                        $prixTotal = $bien->price;
-                    }
-                }
-            }
-            // ==========================================
-            // TRAITEMENT DES LOCATIONS
-            // ==========================================
-            elseif ($paiement->location_id) {
-                $type = 'location';
-                $item = Location::with(['reservation.bien.category', 'reservation.bien.mandat', 'client', 'bien'])
-                    ->findOrFail($paiement->location_id);
-                $itemUserId = $item->client_id;
-
-                // Charger le bien
-                if ($item->reservation && $item->reservation->bien) {
-                    $item->bien = $item->reservation->bien;
-                }
-
-                // Récupérer le bien pour calculer le loyer
-                $bien = $item->bien ?? ($item->reservation ? $item->reservation->bien : null);
-
-                if ($bien) {
-                    $loyerMensuel = $bien->price;
-
-                    // ✅ IMPORTANT : Pour une location, le montant initial est :
-                    // Caution (1 loyer) + Premier mois (1 loyer) = 2x le loyer
-                    // Le dépôt de garantie (1 loyer) a déjà été payé lors de la réservation
-
-                    $montantPaiementAttendu = $loyerMensuel * 2; // Caution + 1er mois
-
-                    // NE PAS modifier le montant_total si c'est déjà le bon montant
-                    if ($paiement->montant_total != $montantPaiementAttendu) {
-                        Log::warning('⚠️ Montant paiement location incorrect - Correction', [
-                            'location_id' => $item->id,
-                            'montant_actuel' => $paiement->montant_total,
-                            'montant_attendu' => $montantPaiementAttendu,
-                            'loyer_mensuel' => $loyerMensuel
-                        ]);
-
-                        $paiement->update([
-                            'montant_total' => $montantPaiementAttendu,
-                            'montant_restant' => $montantPaiementAttendu - $paiement->montant_paye
-                        ]);
-                        $paiement->refresh();
-                    }
-
-                    Log::info('💰 Paiement location - Paiement initial', [
-                        'loyer_mensuel' => $loyerMensuel,
-                        'caution_locative' => $loyerMensuel,
-                        'premier_mois' => $loyerMensuel,
-                        'montant_total_a_payer' => $montantPaiementAttendu,
-                        'depot_deja_paye' => 'Via réservation (' . $loyerMensuel . ' FCFA)',
-                        'duree_location_mois' => $item->duree_mois ?? 'Non définie'
-                    ]);
-
-                    $premierMoisLoyer = $loyerMensuel;
-                    $depotGarantie = $loyerMensuel; // Déjà payé lors de la réservation
-                    $prixTotal = $loyerMensuel;
-                } else {
-                    Log::error('❌ Bien introuvable pour la location', [
-                        'location_id' => $item->id
-                    ]);
-                    abort(404, 'Bien associé à la location introuvable');
-                }
-            }
-            elseif ($paiement->location_id && $paiement->type === 'loyer_mensuel') {
-                $type = 'loyer_mensuel';
-                $item = Location::with(['reservation.bien.category', 'reservation.bien.mandat', 'client', 'bien'])
-                    ->findOrFail($paiement->location_id);
-                $itemUserId = $item->client_id;
-
-                // Charger le bien
-                if ($item->reservation && $item->reservation->bien) {
-                    $item->bien = $item->reservation->bien;
-                }
-
-                // Récupérer le bien pour afficher les infos
-                $bien = $item->bien ?? ($item->reservation ? $item->reservation->bien : null);
-
-                if ($bien) {
-                    $loyerMensuel = $item->loyer_mensuel;
-
-                    // Déterminer le mois concerné par ce paiement
-                    // On utilise created_at du paiement pour identifier le mois
-                    $moisPaiement = Carbon::parse($paiement->created_at);
-
-                    Log::info('💰 Paiement loyer mensuel', [
-                        'location_id' => $item->id,
-                        'loyer_mensuel' => $loyerMensuel,
-                        'mois_concerne' => $moisPaiement->format('F Y'),
-                        'date_echeance' => $moisPaiement->copy()->addMonth()->day(10)->format('Y-m-d'),
-                    ]);
-
-                    $prixTotal = $loyerMensuel;
-
-                    // Informations sur le mois concerné
-                    $paiementAffichage['mois_concerne'] = $moisPaiement->translatedFormat('F Y');
-                    $paiementAffichage['date_echeance'] = $moisPaiement->copy()->addMonth()->day(10)->format('Y-m-d');
-                } else {
-                    Log::error('❌ Bien introuvable pour le loyer mensuel', [
-                        'location_id' => $item->id
-                    ]);
-                    abort(404, 'Bien associé à la location introuvable');
-                }
-            }
-            // ==========================================
-            // TYPE NON RECONNU
-            // ==========================================
-            else {
-                Log::error('❌ Type de paiement non reconnu', [
-                    'paiement_id' => $paiement->id,
-                    'vente_id' => $paiement->vente_id,
-                    'location_id' => $paiement->location_id,
-                    'reservation_id' => $paiement->reservation_id
-                ]);
-                abort(400, 'Type de paiement non reconnu');
-            }
-
-            // ==========================================
-            // VÉRIFICATION DE L'AUTORISATION
-            // ==========================================
-            if ($itemUserId !== auth()->id() && !auth()->user()->hasRole('admin')) {
-                Log::warning('⚠️ Tentative d\'accès non autorisé au paiement', [
-                    'paiement_id' => $paiement->id,
-                    'user_id' => auth()->id(),
-                    'item_user_id' => $itemUserId
-                ]);
-                abort(403, 'Accès non autorisé à ce paiement');
-            }
-
-            // ==========================================
-            // CALCUL DU MONTANT RESTANT
-            // ==========================================
-            $montantRestant = max(0, $paiement->montant_total - $paiement->montant_paye);
-            $infoFractionnement = null;
-
-            // ==========================================
-            // GESTION DU FRACTIONNEMENT
-            // ==========================================
-            // Gérer le fractionnement pour les ventes et locations (pas les réservations)
-            if ($this->peutEtreFractionne($paiement) && $montantRestant > self::PAYDUNYA_MAX_AMOUNT) {
-                $nombreTranches = ceil($montantRestant / self::PAYDUNYA_MAX_AMOUNT);
-                $tranches = [];
-                $montantTemp = $montantRestant;
-
-                for ($i = 1; $i <= $nombreTranches; $i++) {
-                    $montantTranche = min(self::PAYDUNYA_MAX_AMOUNT, $montantTemp);
-                    $tranches[] = [
-                        'numero' => $i,
-                        'montant' => $montantTranche,
-                        'statut' => 'en_attente'
-                    ];
-                    $montantTemp -= $montantTranche;
-                }
-
-                $infoFractionnement = [
-                    'necessite_fractionnement' => true,
-                    'limite_paydunya' => self::PAYDUNYA_MAX_AMOUNT,
-                    'nombre_tranches' => $nombreTranches,
-                    'tranches' => $tranches,
-                    'type' => $type,
-                    'montant_a_payer' => min(self::PAYDUNYA_MAX_AMOUNT, $montantRestant),
-                    'montant_restant_total' => $montantRestant,
-                    'pourcentage_paye' => $paiement->montant_total > 0
-                        ? ($paiement->montant_paye / $paiement->montant_total) * 100
-                        : 0
-                ];
-
-                Log::info('📊 Fractionnement nécessaire', [
-                    'type' => $type,
-                    'montant_restant' => $montantRestant,
-                    'nombre_tranches' => $nombreTranches,
-                    'premiere_tranche' => $infoFractionnement['montant_a_payer']
-                ]);
-            }
-
-            // ==========================================
-            // PRÉPARATION DES DONNÉES D'AFFICHAGE
-            // ==========================================
-            $paiementAffichage = $paiement->toArray();
-            $paiementAffichage['montant_a_payer'] = $infoFractionnement
-                ? $infoFractionnement['montant_a_payer']
-                : $montantRestant;
-
-            // Ajouter les infos spécifiques selon le type
-            if ($type === 'vente' && isset($depotGarantie)) {
-                $paiementAffichage['depot_garantie_deduit'] = $depotGarantie;
-                $paiementAffichage['prix_vente_total'] = $prixTotal;
-            }
-
-            if ($type === 'reservation' && isset($depotGarantie)) {
-                $paiementAffichage['depot_garantie'] = $depotGarantie;
-                $paiementAffichage['prix_bien_total'] = $prixTotal;
-            }
-
-            if ($type === 'location' && isset($premierMoisLoyer)) {
-                $paiementAffichage['premier_mois_loyer'] = $premierMoisLoyer;
-                $paiementAffichage['depot_deja_paye'] = $premierMoisLoyer; // Le dépôt = 1 mois déjà payé lors de la réservation
-                $paiementAffichage['duree_location_mois'] = $item->duree_mois ?? null;
-            }
-
-            Log::info('📄 Affichage page paiement', [
-                'type' => $type,
-                'item_id' => $id,
-                'paiement_id' => $paiement->id,
-                'montant_total' => $paiement->montant_total,
-                'montant_paye' => $paiement->montant_paye,
-                'montant_restant' => $montantRestant,
-                'montant_a_payer' => $paiementAffichage['montant_a_payer'],
-                'fractionnement' => $infoFractionnement ? 'oui' : 'non'
-            ]);
-
-            // ==========================================
-            // RENDU DE LA VUE INERTIA
-            // ==========================================
-            return Inertia::render('Paiement/InitierPaiement', [
-                'type' => $type,
-                'item' => $item,
-                'paiement' => $paiementAffichage,
-                'user' => auth()->user(),
-                'infoFractionnement' => $infoFractionnement
-            ]);
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            Log::error('❌ Paiement ou item introuvable', [
-                'paiement_id' => $paiement_id,
-                'id' => $id,
-                'error' => $e->getMessage()
-            ]);
-            return redirect()->route('home')->with('error', 'Paiement introuvable');
-
-        } catch (\Exception $e) {
-            Log::error('❌ Erreur affichage page paiement', [
-                'paiement_id' => $paiement_id,
-                'id' => $id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return redirect()->route('home')->with('error', 'Impossible d\'accéder à la page de paiement');
-        }
-    }
-
-    public function initier(Request $request)
-    {
-        $request->validate([
-            'paiement_id' => 'required|exists:paiements,id',
-            'customer_name' => 'required|string|max:255',
-            'customer_email' => 'required|email|max:255',
-            'customer_phone' => 'required|string|max:20',
-            'description' => 'nullable|string|max:255',
-            'mode_paiement' => 'required|in:mobile_money,wave,orange_money,mtn_money,moov_money,carte,virement',
-            'tranche_numero' => 'nullable|integer|min:1'
-        ]);
-
-        try {
-            $paiement = Paiement::with(['reservation', 'location', 'vente'])
-                ->findOrFail($request->paiement_id);
-
-            // Bloquer uniquement si COMPLÈTEMENT payé
-            if ($paiement->statut === 'reussi' && $paiement->montant_restant <= 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Ce paiement a déjà été complété intégralement.'
-                ], 422);
-            }
-
-            // Autoriser si partiellement payé
-            if ($paiement->statut === 'partiellement_paye' && $paiement->montant_restant > 0) {
-                Log::info('Paiement partiel autorisé - continuation des tranches', [
-                    'paiement_id' => $paiement->id,
-                    'montant_restant' => $paiement->montant_restant
-                ]);
-            }
-
-            // Vérifier les doublons
-            if ($this->checkDuplicatePayment($paiement)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Un paiement a déjà été effectué pour cet élément.'
-                ], 422);
-            }
-
-            $montantRestant = max(0, $paiement->montant_total - $paiement->montant_paye);
-
-            if ($montantRestant <= 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Il n\'y a plus de montant à payer pour ce paiement.'
-                ], 422);
-            }
-
-            $peutFractionner = $this->peutEtreFractionne($paiement);
-            $necessiteFractionnement = $montantRestant > self::PAYDUNYA_MAX_AMOUNT;
-
-            if ($peutFractionner && $necessiteFractionnement) {
-                return $this->initierPaiementFractionne($paiement, $request, $montantRestant);
-            } else {
-                return $this->initierPaiementSimple($paiement, $request, $montantRestant);
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Erreur initiation paiement', [
-                'message' => $e->getMessage()
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de l\'initiation du paiement.'
-            ], 500);
-        }
-    }
-
     private function initierPaiementSimple($paiement, $request, $montant)
     {
         $invoiceData = [
@@ -639,11 +221,11 @@ class PaiementController extends Controller
                 if ($paiementId) {
                     $paiement = Paiement::find($paiementId);
 
-                    if ($paiement) {
+                    if ($paiement && $paiement->statut !== 'reussi') {
                         $isPartial = $customData['is_partial'] ?? false;
 
                         if ($isPartial) {
-                            $montantTranche = $customData['montant_tranche'];
+                            $montantTranche = $customData['montant_tranche'] ?? 0;
                             $nouveauMontantPaye = $paiement->montant_paye + $montantTranche;
                             $nouveauMontantRestant = max(0, $paiement->montant_total - $nouveauMontantPaye);
                             $nouveauStatut = ($nouveauMontantRestant <= 0) ? 'reussi' : 'partiellement_paye';
@@ -657,145 +239,75 @@ class PaiementController extends Controller
 
                             if ($nouveauStatut === 'reussi') {
                                 $this->updateItemStatus($paiement);
+
+                                // 🔥 ENVOI AUTOMATIQUE DES DOCUMENTS APRÈS PAIEMENT COMPLET
+                                $this->envoyerDocumentsApresPaiement($paiement);
                             }
                         } else {
-                            if ($paiement->statut !== 'reussi') {
-                                $paiement->update([
-                                    'statut' => 'reussi',
-                                    'montant_paye' => $paiement->montant_total,
-                                    'montant_restant' => 0,
-                                    'date_transaction' => now(),
-                                ]);
-                                $this->updateItemStatus($paiement);
-                            }
+                            $paiement->update([
+                                'statut' => 'reussi',
+                                'montant_paye' => $paiement->montant_total,
+                                'montant_restant' => 0,
+                                'date_transaction' => now(),
+                            ]);
+
+                            $this->updateItemStatus($paiement);
+
+                            // 🔥 ENVOI AUTOMATIQUE DES DOCUMENTS
+                            $this->envoyerDocumentsApresPaiement($paiement);
                         }
                     }
-                }
 
-                return response()->json(['status' => 'success'], 200);
+                    return response()->json(['status' => 'success'], 200);
+                }
             }
 
             return response()->json(['status' => 'failed'], 200);
 
         } catch (\Exception $e) {
-            Log::error('Erreur callback', ['message' => $e->getMessage()]);
+            Log::error('❌ Erreur callback', [
+                'message' => $e->getMessage(),
+            ]);
             return response()->json(['status' => 'error'], 500);
         }
     }
 
-    public function retour($paiementId)
+    public function renvoyerDocument(Paiement $paiement)
     {
+        $user = auth()->user();
+
+        // Vérifier les autorisations
+        if ($paiement->type === 'location') {
+            if (!$paiement->location ||
+                ($paiement->location->client_id !== $user->id && !$user->hasRole('admin'))) {
+                abort(403);
+            }
+        } elseif ($paiement->type === 'vente') {
+            if (!$paiement->vente ||
+                ($paiement->vente->acheteur_id !== $user->id && !$user->hasRole('admin'))) {
+                abort(403);
+            }
+        }
+
         try {
-            $paiement = Paiement::findOrFail($paiementId);
+            $resultat = null;
 
-            Log::info('🔙 RETOUR PAIEMENT', [
-                'paiement_id' => $paiement->id,
-                'statut_actuel' => $paiement->statut,
-                'transaction_id' => $paiement->transaction_id
-            ]);
-
-            if ($paiement->statut === 'en_attente' && $paiement->transaction_id) {
-                Log::info('🔍 Vérification statut PayDunya');
-
-                $result = $this->paydunya->checkInvoiceStatus($paiement->transaction_id);
-
-                Log::info('📊 Résultat vérification', [
-                    'success' => $result['success'],
-                    'status' => $result['status'] ?? 'unknown'
-                ]);
-
-                if ($result['success'] && isset($result['status']) && $result['status'] == 'completed') {
-                    $customData = $result['custom_data'] ?? [];
-                    $isPartial = $customData['is_partial'] ?? false;
-
-                    if ($isPartial) {
-                        $montantTranche = $customData['montant_tranche'];
-                        $nouveauMontantPaye = $paiement->montant_paye + $montantTranche;
-                        $nouveauMontantRestant = max(0, $paiement->montant_total - $nouveauMontantPaye);
-                        $nouveauStatut = ($nouveauMontantRestant <= 0) ? 'reussi' : 'partiellement_paye';
-
-                        Log::info('💰 Mise à jour paiement partiel', [
-                            'nouveau_statut' => $nouveauStatut,
-                            'montant_restant' => $nouveauMontantRestant
-                        ]);
-
-                        $paiement->update([
-                            'montant_paye' => $nouveauMontantPaye,
-                            'montant_restant' => $nouveauMontantRestant,
-                            'statut' => $nouveauStatut,
-                            'date_transaction' => now(),
-                        ]);
-
-                        if ($nouveauStatut === 'reussi') {
-                            Log::info('✅ Paiement complet - Appel updateItemStatus depuis retour');
-                            $this->updateItemStatus($paiement);
-                        }
-                    } else {
-                        Log::info('💰 Mise à jour paiement complet');
-
-                        $paiement->update([
-                            'statut' => 'reussi',
-                            'montant_paye' => $paiement->montant_total,
-                            'montant_restant' => 0,
-                            'date_transaction' => now(),
-                        ]);
-
-                        Log::info('✅ Appel updateItemStatus depuis retour');
-                        $this->updateItemStatus($paiement);
-                    }
-
-                    $paiement->refresh();
-
-                    Log::info('✅ Paiement rechargé après mise à jour', [
-                        'statut_final' => $paiement->statut,
-                        'montant_restant' => $paiement->montant_restant
-                    ]);
-                }
-            } else {
-                Log::info('ℹ️ Paiement déjà traité ou pas de transaction_id', [
-                    'statut' => $paiement->statut
-                ]);
-
-                // ✅ AJOUT : Même si le statut n'est pas "en_attente",
-                // vérifier si la vente doit être mise à jour
-                if ($paiement->statut === 'reussi' && $paiement->montant_restant <= 0) {
-                    Log::info('🔄 Vérification updateItemStatus pour paiement déjà réussi');
-                    $this->updateItemStatus($paiement);
-                    $paiement->refresh();
-                }
+            if ($paiement->type === 'location' && $paiement->location) {
+                $resultat = $this->quittanceService->genererEtEnvoyerQuittanceLoyer($paiement);
+            } elseif ($paiement->type === 'vente' && $paiement->vente) {
+                $resultat = $this->quittanceService->genererEtEnvoyerRecuVente($paiement->vente, $paiement);
             }
 
-            return redirect()->route('paiement.succes', $paiement);
+            if ($resultat && $resultat['success']) {
+                return back()->with('success', 'Document renvoyé avec succès par email');
+            } else {
+                return back()->with('error', 'Erreur lors de l\'envoi : ' . ($resultat['message'] ?? 'Erreur inconnue'));
+            }
 
         } catch (\Exception $e) {
-            Log::error('❌ Erreur retour paiement: ' . $e->getMessage());
-            return redirect()->route('paiement.erreur')->with('error', 'Erreur lors de la vérification du paiement');
+            return back()->with('error', 'Erreur : ' . $e->getMessage());
         }
     }
-    private function checkDuplicatePayment($paiement)
-    {
-        if ($paiement->reservation_id) {
-            return Paiement::where('reservation_id', $paiement->reservation_id)
-                ->where('statut', 'reussi')
-                ->where('montant_restant', '<=', 0)
-                ->where('id', '!=', $paiement->id)
-                ->exists();
-        } elseif ($paiement->location_id) {
-            return Paiement::where('location_id', $paiement->location_id)
-                ->where('statut', 'reussi')
-                ->where('montant_restant', '<=', 0)
-                ->where('id', '!=', $paiement->id)
-                ->exists();
-        } elseif ($paiement->vente_id) {
-            return Paiement::where('vente_id', $paiement->vente_id)
-                ->where('statut', 'reussi')
-                ->where('montant_restant', '<=', 0)
-                ->where('id', '!=', $paiement->id)
-                ->exists();
-        }
-        return false;
-    }
-
     // Méthodes standard CRUD
     public function index()
     {
@@ -893,12 +405,15 @@ class PaiementController extends Controller
     public function showSucces(Paiement $paiement)
     {
         $paiement->refresh();
+
+        // ✅ CORRECTION: Charger les relations correctement selon le type
         $paiement->load([
             'reservation.bien.mandat',
-            'location.bien.mandat',
-            'vente.bien.mandat',
             'reservation.bien.proprietaire',
-            'location.bien.proprietaire',
+            'location.reservation.bien.mandat',      // ✅ Via reservation
+            'location.reservation.bien.proprietaire', // ✅ Via reservation
+            'location.client',
+            'vente.bien.mandat',
             'vente.bien.proprietaire'
         ]);
 
@@ -936,12 +451,14 @@ class PaiementController extends Controller
             $paiement->unsetRelation('location');
             $paiement->unsetRelation('reservation');
 
+            // ✅ CORRECTION: Recharger avec les bonnes relations
             $paiement->load([
                 'reservation.bien.mandat',
-                'location.bien.mandat',
-                'vente.bien.mandat',
                 'reservation.bien.proprietaire',
-                'location.bien.proprietaire',
+                'location.reservation.bien.mandat',
+                'location.reservation.bien.proprietaire',
+                'location.client',
+                'vente.bien.mandat',
                 'vente.bien.proprietaire'
             ]);
 
@@ -1008,13 +525,16 @@ class PaiementController extends Controller
 
                 if ($paiement->vente_id) {
                     $this->traiterVenteComplete($paiement);
-                }elseif ($paiement->location_id && $paiement->type === 'loyer_mensuel') {
+                } elseif ($paiement->location_id && $paiement->type === 'location') {
                     $this->traiterLoyerMensuelComplete($paiement);
                 } elseif ($paiement->reservation_id) {
                     $this->traiterReservationComplete($paiement);
                 } elseif ($paiement->location_id) {
                     $this->traiterLocationComplete($paiement);
                 }
+
+                // 🔥 AJOUT CRITIQUE : Envoi automatique après traitement
+                $this->envoyerDocumentsApresPaiement($paiement);
             }
 
             Log::info('🏁 === FIN updateItemStatus ===');
@@ -1048,7 +568,7 @@ class PaiementController extends Controller
 
             // Vérifier s'il y a des retards de paiement
             $loyersEnRetard = Paiement::where('location_id', $location->id)
-                ->where('type', 'loyer_mensuel')
+                ->where('type', 'location')
                 ->where('statut', '!=', 'reussi')
                 ->whereRaw('DATE_ADD(DATE_FORMAT(created_at, "%Y-%m-01"), INTERVAL 1 MONTH) < CURDATE()')
                 ->count();
@@ -1098,55 +618,63 @@ class PaiementController extends Controller
         }
 
         DB::transaction(function () use ($vente, $paiement) {
+            // ✅ 1. Mettre à jour le statut de la vente à "confirmée"
             DB::table('ventes')
                 ->where('id', $vente->id)
                 ->update([
                     'status' => 'confirmée',
                     'updated_at' => now()
                 ]);
+            $vente->bien()->status = "vendu";
 
+
+            Log::info('✅ Statut vente mis à jour : confirmée', [
+                'vente_id' => $vente->id
+            ]);
+
+
+            // ✅ 2. Générer le contrat PDF (pour signature)
             try {
                 $this->contractPdfService->generatePdf($vente, 'vente');
+                Log::info('✅ PDF contrat généré');
             } catch (\Exception $e) {
                 Log::error('⚠️ Erreur génération PDF', ['error' => $e->getMessage()]);
             }
 
+            // ✅ 3. Sauvegarder l'ancien propriétaire
             $vente->load('reservation.bien.mandat');
             $bien = $vente->reservation?->bien;
 
-            if ($bien) {
-                if (!$vente->ancien_proprietaire_id) {
-                    DB::table('ventes')
-                        ->where('id', $vente->id)
-                        ->update(['ancien_proprietaire_id' => $bien->proprietaire_id]);
-                }
+            if ($bien && !$vente->ancien_proprietaire_id) {
+                DB::table('ventes')
+                    ->where('id', $vente->id)
+                    ->update(['ancien_proprietaire_id' => $bien->proprietaire_id]);
 
+                Log::info('✅ Ancien propriétaire sauvegardé', [
+                    'ancien_proprietaire_id' => $bien->proprietaire_id
+                ]);
+            }
+
+            // ✅ 4. CORRECTION CRITIQUE : NE PAS transférer la propriété maintenant
+            // Le transfert se fera UNIQUEMENT après signature complète du contrat
+            // (voir VenteController@signByAcheteur)
+
+            // ✅ 5. Marquer le bien comme "réservé" (pas "vendu")
+            if ($bien) {
                 DB::table('biens')
                     ->where('id', $bien->id)
                     ->update([
-                        'proprietaire_id' => $vente->acheteur_id,
-                        'status' => 'vendu',
+                        'status' => 'reserve', // ✅ Réservé en attendant signature
                         'updated_at' => now()
                     ]);
 
-                DB::table('ventes')
-                    ->where('id', $vente->id)
-                    ->update([
-                        'property_transferred' => true,
-                        'property_transferred_at' => now()
-                    ]);
-
-                if ($bien->mandat) {
-                    DB::table('mandats')
-                        ->where('id', $bien->mandat->id)
-                        ->update([
-                            'statut' => 'termine',
-                            'date_fin' => now(),
-                            'updated_at' => now()
-                        ]);
-                }
+                Log::info('✅ Bien marqué comme RÉSERVÉ (en attente de signature)', [
+                    'bien_id' => $bien->id,
+                    'status' => 'reserve'
+                ]);
             }
 
+            // ✅ 6. Mettre à jour la réservation
             if ($vente->reservation) {
                 DB::table('reservations')
                     ->where('id', $vente->reservation->id)
@@ -1155,11 +683,13 @@ class PaiementController extends Controller
                         'updated_at' => now()
                     ]);
             }
+
+            Log::info('✅ Vente confirmée - En attente de signature du contrat', [
+                'vente_id' => $vente->id,
+                'bien_status' => 'reserve'
+            ]);
         });
-
-        Log::info('✅ Vente complétée', ['vente_id' => $vente->id]);
     }
-
     private function traiterReservationComplete(Paiement $paiement)
     {
         $reservation = Reservation::with(['bien.category', 'appartement'])->find($paiement->reservation_id);
@@ -1228,12 +758,29 @@ class PaiementController extends Controller
 
         Log::info('✅ Réservation confirmée après paiement réussi');
     }
+
     private function traiterLocationComplete(Paiement $paiement)
     {
-        $location = Location::find($paiement->location_id);
-        if (!$location) return;
+        // Recharger avec toutes les relations nécessaires
+        $paiement->load([
+            'location.reservation.bien.mandat',
+            'location.reservation.appartement',
+            'location.client'
+        ]);
 
-        DB::transaction(function () use ($location) {
+        $location = Location::with([
+            'reservation.bien.mandat',
+            'reservation.appartement',
+            'client'
+        ])->find($paiement->location_id);
+
+        if (!$location) {
+            Log::error('❌ Location introuvable', ['location_id' => $paiement->location_id]);
+            return;
+        }
+
+        DB::transaction(function () use ($location, $paiement) {
+            // ✅ 1. ACTIVER LA LOCATION
             DB::table('locations')
                 ->where('id', $location->id)
                 ->update([
@@ -1241,33 +788,547 @@ class PaiementController extends Controller
                     'updated_at' => now()
                 ]);
 
-            try {
-                $this->contractPdfService->generatePdf($location, 'location');
-            } catch (\Exception $e) {
-                Log::error('⚠️ Erreur PDF location', ['error' => $e->getMessage()]);
-            }
+            Log::info('✅ Location activée après paiement complet', [
+                'location_id' => $location->id,
+                'ancien_statut' => $location->statut,
+                'nouveau_statut' => 'active'
+            ]);
 
-            $location->load('reservation.bien');
-            if ($location->reservation && $location->reservation->bien) {
-                DB::table('biens')
-                    ->where('id', $location->reservation->bien->id)
-                    ->update([
-                        'status' => 'loue',
-                        'updated_at' => now()
-                    ]);
-            }
-
-            if ($location->reservation) {
+            // ✅ 2. LIER LE PAIEMENT À LA RÉSERVATION
+            if ($location->reservation_id && !$location->reservation->paiement_id) {
                 DB::table('reservations')
-                    ->where('id', $location->reservation->id)
+                    ->where('id', $location->reservation_id)
                     ->update([
+                        'paiement_id' => $paiement->id,
                         'statut' => 'confirmee',
                         'updated_at' => now()
                     ]);
+
+                Log::info('✅ Paiement lié à la réservation', [
+                    'reservation_id' => $location->reservation_id,
+                    'paiement_id' => $paiement->id
+                ]);
+            }
+
+            // ✅ 3. MARQUER L'APPARTEMENT COMME LOUÉ
+            if ($location->reservation && $location->reservation->appartement_id) {
+                DB::table('appartements')
+                    ->where('id', $location->reservation->appartement_id)
+                    ->update([
+                        'statut' => 'loue',
+                        'updated_at' => now()
+                    ]);
+
+                Log::info('🏠 Appartement marqué comme loué', [
+                    'appartement_id' => $location->reservation->appartement_id,
+                    'location_id' => $location->id
+                ]);
+            }
+
+            // ✅ 4. METTRE À JOUR LE STATUT DU BIEN
+            if ($location->reservation && $location->reservation->bien) {
+                $bien = $location->reservation->bien;
+                $bien->updateStatutGlobal();
+
+                Log::info('🏢 Statut bien mis à jour', [
+                    'bien_id' => $bien->id,
+                    'nouveau_statut' => $bien->fresh()->status
+                ]);
+            }
+
+            // ✅ 5. CRÉER LES COMMISSIONS
+            try {
+                $commissions = $this->commissionService->creerCommissionsApresPaiement($paiement);
+                if ($commissions) {
+                    Log::info('💰 Commissions créées', [
+                        'location_id' => $location->id,
+                        'nombre' => is_array($commissions) ? count($commissions) : 1
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('❌ Erreur création commissions', [
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            // ✅ 6. GÉNÉRER LE PDF DU CONTRAT
+            try {
+                $this->contractPdfService->generatePdf($location, 'location');
+                Log::info('📄 PDF contrat généré', ['location_id' => $location->id]);
+            } catch (\Exception $e) {
+                Log::error('⚠️ Erreur PDF location', ['error' => $e->getMessage()]);
             }
         });
 
-        Log::info('✅ Location activée');
+        Log::info('🎉 Location complètement traitée - Statut: ACTIVE', [
+            'location_id' => $location->id,
+            'paiement_id' => $paiement->id
+        ]);
+    }
+    public function showInitierPaiement($id, $paiement_id)
+    {
+        try {
+            $paiement = Paiement::findOrFail($paiement_id);
+
+            // ✅ LOGS DÉTAILLÉS
+            Log::info('📄 Accès page paiement', [
+                'paiement_id' => $paiement->id,
+                'user_id' => auth()->id(),
+                'statut' => $paiement->statut,
+                'montant_restant' => $paiement->montant_restant
+            ]);
+
+            // ✅ CONTRÔLE GLOBAL 1: Vérifier si le paiement est déjà complet
+            if ($paiement->statut === 'reussi' && $paiement->montant_restant <= 0) {
+                Log::warning('⚠️ Accès à une page de paiement déjà complété', [
+                    'paiement_id' => $paiement->id,
+                    'user_id' => auth()->id()
+                ]);
+
+                // Rediriger vers la page appropriée
+                if ($paiement->reservation_id) {
+                    return redirect()->route('reservations.show', $paiement->reservation_id)
+                        ->with('info', '✅ Ce paiement a déjà été effectué avec succès.');
+                } elseif ($paiement->vente_id) {
+                    return redirect()->route('ventes.show', $paiement->vente_id)
+                        ->with('info', '✅ Ce paiement a déjà été effectué avec succès.');
+                } elseif ($paiement->location_id) {
+                    return redirect()->route('locations.show', $paiement->location_id)
+                        ->with('info', '✅ Ce paiement a déjà été effectué avec succès.');
+                }
+
+                return redirect()->route('home')
+                    ->with('info', '✅ Ce paiement a déjà été effectué.');
+            }
+
+            // Déterminer le type et charger les données
+            $type = null;
+            $item = null;
+            $itemUserId = null;
+            $infoFractionnement = null;
+
+            // ✅ GESTION PAR TYPE
+            if ($paiement->vente_id) {
+                $type = 'vente';
+                $item = Vente::with(['reservation.bien'])->find($paiement->vente_id);
+
+                if (!$item) {
+                    Log::error('❌ Vente introuvable', ['vente_id' => $paiement->vente_id]);
+                    return redirect()->route('home')
+                        ->with('error', 'Transaction introuvable');
+                }
+
+                $itemUserId = $item->acheteur_id;
+
+            } elseif ($paiement->reservation_id) {
+                $type = 'reservation';
+                $item = Reservation::with(['bien'])->find($paiement->reservation_id);
+
+                if (!$item) {
+                    Log::error('❌ Réservation introuvable', ['reservation_id' => $paiement->reservation_id]);
+                    return redirect()->route('home')
+                        ->with('error', 'Réservation introuvable');
+                }
+
+                $itemUserId = $item->client_id;
+
+            } elseif ($paiement->location_id) {
+                $type = 'location';
+                // ✅ CORRECTION: Retirer 'bien' de with()
+                $item = Location::with(['reservation.bien', 'client'])->find($paiement->location_id);
+
+                if (!$item) {
+                    Log::error('❌ Location introuvable', ['location_id' => $paiement->location_id]);
+                    return redirect()->route('home')
+                        ->with('error', 'Location introuvable');
+                }
+
+                $itemUserId = $item->client_id;
+            }else {
+                Log::error('❌ Type de paiement non reconnu', [
+                    'paiement_id' => $paiement->id,
+                    'reservation_id' => $paiement->reservation_id,
+                    'location_id' => $paiement->location_id,
+                    'vente_id' => $paiement->vente_id
+                ]);
+
+                return redirect()->route('home')
+                    ->with('error', 'Type de paiement non reconnu');
+            }
+
+            // ✅ CONTRÔLE 2: Vérification de l'autorisation
+            if ($itemUserId !== auth()->id() && !auth()->user()->hasRole('admin')) {
+                Log::warning('⛔ Accès non autorisé au paiement', [
+                    'paiement_id' => $paiement->id,
+                    'user_id' => auth()->id(),
+                    'item_user_id' => $itemUserId
+                ]);
+
+                abort(403, 'Accès non autorisé à ce paiement');
+            }
+
+            // ✅ CALCUL DU FRACTIONNEMENT SI NÉCESSAIRE
+            $montantRestant = max(0, $paiement->montant_total - $paiement->montant_paye);
+            $PAYDUNYA_MAX = 3000000;
+
+            if ($montantRestant > $PAYDUNYA_MAX) {
+                $nombreTranches = ceil($montantRestant / $PAYDUNYA_MAX);
+                $montantAPayer = min($PAYDUNYA_MAX, $montantRestant);
+
+                $infoFractionnement = [
+                    'montant_restant_total' => $montantRestant,
+                    'montant_a_payer' => $montantAPayer,
+                    'nombre_tranches' => $nombreTranches,
+                    'limite_paydunya' => $PAYDUNYA_MAX,
+                    'pourcentage_paye' => ($paiement->montant_paye / $paiement->montant_total) * 100
+                ];
+
+                Log::info('💰 Paiement fractionné détecté', $infoFractionnement);
+            }
+
+            // ✅ LOGS AVANT RENDU
+            Log::info('✅ Affichage page paiement', [
+                'type' => $type,
+                'item_id' => $item->id ?? null,
+                'montant' => $paiement->montant_total,
+                'fractionnement' => $infoFractionnement ? 'oui' : 'non'
+            ]);
+
+            return Inertia::render('Paiement/InitierPaiement', [
+                'type' => $type,
+                'item' => $item,
+                'paiement' => $paiement,
+                'user' => auth()->user(),
+                'infoFractionnement' => $infoFractionnement
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('❌ ERREUR CRITIQUE - showInitierPaiement', [
+                'paiement_id' => $paiement_id ?? null,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->route('home')
+                ->with('error', 'Erreur lors du chargement de la page de paiement : ' . $e->getMessage());
+        }
     }
 
+    /**
+     * ✅ Vérifier le statut d'une facture PayDunya
+     */
+    private function verifierStatutPayDunya($transactionId)
+    {
+        try {
+            if (!$transactionId) {
+                Log::warning('⚠️ Transaction ID manquant');
+                return 'failed';
+            }
+
+            $result = $this->paydunya->checkInvoiceStatus($transactionId);
+
+            Log::info('🔍 Vérification statut PayDunya', [
+                'transaction_id' => $transactionId,
+                'success' => $result['success'] ?? false,
+                'status' => $result['status'] ?? 'unknown'
+            ]);
+
+            if ($result['success'] && isset($result['status'])) {
+                return $result['status']; // 'completed', 'pending', 'cancelled'
+            }
+
+            return 'failed';
+
+        } catch (\Exception $e) {
+            Log::error('❌ Erreur vérification PayDunya', [
+                'transaction_id' => $transactionId,
+                'error' => $e->getMessage()
+            ]);
+            return 'failed';
+        }
+    }
+// ✅ MÉTHODE: initier - AVEC CONTRÔLES AVANT TRAITEMENT
+    public function initier(Request $request)
+    {
+        $request->validate([
+            'paiement_id' => 'required|exists:paiements,id',
+            'customer_name' => 'required|string|max:255',
+            'customer_email' => 'required|email|max:255',
+            'customer_phone' => 'required|string|max:20',
+            'mode_paiement' => 'required|in:mobile_money,wave,orange_money,mtn_money,moov_money,carte,virement',
+        ]);
+
+        try {
+            $paiement = Paiement::with(['reservation', 'location', 'vente'])
+                ->findOrFail($request->paiement_id);
+
+            // ✅ CONTRÔLE 1: Bloquer si COMPLÈTEMENT payé
+            if ($paiement->statut === 'reussi' && $paiement->montant_restant <= 0) {
+                Log::warning('⚠️ Tentative d\'initier un paiement déjà complet', [
+                    'paiement_id' => $paiement->id,
+                    'user_id' => auth()->id()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => '✅ Ce paiement a déjà été complété intégralement. Aucune action requise.'
+                ], 422);
+            }
+
+            // ✅ CONTRÔLE 2: Vérifier les doublons selon le type
+            if ($this->checkDuplicatePayment($paiement)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '✅ Un paiement a déjà été effectué pour cet élément.'
+                ], 422);
+            }
+
+            // Autoriser si partiellement payé (pour fractionnement)
+            if ($paiement->statut === 'partiellement_paye' && $paiement->montant_restant > 0) {
+                Log::info('✅ Paiement partiel autorisé - continuation des tranches', [
+                    'paiement_id' => $paiement->id,
+                    'montant_restant' => $paiement->montant_restant
+                ]);
+            }
+
+            $montantRestant = max(0, $paiement->montant_total - $paiement->montant_paye);
+
+            if ($montantRestant <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '✅ Il n\'y a plus de montant à payer pour ce paiement.'
+                ], 422);
+            }
+
+            // Continuer avec la logique de paiement...
+            $peutFractionner = $this->peutEtreFractionne($paiement);
+            $necessiteFractionnement = $montantRestant > self::PAYDUNYA_MAX_AMOUNT;
+
+            if ($peutFractionner && $necessiteFractionnement) {
+                return $this->initierPaiementFractionne($paiement, $request, $montantRestant);
+            } else {
+                return $this->initierPaiementSimple($paiement, $request, $montantRestant);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Erreur initiation paiement', [
+                'message' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de l\'initiation du paiement.'
+            ], 500);
+        }
+    }
+
+// ✅ MÉTHODE UTILITAIRE: Vérifier les doublons de paiement
+    private function checkDuplicatePayment($paiement)
+    {
+        if ($paiement->reservation_id) {
+            return Paiement::where('reservation_id', $paiement->reservation_id)
+                ->where('statut', 'reussi')
+                ->where('montant_restant', '<=', 0)
+                ->where('id', '!=', $paiement->id)
+                ->exists();
+        } elseif ($paiement->location_id && $paiement->type === 'location') {
+            // Paiement initial de location
+            return Paiement::where('location_id', $paiement->location_id)
+                ->where('type', 'location')
+                ->where('statut', 'reussi')
+                ->where('montant_restant', '<=', 0)
+                ->where('id', '!=', $paiement->id)
+                ->exists();
+        } elseif ($paiement->location_id && $paiement->type === 'location') {
+            // Loyer mensuel - vérifier pour le même mois
+            $moisConcerne = Carbon::parse($paiement->created_at);
+            return Paiement::where('location_id', $paiement->location_id)
+                ->where('type', 'location')
+                ->whereYear('created_at', $moisConcerne->year)
+                ->whereMonth('created_at', $moisConcerne->month)
+                ->where('statut', 'reussi')
+                ->where('id', '!=', $paiement->id)
+                ->exists();
+        } elseif ($paiement->vente_id) {
+            return Paiement::where('vente_id', $paiement->vente_id)
+                ->where('statut', 'reussi')
+                ->where('montant_restant', '<=', 0)
+                ->where('id', '!=', $paiement->id)
+                ->exists();
+        }
+
+        return false;
+    }
+
+    private function envoyerDocumentsApresPaiement(Paiement $paiement)
+    {
+        try {
+            Log::info('📧 === DÉBUT ENVOI DOCUMENTS ===', [
+                'paiement_id' => $paiement->id,
+                'type' => $paiement->type,
+            ]);
+
+            $resultat = null;
+
+            // 📄 LOYER MENSUEL
+            if ($paiement->type === 'loyer_mensuel' && $paiement->location) {
+                Log::info('📧 Envoi quittance loyer mensuel');
+                $resultat = $this->quittanceService->genererEtEnvoyerQuittanceLoyer($paiement);
+            }
+            // 📄 PAIEMENT INITIAL LOCATION
+            elseif ($paiement->type === 'location' && $paiement->location) {
+                Log::info('📧 Envoi quittance paiement location');
+                $resultat = $this->quittanceService->genererEtEnvoyerQuittancePaiementLocation($paiement);
+            }
+            // 📄 VENTE
+            elseif ($paiement->type === 'vente' && $paiement->vente) {
+                Log::info('📧 Envoi reçu vente');
+                $resultat = $this->quittanceService->genererEtEnvoyerRecuVente($paiement->vente, $paiement);
+            }
+
+            if ($resultat && $resultat['success']) {
+                Log::info('✅ Documents envoyés avec succès');
+            } else {
+                Log::error('❌ Échec envoi documents', [
+                    'message' => $resultat['message'] ?? 'Erreur inconnue',
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('❌ ERREUR envoi documents', [
+                'paiement_id' => $paiement->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+    public function retour(Request $request, $paiement)
+    {
+        try {
+            $paiement = Paiement::with(['reservation', 'location', 'vente'])
+                ->findOrFail($paiement);
+
+            Log::info('📥 Callback retour PayDunya', [
+                'paiement_id' => $paiement->id,
+                'transaction_id' => $paiement->transaction_id,
+                'statut_actuel' => $paiement->statut,
+                'montant_total' => $paiement->montant_total,
+                'montant_paye' => $paiement->montant_paye,
+                'montant_restant' => $paiement->montant_restant
+            ]);
+
+            // ✅ CORRECTION: Vérifier si déjà complètement payé
+            if ($paiement->statut === 'reussi' && $paiement->montant_restant <= 0) {
+                Log::info('ℹ️ Callback reçu pour un paiement déjà validé et complet', [
+                    'paiement_id' => $paiement->id
+                ]);
+                return redirect()->route('paiement.succes', $paiement->id);
+            }
+
+            $statut = $this->verifierStatutPayDunya($paiement->transaction_id);
+
+            Log::info('🔍 Statut PayDunya vérifié', [
+                'paiement_id' => $paiement->id,
+                'statut' => $statut
+            ]);
+
+            if ($statut === 'completed') {
+                DB::beginTransaction();
+
+                try {
+                    // ✅ CORRECTION: Récupérer les informations de la transaction PayDunya
+                    $result = $this->paydunya->checkInvoiceStatus($paiement->transaction_id);
+                    $customData = $result['custom_data'] ?? [];
+                    $isPartial = $customData['is_partial'] ?? false;
+                    $montantTranche = $customData['montant_tranche'] ?? null;
+
+                    Log::info('💰 Informations transaction', [
+                        'is_partial' => $isPartial,
+                        'montant_tranche' => $montantTranche,
+                        'montant_deja_paye' => $paiement->montant_paye
+                    ]);
+
+                    // ✅ CORRECTION: Calculer correctement le montant payé
+                    if ($isPartial && $montantTranche) {
+                        // Paiement fractionné - ajouter la tranche au montant déjà payé
+                        $nouveauMontantPaye = $paiement->montant_paye + $montantTranche;
+                    } else {
+                        // Paiement simple - payer le montant total
+                        $nouveauMontantPaye = $paiement->montant_total;
+                    }
+
+                    // ✅ Calculer le montant restant
+                    $nouveauMontantRestant = max(0, $paiement->montant_total - $nouveauMontantPaye);
+
+                    // ✅ CORRECTION CRITIQUE: Déterminer le statut selon le montant restant
+                    $nouveauStatut = ($nouveauMontantRestant <= 0) ? 'reussi' : 'partiellement_paye';
+
+                    Log::info('📊 Calculs de mise à jour', [
+                        'ancien_montant_paye' => $paiement->montant_paye,
+                        'nouveau_montant_paye' => $nouveauMontantPaye,
+                        'nouveau_montant_restant' => $nouveauMontantRestant,
+                        'nouveau_statut' => $nouveauStatut
+                    ]);
+
+                    // ✅ Mettre à jour le paiement
+                    $paiement->update([
+                        'statut' => $nouveauStatut,
+                        'montant_paye' => $nouveauMontantPaye,
+                        'montant_restant' => $nouveauMontantRestant,
+                        'date_transaction' => now()
+                    ]);
+
+                    Log::info('✅ Paiement mis à jour', [
+                        'paiement_id' => $paiement->id,
+                        'nouveau_statut' => $nouveauStatut,
+                        'montant_paye' => $nouveauMontantPaye,
+                        'montant_restant' => $nouveauMontantRestant
+                    ]);
+
+                    // ✅ CORRECTION: Ne finaliser QUE si complètement payé
+                    if ($nouveauStatut === 'reussi') {
+                        Log::info('🎯 Paiement COMPLET - Traitement de la finalisation');
+                        $this->updateItemStatus($paiement);
+
+                        // Envoi automatique des documents
+                        $this->envoyerDocumentsApresPaiement($paiement);
+                    } else {
+                        Log::info('⏳ Paiement PARTIEL - En attente des tranches suivantes', [
+                            'montant_restant' => $nouveauMontantRestant,
+                            'pourcentage_paye' => ($nouveauMontantPaye / $paiement->montant_total * 100)
+                        ]);
+                    }
+
+                    DB::commit();
+
+                    return redirect()->route('paiement.succes', $paiement->id);
+
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    Log::error('❌ Erreur traitement paiement dans retour()', [
+                        'paiement_id' => $paiement->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    throw $e;
+                }
+            }
+
+            Log::warning('⚠️ Paiement non confirmé par PayDunya', [
+                'paiement_id' => $paiement->id,
+                'statut' => $statut
+            ]);
+
+            return redirect()->route('paiement.erreur')
+                ->with('error', 'Le paiement n\'a pas été confirmé par PayDunya');
+
+        } catch (\Exception $e) {
+            Log::error('❌ Erreur callback retour paiement', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->route('paiement.erreur')
+                ->with('error', 'Une erreur est survenue lors de la vérification du paiement');
+        }
+    }
 }

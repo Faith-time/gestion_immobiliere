@@ -39,7 +39,7 @@ class Image extends Model
     public function getUrlAttribute()
     {
         if ($this->chemin_image) {
-            return asset('storage/' . $this->chemin_image);
+            return asset('storage/' . $this->chemin_image);  // ✅ CORRECT
         }
         return null;
     }

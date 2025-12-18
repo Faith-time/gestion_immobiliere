@@ -1,387 +1,326 @@
 <template>
     <div class="Layout d-flex flex-column min-vh-100">
+        <FlashMessages />
+
+        <!-- Skip to content -->
+        <a href="#main-content" class="skip-to-content">Aller au contenu principal</a>
+
         <!-- Navbar -->
         <nav class="site-nav fixed-top w-100">
             <div class="menu-bg-wrap">
                 <div class="container">
                     <div class="site-navigation py-3">
-                        <Link :href="route('home')" class="logo m-0 float-start">Cauris Immo</Link>
+                        <Link :href="route('home')" class="logo m-0 float-start d-flex align-items-center">
+                            <img :src="logoImage" alt="Cauris Immo Logo" class="logo-img me-2">
+                            <span class="logo-text">Cauris Immo</span>
+                        </Link>
 
                         <ul class="js-clone-nav d-none d-lg-inline-block text-start site-menu float-end">
-<!--                            &lt;!&ndash; Accueil - Visible pour tous &ndash;&gt;-->
-<!--                            <li v-if="!hasRole('admin')">-->
-<!--                                <Link-->
-<!--                                    :href="route('home')"-->
-<!--                                    :class="{ 'active': route().current('home') }"-->
-<!--                                    @click="handleNavClick"-->
-<!--                                >-->
-<!--                                    Accueil-->
-<!--                                </Link>-->
-<!--                            </li>-->
+                            <!-- ========== MENU VISITEUR ========== -->
+                            <template v-if="isGuest">
+                                <!-- Catalogue avec filtres (pour visiteur) -->
+                                <li class="has-children">
+                                    <a href="#" @click.prevent>Catalogue</a>
+                                    <ul class="dropdown filter-dropdown">
+                                        <li class="filter-section">
+                                            <h6 class="filter-title">Filtres de recherche</h6>
+                                        </li>
+                                        <li>
+                                            <a href="#" @click.prevent="showFilterModal('price')" class="filter-option">
+                                                <i class="fas fa-euro-sign me-2"></i>
+                                                Filtrer par prix
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="#" @click.prevent="showFilterModal('location')" class="filter-option">
+                                                <i class="fas fa-map-marker-alt me-2"></i>
+                                                Filtrer par Ville/Adresse
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="#" @click.prevent="showFilterModal('features')" class="filter-option">
+                                                <i class="fas fa-home me-2"></i>
+                                                Filtrer par caractéristiques
+                                                <small class="d-block text-muted">Chambres • Salles de bain • Étages</small>
+                                            </a>
+                                        </li>
+                                        <li class="filter-section mt-3 pt-2">
+                                            <h6 class="filter-title">Navigation rapide</h6>
+                                        </li>
+                                        <li>
+                                            <Link :href="route('home')" class="filter-option" @click="handleNavClick">
+                                                <i class="fas fa-list me-2"></i>
+                                                Tous les biens disponibles
+                                            </Link>
+                                        </li>
+                                    </ul>
+                                </li>
 
-                            <!-- Catalogue - Visible pour tous -->
-                            <li class="has-children" v-if="!hasRole('admin')">
-                                <a href="#" @click.prevent>Catalogue</a>
-                                <ul class="dropdown filter-dropdown">
-                                    <li class="filter-section">
-                                        <h6 class="filter-title">Filtres de recherche</h6>
-                                    </li>
-                                    <li>
-                                        <a href="#" @click.prevent="showFilterModal('price')" class="filter-option">
-                                            <i class="fas fa-euro-sign me-2"></i>
-                                            Filtrer par prix
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="#" @click.prevent="showFilterModal('location')" class="filter-option">
-                                            <i class="fas fa-map-marker-alt me-2"></i>
-                                            Filtrer par City/Adresse
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="#" @click.prevent="showFilterModal('features')" class="filter-option">
-                                            <i class="fas fa-home me-2"></i>
-                                            Filtrer par caractéristiques
-                                            <small class="d-block text-muted">Chambres • Salles de bain • Étages</small>
-                                        </a>
-                                    </li>
-                                    <li class="filter-section mt-3 pt-2">
-                                        <h6 class="filter-title">Navigation rapide</h6>
-                                    </li>
-                                    <li>
-                                        <Link :href="route('home')" class="filter-option" @click="handleNavClick">
-                                            <i class="fas fa-list me-2"></i>
-                                            Tous les biens disponibles
-                                        </Link>
-                                    </li>
-                                    <!-- Gestion des catégories - Visible uniquement pour admin -->
-                                    <li v-if="hasRole('admin')">
-                                        <Link :href="route('categories.index')" class="filter-option" @click="handleNavClick">
-                                            <i class="fas fa-tags me-2"></i>
-                                            Gestion des catégories
-                                        </Link>
-                                    </li>
-                                </ul>
-                            </li>
+                                <!-- Boutons Connexion et Inscription (pour visiteur) -->
+                                <li>
+                                    <Link :href="route('login')" class="btn btn-outline-light btn-sm me-2">
+                                        <i class="fas fa-sign-in-alt me-1"></i>
+                                        Connexion
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link :href="route('register')" class="btn btn-light btn-sm">
+                                        <i class="fas fa-user-plus me-1"></i>
+                                        Inscription
+                                    </Link>
+                                </li>
+                            </template>
 
-                            <!-- Mes réservations - Visible pour tous (client potentiel) -->
-                            <li v-if="!hasRole('admin')">
-                                <Link
-                                    :href="route('reservations.index')"
-                                    :class="{ 'active': route().current('reservations.*') }"
-                                    @click="handleNavClick"
-                                >
-                                    Mes réservations
-                                </Link>
-                            </li>
+                            <!-- ========== MENU UTILISATEUR AUTHENTIFIÉ ========== -->
+                            <template v-else>
+                                <!-- Catalogue avec filtres (pour non-admin) -->
+                                <li class="has-children" v-if="!hasRole('admin')">
+                                    <a href="#" @click.prevent>Catalogue</a>
+                                    <ul class="dropdown filter-dropdown">
+                                        <li class="filter-section">
+                                            <h6 class="filter-title">Filtres de recherche</h6>
+                                        </li>
+                                        <li>
+                                            <a href="#" @click.prevent="showFilterModal('price')" class="filter-option">
+                                                <i class="fas fa-euro-sign me-2"></i>
+                                                Filtrer par prix
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="#" @click.prevent="showFilterModal('location')" class="filter-option">
+                                                <i class="fas fa-map-marker-alt me-2"></i>
+                                                Filtrer par Ville/Adresse
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="#" @click.prevent="showFilterModal('features')" class="filter-option">
+                                                <i class="fas fa-home me-2"></i>
+                                                Filtrer par caractéristiques
+                                                <small class="d-block text-muted">Chambres • Salles de bain • Étages</small>
+                                            </a>
+                                        </li>
+                                        <li class="filter-section mt-3 pt-2">
+                                            <h6 class="filter-title">Navigation rapide</h6>
+                                        </li>
+                                        <li>
+                                            <Link :href="route('home')" class="filter-option" @click="handleNavClick">
+                                                <i class="fas fa-list me-2"></i>
+                                                Tous les biens disponibles
+                                            </Link>
+                                        </li>
+                                        <!-- Gestion des catégories - Admin uniquement -->
+                                        <li v-if="hasRole('admin')">
+                                            <Link :href="route('categories.index')" class="filter-option" @click="handleNavClick">
+                                                <i class="fas fa-tags me-2"></i>
+                                                Gestion des catégories
+                                            </Link>
+                                        </li>
+                                    </ul>
+                                </li>
 
-                            <!-- Mes Locations - Visible pour les clients -->
-                            <li v-if="!hasRole('admin')">
-                                <Link
-                                    :href="route('locations.index')"
-                                    :class="{ 'active': route().current('locations.client.*') }"
-                                    @click="handleNavClick"
-                                >
-                                    Mes Baux
-                                </Link>
-                            </li>
+                                <!-- Mes réservations (non-admin) -->
+                                <li v-if="!hasRole('admin')">
+                                    <Link
+                                        :href="route('reservations.index')"
+                                        :class="{ 'active': isCurrentRoute('reservations.*') }"
+                                        @click="handleNavClick"
+                                    >
+                                        Mes réservations
+                                    </Link>
+                                </li>
 
-                            <li v-if="!hasRole('admin')">
-                                <Link
-                                    :href="route('locations.mes-loyers')"
-                                    :class="{ 'active': route().current('locations.mes-loyers') }"
-                                    class="filter-option"
-                                    @click="handleNavClick"
-                                >
-                                    Mes Locations
-                                </Link>
-                            </li>
+                                <!-- Mes Baux (non-admin) -->
+                                <li v-if="!hasRole('admin')">
+                                    <Link
+                                        :href="route('locations.index')"
+                                        :class="{ 'active': isCurrentRoute('locations.client.*') }"
+                                        @click="handleNavClick"
+                                    >
+                                        Mes Contrats de location
+                                    </Link>
+                                </li>
 
-                            <!-- Section Transactions - Affichage conditionnel -->
-                            <li v-if="$page.props.auth.user && !hasRole('admin')" >
-                                    <!-- Si l'utilisateur a des achats -->
-                                        <Link
-                                            :href="route('ventes.index')"
-                                            :class="{ 'active': route().current('ventes.*') }"
-                                            @click="handleNavClick"
-                                        >
-                                            Mes Contrats de Vente
-                                        </Link>
-                            </li>
+                                <!-- Mes Locations (non-admin) -->
+                                <li v-if="!hasRole('admin')">
+                                    <Link
+                                        :href="route('locations.mes-loyers')"
+                                        :class="{ 'active': isCurrentRoute('locations.mes-loyers') }"
+                                        @click="handleNavClick"
+                                    >
+                                        Mes Locations
+                                    </Link>
+                                </li>
 
-                            <!-- Toutes les réservations - Visible uniquement pour admin -->
-                            <li v-if="hasRole('admin')">
-                                <Link
-                                    :href="route('admin.reservations.index')"
-                                    :class="{ 'active': route().current('admin.reservations.*') }"
-                                    @click="handleNavClick"
-                                >
-                                    Toutes les réservations
-                                </Link>
-                            </li>
+                                <!-- Mes Contrats de Vente (non-admin) -->
+                                <li v-if="!hasRole('admin')">
+                                    <Link
+                                        :href="route('ventes.index')"
+                                        :class="{ 'active': isCurrentRoute('ventes.*') }"
+                                        @click="handleNavClick"
+                                    >
+                                        Mes Contrats de Vente
+                                    </Link>
+                                </li>
 
-                            <!-- Mes Biens - Visible pour proprietaire et admin -->
-                            <li v-if="hasRole('proprietaire') || hasRole('admin')">
-                                <Link
-                                    :href="route('biens.index')"
-                                    :class="{ 'active': route().current('biens.*') }"
-                                    @click="handleNavClick"
-                                >
-                                    {{ hasRole('admin') ? 'Tous les Biens' : 'Mes Biens' }}
-                                </Link>
-                            </li>
+                                <!-- Toutes les réservations (admin) -->
+                                <li v-if="hasRole('admin')">
+                                    <Link
+                                        :href="route('admin.reservations.index')"
+                                        :class="{ 'active': isCurrentRoute('admin.reservations.*') }"
+                                        @click="handleNavClick"
+                                    >
+                                        Toutes les réservations
+                                    </Link>
+                                </li>
 
-                            <!-- Dashboard Propriétaire - Visible pour proprietaire et admin -->
-                            <li v-if="hasRole('proprietaire')">
-                                <Link
-                                    :href="route('dashboard.proprietaire')"
-                                    :class="{ 'active': route().current('dashboard.proprietaire') }"
-                                    @click="handleNavClick"
-                                >
-                                    Suivi de mes biens
-                                </Link>
-                            </li>
+                                <!-- Gestion des Visites (admin) -->
+                                <li v-if="hasRole('admin')">
+                                    <Link
+                                        :href="route('visites.index')"
+                                        :class="{ 'active': isCurrentRoute('visites.*') }"
+                                        @click="handleNavClick"
+                                    >
+                                        <i class="fas fa-calendar-check me-1"></i>
+                                        Gestion des Visites
+                                    </Link>
+                                </li>
 
-                            <li v-if="hasRole('admin')">
-                                <Link
-                                    :href="route('dashboard.admin.global')"
-                                    :class="{ 'active': route().current('dashboard.admin.global') }"
-                                    @click="handleNavClick"
-                                >
-                                    <i class="fas fa-crown"></i>
-                                    Dashboard Admin Global
-                                </Link>
-                            </li>
+                                <!-- Mes Biens / Tous les Biens (propriétaire ou admin) -->
+                                <li v-if="hasRole('proprietaire') || hasRole('admin')">
+                                    <Link
+                                        :href="route('biens.index')"
+                                        :class="{ 'active': isCurrentRoute('biens.*') }"
+                                        @click="handleNavClick"
+                                    >
+                                        {{ hasRole('admin') ? 'Tous les Biens' : 'Mes Biens' }}
+                                    </Link>
+                                </li>
 
-                            <li v-if="hasRole('admin')">
-                                <Link
-                                    :href="route('categories.index')"
-                                    :class="{ 'active': route().current('categories.*') }"
-                                    @click="handleNavClick"
-                                >
-                                    Toutes les Catégories
-                                </Link>
-                            </li>
+                                <!-- Suivi de mes biens (propriétaire uniquement) -->
+                                <li v-if="hasRole('proprietaire')">
+                                    <Link
+                                        :href="route('dashboard.proprietaire')"
+                                        :class="{ 'active': isCurrentRoute('dashboard.proprietaire') }"
+                                        @click="handleNavClick"
+                                    >
+                                        Suivi de mes biens
+                                    </Link>
+                                </li>
 
-                            <!-- Devenir Propriétaire - visible si client -->
-                            <li v-if="!hasRole('proprietaire') && !hasRole('admin')">
-                                <Link
-                                    :href="route('proprietaire.demande')"
-                                    :class="{ 'active': route().current('proprietaire.demande') }"
-                                    @click="handleNavClick"
-                                >
-                                    Faire gérer mes biens
-                                </Link>
-                            </li>
+                                <!-- Dashboard Admin Global (admin uniquement) -->
+                                <li v-if="hasRole('admin')">
+                                    <Link
+                                        :href="route('dashboard.admin.global')"
+                                        :class="{ 'active': isCurrentRoute('dashboard.admin.global') }"
+                                        @click="handleNavClick"
+                                    >
+                                        <i class="fas fa-crown"></i>
+                                        Dashboard Admin Global
+                                    </Link>
+                                </li>
 
-                            <!-- Utilisateurs - Visible uniquement pour admin -->
-                            <li>
-                                <Link
-                                    :href="route('conversations.index')"
-                                    @click="handleNavClick"
-                                >
-                                    Conversations
-                                </Link>
-                            </li>
+                                <!-- Toutes les Catégories (admin uniquement) -->
+                                <li v-if="hasRole('admin')">
+                                    <Link
+                                        :href="route('categories.index')"
+                                        :class="{ 'active': isCurrentRoute('categories.*') }"
+                                        @click="handleNavClick"
+                                    >
+                                        Toutes les Catégories
+                                    </Link>
+                                </li>
 
-<!--                            &lt;!&ndash; Badge de rôle actuel &ndash;&gt;-->
-<!--                            <li class="role-badge">-->
-<!--                                <span v-if="hasRole('admin')" class="badge bg-danger">-->
-<!--                                    <i class="fas fa-crown me-1"></i> Admin-->
-<!--                                </span>-->
-<!--                                <span v-else-if="hasRole('proprietaire')" class="badge bg-success">-->
-<!--                                    <i class="fas fa-home me-1"></i> Propriétaire-->
-<!--                                </span>-->
-<!--                                <span v-else class="badge bg-info">-->
-<!--                                    <i class="fas fa-user me-1"></i> Client-->
-<!--                                </span>-->
-<!--                            </li>-->
 
-                            <!-- Déconnexion -->
-                            <li>
-                                <Link
-                                    :href="route('auth.logout')"
-                                    method="post"
-                                    as="button"
-                                    class="btn btn-outline-danger btn-secondary"
-                                    @click="handleLogout"
-                                >
-                                    Déconnexion
-                                </Link>
-                            </li>
+
+                                <li v-if="!hasRole('proprietaire') && !hasRole('admin')">
+                                    <Link
+                                        :href="route('client-dossiers.index')"
+                                        :class="{ 'active': isCurrentRoute('client-dossiers.index') }"
+                                        @click="handleNavClick"
+                                    >
+                                        Gérer mon dossier
+                                    </Link>
+                                </li>
+
+                                <li>
+                                    <Link :href="route('conversations.index')" @click="handleNavClick">
+                                        Messages
+                                    </Link>
+                                </li>
+
+                                <!-- Faire gérer mes biens (clients non-propriétaires) -->
+                                <li v-if="!hasRole('proprietaire') && !hasRole('admin')">
+                                    <Link
+                                        :href="route('proprietaire.demande')"
+                                        :class="{ 'active': isCurrentRoute('proprietaire.demande') }"
+                                        @click="handleNavClick"
+                                    >
+                                        Faire gérer mes biens
+                                    </Link>
+                                </li>
+                                <!-- Déconnexion -->
+                                <li>
+                                    <Link
+                                        :href="route('auth.logout')"
+                                        method="post"
+                                        as="button"
+                                        class="btn btn-outline-danger btn-secondary"
+                                        @click="handleLogout"
+                                    >
+                                        Déconnexion
+                                    </Link>
+                                </li>
+                            </template>
                         </ul>
                     </div>
                 </div>
             </div>
         </nav>
 
-        <!-- Modal de filtres -->
-        <div
+        <!-- Filter Modal -->
+        <FilterModal
             v-if="showModal"
-            class="modal fade show d-block"
-            tabindex="-1"
-            style="background-color: rgba(0,0,0,0.5);"
-            @click="closeModal"
-        >
-            <div class="modal-dialog modal-lg" @click.stop>
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">{{ getModalTitle() }}</h5>
-                        <button type="button" class="btn-close" @click="closeModal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <!-- Filtre par prix -->
-                        <div v-if="activeFilter === 'price'" class="filter-content">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Prix minimum (FCFA)</label>
-                                    <input
-                                        type="number"
-                                        class="form-control"
-                                        v-model="filters.minPrice"
-                                        placeholder="Ex: 5000000"
-                                    >
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Prix maximum (FCFA)</label>
-                                    <input
-                                        type="number"
-                                        class="form-control"
-                                        v-model="filters.maxPrice"
-                                        placeholder="Ex: 50000000"
-                                    >
-                                </div>
-                            </div>
-                        </div>
+            :active-filter="activeFilter"
+            :filters="filters"
+            @close="closeModal"
+            @apply="applyFilters"
+            @reset="resetFilters"
+        />
 
-                        <!-- Filtre par localisation -->
-                        <div v-if="activeFilter === 'location'" class="filter-content">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Ville</label>
-                                    <input
-                                        type="text"
-                                        class="form-control"
-                                        v-model="filters.city"
-                                        placeholder="Ex: Dakar, Thiès, Saint-Louis"
-                                    >
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Adresse/Quartier</label>
-                                    <input
-                                        type="text"
-                                        class="form-control"
-                                        v-model="filters.address"
-                                        placeholder="Ex: Almadies, Plateau, Mermoz"
-                                    >
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Filtre par caractéristiques -->
-                        <div v-if="activeFilter === 'features'" class="filter-content">
-                            <div class="row g-3">
-                                <div class="col-md-4">
-                                    <label class="form-label">Nombre de chambres</label>
-                                    <select class="form-select" v-model="filters.rooms">
-                                        <option value="">Toutes</option>
-                                        <option value="1">1 chambre</option>
-                                        <option value="2">2 chambres</option>
-                                        <option value="3">3 chambres</option>
-                                        <option value="4">4 chambres</option>
-                                        <option value="5">5+ chambres</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Nombre de salles de bain</label>
-                                    <select class="form-select" v-model="filters.bathrooms">
-                                        <option value="">Toutes</option>
-                                        <option value="1">1 salle de bain</option>
-                                        <option value="2">2 salles de bain</option>
-                                        <option value="3">3 salles de bain</option>
-                                        <option value="4">4+ salles de bain</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Nombre d'étages</label>
-                                    <select class="form-select" v-model="filters.floors">
-                                        <option value="">Tous</option>
-                                        <option value="1">1 étage</option>
-                                        <option value="2">2 étages</option>
-                                        <option value="3">3 étages</option>
-                                        <option value="4">4+ étages</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @click="resetFilters">
-                            Réinitialiser
-                        </button>
-                        <button type="button" class="btn btn-primary" @click="applyFilters">
-                            Appliquer les filtres
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Contenu principal -->
-        <main class="main-content flex-grow-1 pt-nav mt-nav">
+        <!-- Main Content -->
+        <main id="main-content" class="main-content flex-grow-1 pt-nav mt-nav">
             <div class="container-fluid">
-                <!-- Notification de rôle pour nouveau propriétaire -->
-                <div v-if="$page.props.flash?.success && $page.props.flash.success.includes('Propriétaire')" class="alert alert-success mt-3">
+                <!-- Success notifications -->
+                <div v-if="successMessage" class="alert alert-success mt-3 alert-dismissible fade show">
                     <div class="d-flex align-items-center">
-                        <i class="fas fa-home me-3 fs-4"></i>
+                        <i class="fas fa-check-circle me-3 fs-4"></i>
                         <div>
-                            <strong>Félicitations !</strong><br>
-                            {{ $page.props.flash.success }}
-                            <br><small class="text-muted">Vous pouvez maintenant accéder à la section "Mes Biens" dans le menu.</small>
+                            <strong>Succès !</strong><br>
+                            {{ successMessage }}
                         </div>
                     </div>
+                    <button type="button" class="btn-close" @click="dismissMessage"></button>
                 </div>
 
-                <!-- Affichage des erreurs -->
-                <div v-if="$page.props.errors && Object.keys($page.props.errors).length > 0" class="alert alert-danger mt-3">
-                    <h5>Erreurs détectées :</h5>
+                <!-- Error notifications -->
+                <div v-if="hasErrors" class="alert alert-danger mt-3 alert-dismissible fade show">
+                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Erreurs détectées</h5>
                     <ul class="mb-0">
-                        <li v-for="(error, key) in $page.props.errors" :key="key">
-                            {{ error }}
-                        </li>
+                        <li v-for="(error, key) in $page.props.errors" :key="key">{{ error }}</li>
                     </ul>
+                    <button type="button" class="btn-close" @click="dismissErrors"></button>
                 </div>
 
-                <!-- Messages de succès -->
-                <div v-if="$page.props.flash?.success && !$page.props.flash.success.includes('Propriétaire')" class="alert alert-success mt-3">
-                    {{ $page.props.flash.success }}
-                </div>
-
-                <!-- Affichage des filtres actifs -->
+                <!-- Active filters display -->
                 <div v-if="hasActiveFilters" class="alert alert-info mt-3 d-flex align-items-center justify-content-between">
-                    <div>
-                        <strong>Filtres actifs:</strong>
-                        <span v-if="filters.minPrice || filters.maxPrice" class="badge bg-primary ms-2">
-                            Prix: {{ formatFilterDisplay() }}
-                        </span>
-                        <span v-if="filters.city" class="badge bg-success ms-2">
-                            Ville: {{ filters.city }}
-                        </span>
-                        <span v-if="filters.address" class="badge bg-success ms-2">
-                            Adresse: {{ filters.address }}
-                        </span>
-                        <span v-if="filters.rooms" class="badge bg-info ms-2">
-                            {{ filters.rooms }} chambre{{ filters.rooms > 1 ? 's' : '' }}
-                        </span>
-                        <span v-if="filters.bathrooms" class="badge bg-info ms-2">
-                            {{ filters.bathrooms }} SdB
-                        </span>
-                        <span v-if="filters.floors" class="badge bg-info ms-2">
-                            {{ filters.floors }} étage{{ filters.floors > 1 ? 's' : '' }}
+                    <div class="filter-badges">
+                        <strong><i class="fas fa-filter me-2"></i>Filtres actifs:</strong>
+                        <span v-for="badge in activeFilterBadges" :key="badge.key" :class="`badge ${badge.class} ms-2`">
+                            {{ badge.label }}
                         </span>
                     </div>
                     <button class="btn btn-sm btn-outline-secondary" @click="clearAllFilters">
-                        Effacer tous les filtres
+                        <i class="fas fa-times me-1"></i> Effacer tous
                     </button>
                 </div>
 
@@ -395,17 +334,19 @@
                 <div class="row gy-4">
                     <div class="col-md-4">
                         <h5 class="mb-3">Contact</h5>
-                        <p class="mb-1">Parcelles assainies,Keur Massar,Dakar</p>
-                        <p class="mb-1">Tél : <a href="tel:+221778940392" class="text-white">+221 77 894 03 92</a></p>
-                        <p>Email : <a href="mailto:info@agence.com" class="text-white">info@agence.com</a></p>
+                        <address class="mb-0">
+                            <p class="mb-1">Parcelles assainies, Keur Massar, Dakar</p>
+                            <p class="mb-1">Tél : <a href="tel:+221782915318" class="text-white">+221 78 291 53 18</a></p>
+                            <p>Email : <a href="mailto:caurisimmobiliere@gmail.com" class="text-white">caurisimmobiliere@gmail.com</a></p>
+                        </address>
                     </div>
                     <div class="col-md-4">
                         <h5 class="mb-3">Navigation</h5>
                         <ul class="list-unstyled">
                             <li><Link :href="route('home')" class="text-white">Accueil</Link></li>
-                            <li><Link :href="route('home')" class="text-white">Catalogue</Link></li>
+                            <li><Link :href="route('biens.catalogue')" class="text-white">Catalogue</Link></li>
                             <li><a href="#" class="text-white">Services</a></li>
-                            <li><a href="#" class="text-white">Contact</a></li>
+                            <li><Link :href="route('conversations.index')" class="text-white">Contact</Link></li>
                         </ul>
                     </div>
                     <div class="col-md-4">
@@ -418,10 +359,9 @@
                         </div>
                     </div>
                 </div>
-
                 <hr class="bg-light my-4" />
                 <div class="text-center">
-                    <small>&copy; {{ new Date().getFullYear() }} Agence Immobilière. Tous droits réservés.</small>
+                    <small>&copy; {{ currentYear }} Cauris Immo. Tous droits réservés.</small>
                 </div>
             </div>
         </footer>
@@ -429,31 +369,23 @@
 </template>
 
 <script setup>
-import {Link, router, usePage} from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
-import { ref, computed, provide, onMounted } from 'vue'
+import { ref, computed, provide, onMounted, watch } from 'vue'
+import FlashMessages from '../Pages/Components/FlashMessages.vue'
+import FilterModal from '../Pages/Components/FilterModal.vue'
+import logoImage from '../assets/images/cauris_immo_logo.jpg'
 
 const page = usePage()
 
+// Props
 const props = defineProps({
     errors: Object,
     auth: Object,
-    flash: Object,
-    userHasMultipleRoles: {
-        type: Boolean,
-        default: false
-    },
-    userIsOnlyBuyer: {
-        type: Boolean,
-        default: false
-    },
-    userHasAchats: {
-        type: Boolean,
-        default: false
-    }
+    flash: Object
 })
 
-// État des filtres
+// State
 const showModal = ref(false)
 const activeFilter = ref('')
 const filters = ref({
@@ -466,70 +398,142 @@ const filters = ref({
     floors: ''
 })
 
-// Initialiser les filtres depuis l'URL au chargement
-const initializeFiltersFromUrl = () => {
-    const urlParams = new URLSearchParams(window.location.search)
+// Computed properties
+const currentYear = computed(() => new Date().getFullYear())
 
-    filters.value = {
-        minPrice: urlParams.get('minPrice') ? Number(urlParams.get('minPrice')) : '',
-        maxPrice: urlParams.get('maxPrice') ? Number(urlParams.get('maxPrice')) : '',
-        city: urlParams.get('city') || '',
-        address: urlParams.get('address') || '',
-        rooms: urlParams.get('rooms') || '',
-        bathrooms: urlParams.get('bathrooms') || '',
-        floors: urlParams.get('floors') || ''
-    }
-
-    console.log('Filtres chargés depuis URL:', filters.value)
-}
-
-// Charger les filtres au montage du composant
-onMounted(() => {
-    initializeFiltersFromUrl()
+const hasErrors = computed(() => {
+    return props.errors && Object.keys(props.errors).length > 0
 })
 
-// Computed pour vérifier s'il y a des filtres actifs
+const successMessage = computed(() => {
+    return page.props.flash?.success || null
+})
+
 const hasActiveFilters = computed(() => {
     return Object.values(filters.value).some(value => value !== '')
 })
 
-// Fonction pour vérifier les rôles de l'utilisateur
-const hasRole = (roleName) => {
-    const user = page.props.auth?.user
-    if (!user || !user.roles) return false
-    return user.roles.includes(roleName)
-}
+const activeFilterBadges = computed(() => {
+    const badges = []
 
+    if (filters.value.minPrice || filters.value.maxPrice) {
+        badges.push({
+            key: 'price',
+            label: `Prix: ${formatPriceRange()}`,
+            class: 'bg-primary'
+        })
+    }
 
-// Computed pour les rôles utilisateur
-const userRoles = computed(() => {
-    return page.props.auth?.user?.roles || []
+    if (filters.value.city) {
+        badges.push({
+            key: 'city',
+            label: `Ville: ${filters.value.city}`,
+            class: 'bg-success'
+        })
+    }
+
+    if (filters.value.address) {
+        badges.push({
+            key: 'address',
+            label: `Adresse: ${filters.value.address}`,
+            class: 'bg-success'
+        })
+    }
+
+    if (filters.value.rooms) {
+        badges.push({
+            key: 'rooms',
+            label: `${filters.value.rooms} chambre${filters.value.rooms > 1 ? 's' : ''}`,
+            class: 'bg-info'
+        })
+    }
+
+    if (filters.value.bathrooms) {
+        badges.push({
+            key: 'bathrooms',
+            label: `${filters.value.bathrooms} SdB`,
+            class: 'bg-info'
+        })
+    }
+
+    if (filters.value.floors) {
+        badges.push({
+            key: 'floors',
+            label: `${filters.value.floors} étage${filters.value.floors > 1 ? 's' : ''}`,
+            class: 'bg-info'
+        })
+    }
+
+    return badges
 })
 
-// Provide les filtres aux composants enfants
-provide('filters', filters)
-provide('hasActiveFilters', hasActiveFilters)
-provide('userRoles', userRoles)
-provide('hasRole', hasRole)
+// ✅ DÉTECTION VISITEUR (3 méthodes)
+const isGuest = computed(() => {
+    const user = page.props.auth?.user
 
-// Gestion des clics de navigation avec debug
-const handleNavClick = (event) => {
-    console.log('Navigation click:', event.target.href)
+    console.log('🔍 Layout - User data:', user)
+    console.log('🔍 Layout - Is guest?', user?.is_guest)
+    console.log('🔍 Layout - User roles:', user?.roles)
+
+    // 1. Vérifier le flag is_guest
+    if (user?.is_guest === true || user?.is_guest === 1) {
+        return true
+    }
+
+    // 2. Vérifier si l'utilisateur a UNIQUEMENT le rôle "visiteur"
+    if (user?.roles && Array.isArray(user.roles)) {
+        const hasVisiteurRole = user.roles.includes('visiteur')
+        const hasOnlyVisiteurRole = user.roles.length === 1 && hasVisiteurRole
+
+        if (hasOnlyVisiteurRole) {
+            return true
+        }
+    }
+
+    // 3. Vérifier si l'email contient "guest_"
+    if (user?.email && user.email.includes('guest_') && user.email.includes('@temporary.local')) {
+        return true
+    }
+
+    // Par défaut, si aucun utilisateur n'est connecté
+    if (!user) {
+        return true
+    }
+
+    return false
+})
+
+// ✅ Fonction hasRole pour vérifier les rôles
+const hasRole = (roleName) => {
+    // Un visiteur ne peut avoir aucun rôle
+    if (isGuest.value) return false
+
+    const user = page.props.auth?.user
+    return user?.roles?.includes(roleName) || false
+}
+
+// ✅ Fonction isCurrentRoute pour vérifier la route active
+const isCurrentRoute = (routePattern) => {
+    if (!routePattern) return false
+    return route().current(routePattern)
+}
+
+// Watch pour debug
+watch(isGuest, (newValue) => {
+    console.log('🎯 Layout - isGuest changed to:', newValue)
+})
+
+// Methods
+const handleNavClick = () => {
+    // Fermer les menus mobiles si nécessaire
 }
 
 const handleLogout = () => {
     if (confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-        console.log('Logout initiated')
-    } else {
-        router.post(route('home'), {}, {
-            onSuccess: () => {
-                // Succès géré automatiquement par Inertia
-            }
-        })
+        router.post(route('auth.logout'))
     }
 }
 
-// Gestion des filtres
 const showFilterModal = (filterType) => {
     activeFilter.value = filterType
     showModal.value = true
@@ -540,25 +544,18 @@ const closeModal = () => {
     activeFilter.value = ''
 }
 
-const getModalTitle = () => {
-    const titles = {
-        price: 'Filtrer par prix',
-        location: 'Filtrer par localisation',
-        features: 'Filtrer par caractéristiques'
-    }
-    return titles[activeFilter.value] || 'Filtres'
-}
-
-const applyFilters = () => {
-    console.log('Filtres appliqués:', filters.value)
+const applyFilters = (newFilters) => {
+    filters.value = { ...newFilters }
 
     const queryParams = new URLSearchParams()
     Object.entries(filters.value).forEach(([key, value]) => {
         if (value) queryParams.set(key, value)
     })
 
-    // Utiliser la route 'home' au lieu de 'biens.catalogue'
-    window.location.href = route('home') + (queryParams.toString() ? '?' + queryParams.toString() : '')
+    router.visit(route('home') + (queryParams.toString() ? '?' + queryParams.toString() : ''), {
+        preserveState: false,
+        preserveScroll: false
+    })
     closeModal()
 }
 
@@ -576,28 +573,90 @@ const resetFilters = () => {
 
 const clearAllFilters = () => {
     resetFilters()
-    window.location.href = route('home')
+    router.visit(route('home'), {
+        preserveState: false,
+        preserveScroll: false
+    })
 }
 
-const formatFilterDisplay = () => {
+const formatPriceRange = () => {
+    const format = (val) => new Intl.NumberFormat('fr-FR').format(val)
+
     if (filters.value.minPrice && filters.value.maxPrice) {
-        return `${new Intl.NumberFormat('fr-FR').format(filters.value.minPrice)} - ${new Intl.NumberFormat('fr-FR').format(filters.value.maxPrice)} FCFA`
+        return `${format(filters.value.minPrice)} - ${format(filters.value.maxPrice)} FCFA`
     } else if (filters.value.minPrice) {
-        return `À partir de ${new Intl.NumberFormat('fr-FR').format(filters.value.minPrice)} FCFA`
+        return `À partir de ${format(filters.value.minPrice)} FCFA`
     } else if (filters.value.maxPrice) {
-        return `Jusqu'à ${new Intl.NumberFormat('fr-FR').format(filters.value.maxPrice)} FCFA`
+        return `Jusqu'à ${format(filters.value.maxPrice)} FCFA`
     }
     return ''
 }
+
+const dismissMessage = () => {
+    page.props.flash.success = null
+}
+
+const dismissErrors = () => {
+    // Errors will be cleared on next navigation
+}
+
+// Initialize filters from URL
+const initializeFiltersFromUrl = () => {
+    const urlParams = new URLSearchParams(window.location.search)
+
+    filters.value = {
+        minPrice: urlParams.get('minPrice') || '',
+        maxPrice: urlParams.get('maxPrice') || '',
+        city: urlParams.get('city') || '',
+        address: urlParams.get('address') || '',
+        rooms: urlParams.get('rooms') || '',
+        bathrooms: urlParams.get('bathrooms') || '',
+        floors: urlParams.get('floors') || ''
+    }
+}
+
+// Lifecycle
+onMounted(() => {
+    initializeFiltersFromUrl()
+
+    console.log('🚀 Layout mounted')
+    console.log('🚀 Initial isGuest:', isGuest.value)
+    console.log('🚀 Auth user:', page.props.auth?.user)
+})
+
+// Provide to child components
+provide('filters', filters)
+provide('hasActiveFilters', hasActiveFilters)
+provide('isGuest', isGuest)
+provide('hasRole', hasRole)
 </script>
 
+
 <style scoped>
+/* Skip to content link (accessibility) */
+.skip-to-content {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: #006064;
+    color: white;
+    padding: 8px;
+    text-decoration: none;
+    z-index: 100;
+}
+
+.skip-to-content:focus {
+    top: 0;
+}
+
+/* Layout */
 .Layout {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
 }
 
+/* Navigation */
 .site-nav {
     background-color: #006064;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -607,10 +666,6 @@ const formatFilterDisplay = () => {
 
 .pt-nav {
     padding-top: 90px;
-}
-
-.mt-nav {
-    margin-top: 0;
 }
 
 .menu-bg-wrap {
@@ -623,116 +678,115 @@ const formatFilterDisplay = () => {
     align-items: center;
 }
 
+/* Logo */
 .logo {
     color: white;
     font-weight: bold;
     text-decoration: none;
     font-size: 1.5rem;
+    transition: color 0.3s ease;
 }
 
 .logo:hover {
     color: #e0f7fa;
-    text-decoration: none;
 }
 
+.logo-img {
+    height: 50px;
+    width: auto;
+    border-radius: 50%;
+}
+
+/* Mobile menu toggle */
+.mobile-menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    cursor: pointer;
+}
+
+.hamburger-icon {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.hamburger-icon span {
+    display: block;
+    width: 25px;
+    height: 3px;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+/* Desktop menu */
 .site-menu {
     display: flex;
     list-style: none;
     margin: 0;
     padding: 0;
     align-items: center;
+    gap: 1.5rem;
 }
 
 .site-menu li {
-    margin-left: 1.5rem;
     position: relative;
 }
 
-.site-menu a {
+.site-menu a,
+.site-menu button {
     color: white;
     text-decoration: none;
     font-weight: 500;
     transition: color 0.3s ease;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem 0.75rem;
 }
 
 .site-menu a:hover,
-.site-menu a.active {
+.site-menu button:hover,
+.site-menu li.active > a {
     color: #e0f7fa;
 }
 
-.role-badge {
-    margin-left: 1rem;
+/* Dropdown */
+.has-children > a .dropdown-arrow {
+    font-size: 0.75rem;
+    transition: transform 0.3s ease;
 }
 
-.role-badge .badge {
-    padding: 0.5rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    animation: pulse 2s infinite;
+.has-children:hover > a .dropdown-arrow {
+    transform: rotate(180deg);
 }
 
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.8; }
-    100% { opacity: 1; }
-}
-
-.site-footer {
-    background: #263238;
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-}
-
-/* Dropdowns */
 .dropdown {
     position: absolute;
     background: white;
-    padding: 1rem;
+    padding: 1.5rem;
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    min-width: 280px;
-    display: none;
-    z-index: 1000;
+    min-width: 320px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
     top: 100%;
     left: 0;
-    border: 1px solid #e9ecef;
+    z-index: 1000;
 }
 
-.filter-dropdown {
-    min-width: 320px;
-    padding: 1.5rem;
-}
-
-.has-children:hover > .dropdown {
-    display: block;
+.has-children:hover > .dropdown,
+.dropdown.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
 }
 
 .dropdown li {
     margin: 0.5rem 0;
-}
-
-.dropdown a {
-    color: #333;
-    padding: 0.75rem;
-    display: block;
-    border-radius: 6px;
-    transition: all 0.3s ease;
-}
-
-.dropdown a:hover {
-    background-color: #f8f9fa;
-    color: #006064;
-    transform: translateX(5px);
-}
-
-.dropdown .has-children {
-    position: relative;
-}
-
-.dropdown .dropdown {
-    left: 100%;
-    top: 0;
 }
 
 .filter-section {
@@ -756,6 +810,7 @@ const formatFilterDisplay = () => {
     padding: 0.75rem !important;
     border-radius: 6px;
     transition: all 0.3s ease;
+    color: #333 !important;
 }
 
 .filter-option:hover {
@@ -774,96 +829,17 @@ const formatFilterDisplay = () => {
     color: white;
 }
 
-.filter-option small {
-    font-size: 0.75rem;
-    opacity: 0.8;
-}
-
-/* Modal personnalisé */
-.modal-content {
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-}
-
-.modal-header {
-    background: linear-gradient(135deg, #006064, #00838f);
-    color: white;
-    border-radius: 12px 12px 0 0;
-}
-
-.modal-title {
-    font-weight: 600;
-}
-
-.btn-close {
-    filter: invert(1);
-}
-
-.filter-content {
-    padding: 1rem 0;
-}
-
-.form-label {
-    font-weight: 500;
-    color: #333;
-    margin-bottom: 0.5rem;
-}
-
-.form-control,
-.form-select {
-    border-radius: 8px;
-    border: 1px solid #ddd;
-    padding: 0.75rem;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.form-control:focus,
-.form-select:focus {
-    border-color: #006064;
-    box-shadow: 0 0 0 0.2rem rgba(0, 96, 100, 0.25);
-}
-
-/* Styles pour les alertes */
+/* Alerts */
 .alert {
     border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1rem;
     border: none;
+    animation: slideInDown 0.3s ease;
 }
 
-.alert-danger {
-    background-color: #f8d7da;
-    color: #721c24;
-}
-
-.alert-success {
-    background-color: #d4edda;
-    color: #155724;
-    border-left: 4px solid #28a745;
-}
-
-.alert-info {
-    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-    color: #1565c0;
-    border-left: 4px solid #2196f3;
-}
-
-.badge {
-    padding: 0.5rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.8rem;
-}
-
-/* Animation pour les badges */
-.badge {
-    animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
+@keyframes slideInDown {
     from {
         opacity: 0;
-        transform: translateY(-10px);
+        transform: translateY(-20px);
     }
     to {
         opacity: 1;
@@ -871,25 +847,77 @@ const formatFilterDisplay = () => {
     }
 }
 
-/* Styles spécifiques pour les alertes de nouveau propriétaire */
-.alert-success .fas.fa-home {
-    color: #28a745;
+.filter-badges .badge {
+    animation: fadeIn 0.3s ease;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Footer */
+.site-footer {
+    background: #263238;
+}
+
+.site-footer a {
+    transition: color 0.3s ease;
+}
+
+.site-footer a:hover {
+    color: #e0f7fa !important;
+}
+
+/* Mobile responsive */
+@media (max-width: 991px) {
+    .mobile-menu-toggle {
+        display: block;
+    }
+
     .site-menu {
+        position: fixed;
+        top: 70px;
+        left: 0;
+        right: 0;
+        background: #006064;
         flex-direction: column;
-        gap: 0.5rem;
+        align-items: stretch;
+        padding: 1rem;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+    }
+
+    .site-menu.mobile-menu-open {
+        max-height: calc(100vh - 70px);
+        overflow-y: auto;
     }
 
     .site-menu li {
-        margin-left: 0;
+        margin: 0;
     }
 
-    .role-badge {
-        margin-left: 0;
-        margin-top: 0.5rem;
+    .site-menu a,
+    .site-menu button {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 1rem;
+    }
+
+    .dropdown {
+        position: static;
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        box-shadow: none;
+        margin-left: 1rem;
     }
 }
 </style>
+

@@ -123,10 +123,6 @@
                         <div class="card-header bg-gradient d-flex justify-content-between align-items-center"
                              :class="getHeaderClass(reservation.statut)">
                             <div>
-                                <h6 class="mb-0 fw-bold">
-                                    <i class="fas fa-clipboard-check me-2"></i>
-                                    Réservation #{{ reservation.id }}
-                                </h6>
                                 <small class="opacity-75">
                                     <i class="fas fa-calendar me-1"></i>
                                     {{ formatDate(reservation.created_at) }}
@@ -153,9 +149,9 @@
 
                                 <!-- Informations -->
                                 <div class="col-8">
-                                    <!-- ✅ Indication IMMEUBLE vs BIEN -->
+                                    <!-- Indication IMMEUBLE vs BIEN -->
                                     <div v-if="isImmeuble(reservation)" class="mb-2">
-                                        <span class="badge bg-purple-600 text-white">
+                                        <span class="badge bg-purple text-white">
                                             <i class="fas fa-building me-1"></i>
                                             IMMEUBLE
                                         </span>
@@ -169,7 +165,7 @@
                                         {{ reservation.bien?.city }}
                                     </p>
 
-                                    <!-- ✅ Affichage appartement si immeuble -->
+                                    <!-- Affichage appartement si immeuble -->
                                     <div v-if="reservation.appartement_id && reservation.appartement"
                                          class="alert alert-info border-info mb-2 py-2 px-2 small">
                                         <i class="fas fa-door-open me-1"></i>
@@ -241,39 +237,43 @@
                                 </Link>
 
                                 <!-- Actions conditionnelles -->
+                                <!-- Actions conditionnelles dans la carte de réservation -->
                                 <div class="d-flex gap-2">
-                                    <!-- Bouton paiement si confirmée et non payée -->
+                                    <!-- ✅ CORRECTION 1 : Bouton paiement avec vérification stricte -->
                                     <Link
-                                        v-if="reservation.statut === 'confirmée' && !reservation.deja_payee"
+                                        v-if="reservation.statut === 'confirmée' && !reservation.deja_payee && !reservation.location_existe && !reservation.vente_existe"
                                         :href="route('reservations.initier-paiement', reservation.id)"
                                         class="btn btn-sm btn-success">
                                         <i class="fas fa-credit-card me-1"></i>Payer
                                     </Link>
 
-                                    <!-- Boutons achat/location si payée ET pas encore créée -->
-                                    <template v-if="reservation.statut === 'confirmée' && reservation.deja_payee && reservation.bien?.mandat">
-                                        <!-- Bouton Acheter -->
-                                        <Link
-                                            v-if="reservation.bien.mandat.type_mandat === 'vente' && !reservation.vente_existe"
-                                            :href="route('ventes.create', { reservation_id: reservation.id })"
-                                            class="btn btn-sm btn-success">
-                                            <i class="fas fa-shopping-cart me-1"></i>Finaliser l'achat
-                                        </Link>
-
-                                        <!-- Bouton Louer - ✅ CORRIGÉ pour rediriger vers locations.create -->
-                                        <button
-                                            v-else-if="reservation.bien.mandat.type_mandat === 'gestion_locative' && !reservation.location_existe"
-                                            @click="redirectToLocationCreate(reservation.id)"
-                                            class="btn btn-sm btn-primary">
-                                            <i class="fas fa-key me-1"></i>Finaliser la location
-                                        </button>
-
-                                        <!-- Message si vente/location déjà créée -->
+                                    <!-- ✅ CORRECTION 2 : Messages d'état si transaction en cours -->
+                                    <template v-if="reservation.deja_payee">
+                                        <!-- Si paiement OK mais location/vente existe déjà -->
                                         <span
-                                            v-else-if="reservation.vente_existe || reservation.location_existe"
-                                            class="badge bg-info">
-                                            <i class="fas fa-check me-1"></i>Transaction en cours
-                                        </span>
+                                            v-if="reservation.location_existe || reservation.vente_existe"
+                                            class="badge bg-info d-flex align-items-center">
+            <i class="fas fa-sync fa-spin me-1"></i>Transaction en cours
+        </span>
+
+                                        <!-- Si paiement OK et pas de transaction : afficher boutons action -->
+                                        <template v-else-if="reservation.bien?.mandat">
+                                            <!-- Bouton Finaliser l'achat -->
+                                            <Link
+                                                v-if="reservation.bien.mandat.type_mandat === 'vente'"
+                                                :href="route('ventes.create', { reservation_id: reservation.id })"
+                                                class="btn btn-sm btn-success">
+                                                <i class="fas fa-shopping-cart me-1"></i>Finaliser l'achat
+                                            </Link>
+
+                                            <!-- Bouton Finaliser la location -->
+                                            <button
+                                                v-else-if="reservation.bien.mandat.type_mandat === 'gestion_locative'"
+                                                @click="redirectToLocationCreate(reservation.id)"
+                                                class="btn btn-sm btn-primary">
+                                                <i class="fas fa-key me-1"></i>Finaliser la location
+                                            </button>
+                                        </template>
                                     </template>
 
                                     <!-- Bouton annulation -->
@@ -283,6 +283,32 @@
                                         class="btn btn-sm btn-outline-danger">
                                         <i class="fas fa-times me-1"></i>Annuler
                                     </button>
+                                </div>
+
+                                <!-- ✅ CORRECTION 3 : Messages d'aide contextuel mis à jour -->
+                                <div v-if="reservation.statut === 'en_attente'" class="mt-2">
+                                    <small class="text-muted d-block">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Vos documents sont en cours de vérification (24-48h)
+                                    </small>
+                                </div>
+                                <div v-else-if="reservation.statut === 'confirmée' && !reservation.deja_payee && !reservation.location_existe && !reservation.vente_existe" class="mt-2">
+                                    <small class="text-warning d-block">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                        Documents validés - Procédez au paiement {{ getMontantTypeText(reservation.bien?.mandat?.type_mandat) }}
+                                    </small>
+                                </div>
+                                <div v-else-if="reservation.location_existe || reservation.vente_existe" class="mt-2">
+                                    <small class="text-info d-block">
+                                        <i class="fas fa-check-circle me-1"></i>
+                                        Transaction créée et en cours de finalisation
+                                    </small>
+                                </div>
+                                <div v-else-if="reservation.deja_payee && !reservation.location_existe && !reservation.vente_existe" class="mt-2">
+                                    <small class="text-success d-block">
+                                        <i class="fas fa-check-double me-1"></i>
+                                        Paiement effectué - Cliquez sur le bouton ci-dessus pour continuer
+                                    </small>
                                 </div>
                             </div>
 
@@ -337,13 +363,11 @@ const reservationsFiltrees = computed(() => {
     return props.reservations.filter(r => r.statut === filtreActif.value)
 })
 
-// ✅ Vérifier si la réservation concerne un immeuble d'appartements
 const isImmeuble = (reservation) => {
     return reservation.bien?.category?.name?.toLowerCase() === 'appartement' &&
         reservation.appartement_id !== null
 }
 
-// Fonctions pour les labels selon le type de mandat
 const getMontantLabel = (typeMandat) => {
     if (typeMandat === 'vente') return 'Acompte versé'
     if (typeMandat === 'gestion_locative') return 'Dépôt de garantie'
@@ -365,7 +389,6 @@ const getMontantTypeText = (typeMandat) => {
 const getBienImageUrl = (bien) => {
     if (bien?.images && Array.isArray(bien.images) && bien.images.length > 0) {
         const firstImage = bien.images[0]
-        // Gérer les différents formats de chemin d'image
         if (firstImage.url) return firstImage.url
         if (firstImage.chemin_image) return `/storage/${firstImage.chemin_image}`
         if (firstImage.path) return `/storage/${firstImage.path}`
@@ -456,10 +479,8 @@ const annulerReservation = (id) => {
     }
 }
 
-// ✅ Redirection vers locations.create
 const redirectToLocationCreate = (reservationId) => {
     const url = route('locations.create', { reservation_id: reservationId })
-    console.log('🔗 Redirection vers:', url)
     window.location.href = url
 }
 </script>
@@ -484,7 +505,7 @@ const redirectToLocationCreate = (reservationId) => {
     font-size: 0.8rem;
 }
 
-.bg-purple-600 {
+.bg-purple {
     background-color: #7c3aed !important;
 }
 </style>

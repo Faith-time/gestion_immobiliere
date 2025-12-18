@@ -6,18 +6,16 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use function Termwind\render;
 
 class AuthentificationController extends Controller
 {
-    public function showRegister(): \Inertia\Response|\Inertia\ResponseFactory
+    public function showRegister()
     {
         return inertia('Auth/Register');
     }
 
-    public function register(Request $request): \Symfony\Component\HttpFoundation\Response
+    public function register(Request $request)
     {
         $validateData = $request->validate([
             'name' => 'required|max:255',
@@ -25,31 +23,61 @@ class AuthentificationController extends Controller
             'password' => 'required|min:6|confirmed',
         ]);
 
+        // ✅ Si l'utilisateur était un visiteur, on le supprime
+        if (Auth::check() && Auth::user()->is_guest) {
+            $oldGuest = Auth::user();
+            Auth::logout();
+            $oldGuest->delete();
+        }
+
         $user = User::create([
             'name' => $validateData['name'],
             'email' => $validateData['email'],
             'password' => Hash::make($validateData['password']),
+            'is_guest' => false,
         ]);
+
+        // ✅ Assigner le rôle Client par défaut
+        $user->assignRole('client');
 
         Auth::login($user);
 
         return Inertia::location(route('home'));
     }
 
-    public function showLogin(): \Inertia\Response|\Inertia\ResponseFactory
+    // ✅ MODIFICATION ICI - Passer le message à la vue
+    public function showLogin()
     {
-        return inertia('Auth/Login');
+        return inertia('Auth/Login', [
+            'message' => session('message') // ⬅️ NOUVEAU
+        ]);
     }
 
-    public function login(Request $request): \Symfony\Component\HttpFoundation\Response
+    public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');
 
+        // ✅ Si l'utilisateur était un visiteur, on le supprime
+        if (Auth::check() && Auth::user()->is_guest) {
+            $oldGuest = Auth::user();
+            Auth::logout();
+            $oldGuest->delete();
+        }
+
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
+
+            // ✅ S'assurer que l'utilisateur n'est pas un visiteur
+            if (Auth::user()->is_guest) {
+                Auth::logout();
+                return back()->withErrors([
+                    'email' => 'Erreur d\'authentification.',
+                ]);
+            }
+
             $defaultRoute = route('home');
-            $intendesRoute = redirect()->intended($defaultRoute)->getTargetUrl();
-            return Inertia::Location($intendesRoute);
+            $intendedRoute = redirect()->intended($defaultRoute)->getTargetUrl();
+            return Inertia::Location($intendedRoute);
         }
 
         return back()->withErrors([
@@ -57,13 +85,18 @@ class AuthentificationController extends Controller
         ]);
     }
 
+    public function logout(Request $request)
+    {
+        $wasGuest = Auth::user()->is_guest ?? false;
 
-
-    public function logout(Request $request){
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return inertia('Auth/Login');
-    }
 
+        if ($wasGuest) {
+            return redirect()->route('home');
+        }
+
+        return redirect()->route('login');
+    }
 }

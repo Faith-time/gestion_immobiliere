@@ -164,7 +164,10 @@
                                     <span><i class="fas fa-phone"></i> {{ item.proprietaire.telephone }}</span>
                                 </div>
                             </div>
-                            <Link :href="route('dashboard.proprietaire')" class="btn-details">
+                            <Link
+                                :href="route('dashboard.proprietaire', item.proprietaire.id)"
+                                class="btn-details"
+                            >
                                 Voir détails <i class="fas fa-arrow-right"></i>
                             </Link>
                         </div>

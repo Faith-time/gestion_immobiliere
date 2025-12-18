@@ -87,11 +87,15 @@ class Bien extends Model
         return $this->hasMany(Reservation::class, 'bien_id');
     }
 
+    /**
+     * Relation : Mandat actif (statut = actif)
+     */
     public function mandatActuel()
     {
-        return $this->hasOne(Mandat::class)->where('statut', 'actif');
+        return $this->hasOne(Mandat::class, 'bien_id')
+            ->where('statut', 'actif')
+            ->latest();
     }
-
     public function appartements()
     {
         return $this->hasMany(Appartement::class);
@@ -172,6 +176,17 @@ class Bien extends Model
     public function scopeRejete($query)
     {
         return $query->where('status', 'rejete');
+    }
+
+    /**
+     * Scope pour les biens réellement disponibles (mandat signé)
+     */
+    public function scopeReallyAvailable($query)
+    {
+        return $query->where('status', 'disponible')
+            ->whereHas('mandat', function($q) {
+                $q->where('signature_status', 'entierement_signe');
+            });
     }
 
     public function scopeProprietaire($query, $proprietaireId)
@@ -274,14 +289,6 @@ class Bien extends Model
     }
 
     /**
-     * Vérifie si le bien est un immeuble avec plusieurs appartements
-     */
-    public function isImmeuble()
-    {
-        return $this->appartements()->count() > 1;
-    }
-
-    /**
      * Génère automatiquement les appartements selon le nombre d'étages
      */
     public function genererAppartements()
@@ -338,43 +345,50 @@ class Bien extends Model
     /**
      * Obtenir les statistiques d'occupation pour un bien de type appartement
      */
-    public function getOccupationStats()
+    public function getOccupationStats(): array
     {
-        // Vérifier si c'est un bien de catégorie "Appartement"
-        if (!$this->category || $this->categorie_id !== 4) {
-            return null;
-        }
-
-        $total = $this->appartements()->count();
-
-        if ($total === 0) {
+        // Vérifier si c'est un immeuble avec appartements
+        if (!$this->isImmeuble()) {
             return [
                 'total' => 0,
-                'disponibles' => 0,
                 'loues' => 0,
+                'disponibles' => 0,
                 'reserves' => 0,
-                'maintenance' => 0,
-                'taux_occupation' => 0
+                'taux_occupation' => 0,
             ];
         }
 
-        $disponibles = $this->appartements()->where('statut', 'disponible')->count();
-        $loues = $this->appartements()->where('statut', 'loue')->count();
-        $reserves = $this->appartements()->where('statut', 'reserve')->count();
-        $maintenance = $this->appartements()->where('statut', 'maintenance')->count();
+        // Charger les appartements avec leur statut actuel
+        $appartements = $this->appartements;
 
-        $taux_occupation = $total > 0 ? round(($loues / $total) * 100, 1) : 0;
+        $total = $appartements->count();
+        $loues = $appartements->where('statut', 'loue')->count();
+        $disponibles = $appartements->where('statut', 'disponible')->count();
+        $reserves = $appartements->where('statut', 'reserve')->count();
+
+        $tauxOccupation = $total > 0
+            ? round(($loues / $total) * 100, 1)
+            : 0;
 
         return [
             'total' => $total,
-            'disponibles' => $disponibles,
             'loues' => $loues,
+            'disponibles' => $disponibles,
             'reserves' => $reserves,
-            'maintenance' => $maintenance,
-            'taux_occupation' => $taux_occupation
+            'taux_occupation' => $tauxOccupation,
         ];
     }
 
+    /**
+     * Vérifier si le bien est un immeuble avec appartements
+     * @return bool
+     */
+    public function isImmeuble(): bool
+    {
+        return $this->category &&
+            strtolower($this->category->name) === 'appartement' &&
+            $this->appartements()->count() > 0;
+    }
     /**
      * Mettre à jour le statut global du bien en fonction des appartements
      */

@@ -42,62 +42,14 @@
                 <div class="modal-body">
                     <form @submit.prevent="submitForm">
 
-                        <!-- Étape 1: Informations Personnelles -->
+                        <!-- Étape 1: Informations de Contact -->
                         <div v-show="currentStep === 0" class="form-step">
                             <div class="step-header">
-                                <i class="fas fa-user-circle"></i>
-                                <h3>Informations Personnelles</h3>
+                                <i class="fas fa-phone"></i>
+                                <h3>Informations de Contact</h3>
                             </div>
 
                             <div class="form-grid">
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        <i class="fas fa-user"></i>
-                                        Nom <span class="required">*</span>
-                                    </label>
-                                    <input
-                                        v-model="form.name"
-                                        type="text"
-                                        required
-                                        class="form-input"
-                                        :class="{ 'input-error': form.errors.name }"
-                                        placeholder="Entrez votre nom"
-                                    />
-                                    <span v-if="form.errors.name" class="error-message">{{ form.errors.name }}</span>
-                                </div>
-
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        <i class="fas fa-user"></i>
-                                        Prénom <span class="required">*</span>
-                                    </label>
-                                    <input
-                                        v-model="form.prenom"
-                                        type="text"
-                                        required
-                                        class="form-input"
-                                        :class="{ 'input-error': form.errors.prenom }"
-                                        placeholder="Entrez votre prénom"
-                                    />
-                                    <span v-if="form.errors.prenom" class="error-message">{{ form.errors.prenom }}</span>
-                                </div>
-
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        <i class="fas fa-envelope"></i>
-                                        Email <span class="required">*</span>
-                                    </label>
-                                    <input
-                                        v-model="form.email"
-                                        type="email"
-                                        required
-                                        class="form-input"
-                                        :class="{ 'input-error': form.errors.email }"
-                                        placeholder="exemple@email.com"
-                                    />
-                                    <span v-if="form.errors.email" class="error-message">{{ form.errors.email }}</span>
-                                </div>
-
                                 <div class="form-group">
                                     <label class="form-label">
                                         <i class="fas fa-phone"></i>
@@ -114,56 +66,6 @@
                                     <span v-if="form.errors.telephone" class="error-message">{{ form.errors.telephone }}</span>
                                 </div>
 
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        <i class="fas fa-lock"></i>
-                                        Mot de passe <span class="required">*</span>
-                                    </label>
-                                    <div class="password-input">
-                                        <input
-                                            v-model="form.password"
-                                            :type="showPassword ? 'text' : 'password'"
-                                            required
-                                            class="form-input"
-                                            :class="{ 'input-error': form.errors.password }"
-                                            placeholder="Minimum 8 caractères"
-                                        />
-                                        <button
-                                            type="button"
-                                            @click="showPassword = !showPassword"
-                                            class="password-toggle"
-                                        >
-                                            <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-                                        </button>
-                                    </div>
-                                    <p class="input-hint">Créez un mot de passe sécurisé pour accéder à votre espace client</p>
-                                    <span v-if="form.errors.password" class="error-message">{{ form.errors.password }}</span>
-                                </div>
-
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        <i class="fas fa-lock"></i>
-                                        Confirmer le mot de passe <span class="required">*</span>
-                                    </label>
-                                    <input
-                                        v-model="form.password_confirmation"
-                                        type="password"
-                                        required
-                                        class="form-input"
-                                        placeholder="Retapez votre mot de passe"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Étape 2: Informations Complémentaires -->
-                        <div v-show="currentStep === 1" class="form-step">
-                            <div class="step-header">
-                                <i class="fas fa-id-card"></i>
-                                <h3>Informations Complémentaires</h3>
-                            </div>
-
-                            <div class="form-grid">
                                 <div class="form-group">
                                     <label class="form-label">
                                         <i class="fas fa-briefcase"></i>
@@ -294,86 +196,30 @@
                             </div>
                         </div>
 
-                        <!-- Étape 3: Logement Recherché -->
-                        <div v-show="currentStep === 2" class="form-step">
+                        <!-- Étape 2: Logement Recherché -->
+                        <div v-show="currentStep === 1" class="form-step">
                             <div class="step-header">
                                 <i class="fas fa-home"></i>
                                 <h3>Logement Recherché</h3>
                             </div>
 
-                            <!-- Type de logement -->
+                            <!-- Type de logement - SELECT -->
                             <div class="form-group">
                                 <label class="form-label">
                                     <i class="fas fa-building"></i>
-                                    Type de logement
+                                    Type de logement <span class="required">*</span>
                                 </label>
-                                <div class="checkbox-grid">
-                                    <label class="checkbox-card">
-                                        <input type="checkbox" value="chambre_simple" v-model="form.type_logement" />
-                                        <div class="checkbox-content">
-                                            <i class="fas fa-bed"></i>
-                                            <span>Chambre simple</span>
-                                        </div>
-                                    </label>
-                                    <label class="checkbox-card">
-                                        <input type="checkbox" value="salon" v-model="form.type_logement" />
-                                        <div class="checkbox-content">
-                                            <i class="fas fa-couch"></i>
-                                            <span>Salon</span>
-                                        </div>
-                                    </label>
-                                    <label class="checkbox-card">
-                                        <input type="checkbox" value="studio" v-model="form.type_logement" />
-                                        <div class="checkbox-content">
-                                            <i class="fas fa-door-open"></i>
-                                            <span>Studio</span>
-                                        </div>
-                                    </label>
-                                    <label class="checkbox-card">
-                                        <input type="checkbox" value="2_chambres_salon" v-model="form.type_logement" />
-                                        <div class="checkbox-content">
-                                            <i class="fas fa-home"></i>
-                                            <span>2 Chambres salon</span>
-                                        </div>
-                                    </label>
-                                    <label class="checkbox-card">
-                                        <input type="checkbox" value="3_chambres_salon" v-model="form.type_logement" />
-                                        <div class="checkbox-content">
-                                            <i class="fas fa-house-user"></i>
-                                            <span>3 Chambres Salon</span>
-                                        </div>
-                                    </label>
-                                    <label class="checkbox-card">
-                                        <input type="checkbox" value="4_chambres_salon" v-model="form.type_logement" />
-                                        <div class="checkbox-content">
-                                            <i class="fas fa-city"></i>
-                                            <span>4 Chambres salon</span>
-                                        </div>
-                                    </label>
-                                    <label class="checkbox-card">
-                                        <input type="checkbox" value="magasin" v-model="form.type_logement" />
-                                        <div class="checkbox-content">
-                                            <i class="fas fa-store"></i>
-                                            <span>Magasin</span>
-                                        </div>
-                                    </label>
-                                    <label class="checkbox-card">
-                                        <input type="checkbox" value="autres" v-model="form.type_logement" />
-                                        <div class="checkbox-content">
-                                            <i class="fas fa-ellipsis-h"></i>
-                                            <span>Autres</span>
-                                        </div>
-                                    </label>
-                                </div>
-
-                                <div v-if="form.type_logement.includes('autres')" class="mt-3">
-                                    <input
-                                        v-model="form.type_logement_autres"
-                                        type="text"
-                                        placeholder="Précisez le type de logement..."
-                                        class="form-input"
-                                    />
-                                </div>
+                                <select
+                                    v-model="form.type_logement"
+                                    class="form-select"
+                                    :class="{ 'input-error': form.errors.type_logement }"
+                                    required
+                                >
+                                    <option value="">Sélectionnez un type</option>
+                                    <option value="appartement">Appartement</option>
+                                    <option value="studio">Studio</option>
+                                </select>
+                                <span v-if="form.errors.type_logement" class="error-message">{{ form.errors.type_logement }}</span>
                             </div>
 
                             <!-- Nombre de pièces détaillé -->
@@ -446,20 +292,6 @@
 
                                 <div class="form-group">
                                     <label class="form-label">
-                                        <i class="fas fa-calculator"></i>
-                                        Budget mensuel (FCFA)
-                                    </label>
-                                    <input
-                                        v-model.number="form.budget_mensuel"
-                                        type="number"
-                                        min="0"
-                                        class="form-input"
-                                        placeholder="Ex: 150000"
-                                    />
-                                </div>
-
-                                <div class="form-group">
-                                    <label class="form-label">
                                         <i class="fas fa-calendar-alt"></i>
                                         Date d'entrée souhaitée
                                     </label>
@@ -472,8 +304,8 @@
                             </div>
                         </div>
 
-                        <!-- Étape 4: Documents -->
-                        <div v-show="currentStep === 3" class="form-step">
+                        <!-- Étape 3: Documents -->
+                        <div v-show="currentStep === 2" class="form-step">
                             <div class="step-header">
                                 <i class="fas fa-file-upload"></i>
                                 <h3>Pièces à Fournir</h3>
@@ -482,37 +314,89 @@
                             <div class="documents-section">
                                 <p class="documents-intro">
                                     <i class="fas fa-info-circle"></i>
-                                    Cochez les documents que vous pouvez fournir
+                                    Téléchargez les documents nécessaires (formats acceptés: PDF, JPG, PNG - max 5Mo)
                                 </p>
 
                                 <div class="document-cards">
-                                    <label class="document-card">
-                                        <input type="checkbox" v-model="form.carte_identite" />
-                                        <div class="document-content">
+                                    <!-- Carte d'identité - REQUIS -->
+                                    <div class="document-card required-doc">
+                                        <div class="document-header">
                                             <i class="fas fa-id-card"></i>
                                             <div>
-                                                <h4>Carte d'identité</h4>
-                                                <p>CNI ou Passeport (photocopie)</p>
-                                            </div>
-                                            <div class="checkmark">
-                                                <i class="fas fa-check"></i>
+                                                <h4>Carte d'identité <span class="required">*</span></h4>
+                                                <p>CNI ou Passeport (photocopie) - Obligatoire</p>
                                             </div>
                                         </div>
-                                    </label>
 
-                                    <label class="document-card">
-                                        <input type="checkbox" v-model="form.dernier_recu_loyer" />
-                                        <div class="document-content">
+                                        <input
+                                            type="file"
+                                            ref="carteIdentiteInput"
+                                            @change="handleCarteIdentiteUpload"
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            class="file-input"
+                                        />
+
+                                        <button
+                                            type="button"
+                                            @click="$refs.carteIdentiteInput.click()"
+                                            class="upload-button"
+                                        >
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                            {{ carteIdentiteFileName || 'Choisir un fichier' }}
+                                        </button>
+
+                                        <div v-if="carteIdentiteFileName" class="file-preview">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>{{ carteIdentiteFileName }}</span>
+                                            <button
+                                                type="button"
+                                                @click="removeCarteIdentite"
+                                                class="remove-file"
+                                            >
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Dernière quittance / Reçu de paiement - OPTIONNEL -->
+                                    <div class="document-card">
+                                        <div class="document-header">
                                             <i class="fas fa-receipt"></i>
                                             <div>
-                                                <h4>Dernier reçu de loyer</h4>
-                                                <p>Si vous êtes locataire actuellement</p>
-                                            </div>
-                                            <div class="checkmark">
-                                                <i class="fas fa-check"></i>
+                                                <h4>Dernier reçu de paiement <span class="optional-badge">Optionnel</span></h4>
+                                                <p>Dernière quittance de loyer ou reçu de paiement si vous en avez</p>
                                             </div>
                                         </div>
-                                    </label>
+
+                                        <input
+                                            type="file"
+                                            ref="derniereQuittanceInput"
+                                            @change="handleDerniereQuittanceUpload"
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            class="file-input"
+                                        />
+
+                                        <button
+                                            type="button"
+                                            @click="$refs.derniereQuittanceInput.click()"
+                                            class="upload-button secondary"
+                                        >
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                            {{ derniereQuittanceFileName || 'Choisir un fichier (optionnel)' }}
+                                        </button>
+
+                                        <div v-if="derniereQuittanceFileName" class="file-preview">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>{{ derniereQuittanceFileName }}</span>
+                                            <button
+                                                type="button"
+                                                @click="removeDerniereQuittance"
+                                                class="remove-file"
+                                            >
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="success-message">
@@ -564,7 +448,7 @@
                         v-else
                         type="button"
                         @click="submitForm"
-                        :disabled="form.processing"
+                        :disabled="form.processing || !canSubmit"
                         class="btn-submit"
                     >
                         <i class="fas fa-paper-plane"></i>
@@ -586,17 +470,17 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'success']);
 
-const steps = ['Infos Personnelles', 'Infos Complémentaires', 'Logement', 'Documents'];
+const steps = ['Contact & Profil', 'Logement Recherché', 'Documents'];
 const currentStep = ref(0);
-const showPassword = ref(false);
+
+// Références pour les fichiers
+const carteIdentiteInput = ref(null);
+const derniereQuittanceInput = ref(null);
+const carteIdentiteFileName = ref('');
+const derniereQuittanceFileName = ref('');
 
 const form = useForm({
-    name: '',
-    prenom: '',
-    email: '',
     telephone: '',
-    password: '',
-    password_confirmation: '',
     profession: '',
     numero_cni: '',
     personne_contact: '',
@@ -604,17 +488,15 @@ const form = useForm({
     revenus_mensuels: null,
     nombre_personnes: null,
     situation_familiale: null,
-    type_logement: [],
-    type_logement_autres: '',
+    type_logement: '', // Changé de array à string pour le select
     nbchambres: null,
     nbsalons: null,
     nbcuisines: null,
     nbsalledebains: null,
     quartier_souhaite: '',
-    budget_mensuel: null,
     date_entree_souhaitee: '',
-    carte_identite: false,
-    dernier_recu_loyer: false,
+    carte_identite: null,
+    derniere_quittance: null,
 });
 
 const currentDate = computed(() => {
@@ -630,10 +512,48 @@ const progressPercentage = computed(() => {
     return ((currentStep.value + 1) / steps.length) * 100;
 });
 
+const canSubmit = computed(() => {
+    return form.telephone && form.carte_identite && form.type_logement;
+});
+
+const handleCarteIdentiteUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        form.carte_identite = file;
+        carteIdentiteFileName.value = file.name;
+    }
+};
+
+const handleDerniereQuittanceUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        form.derniere_quittance = file;
+        derniereQuittanceFileName.value = file.name;
+    }
+};
+
+const removeCarteIdentite = () => {
+    form.carte_identite = null;
+    carteIdentiteFileName.value = '';
+    if (carteIdentiteInput.value) {
+        carteIdentiteInput.value.value = '';
+    }
+};
+
+const removeDerniereQuittance = () => {
+    form.derniere_quittance = null;
+    derniereQuittanceFileName.value = '';
+    if (derniereQuittanceInput.value) {
+        derniereQuittanceInput.value.value = '';
+    }
+};
+
 const closeModal = () => {
     emit('close');
     currentStep.value = 0;
     form.reset();
+    removeCarteIdentite();
+    removeDerniereQuittance();
 };
 
 const nextStep = () => {
@@ -649,6 +569,10 @@ const previousStep = () => {
 };
 
 const submitForm = () => {
+    if (!canSubmit.value) {
+        return;
+    }
+
     form.post(route('client-dossiers.store'), {
         onSuccess: () => {
             emit('success');
@@ -662,6 +586,135 @@ const submitForm = () => {
 </script>
 
 <style scoped>
+/* Styles existants conservés */
+.documents-section {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.documents-intro {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    padding: 16px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    color: #1e40af;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.documents-intro i {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.document-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.document-card {
+    padding: 24px;
+    border: 2px solid #e5e7eb;
+    border-radius: 16px;
+    background: white;
+    transition: all 0.3s;
+}
+
+.document-card.required-doc {
+    border-color: #fbbf24;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.document-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.document-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.document-header > i {
+    font-size: 32px;
+    color: #667eea;
+    width: 50px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.document-header > div h4 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 4px 0;
+}
+
+.document-header > div p {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.remove-file {
+    width: 32px;
+    height: 32px;
+    background: rgba(239, 68, 68, 0.1);
+    border: none;
+    border-radius: 8px;
+    color: #dc2626;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.remove-file:hover {
+    background: #dc2626;
+    color: white;
+    transform: scale(1.1);
+}
+
+.success-message {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    padding: 20px;
+    border-radius: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    border: 2px solid #10b981;
+}
+
+.success-message > i {
+    font-size: 28px;
+    color: #059669;
+    flex-shrink: 0;
+}
+
+.success-message h4 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #065f46;
+    margin: 0 0 8px 0;
+}
+
+.success-message p {
+    font-size: 14px;
+    color: #047857;
+    margin: 0;
+    line-height: 1.6;
+}
+
 .modal-overlay {
     position: fixed;
     inset: 0;
@@ -901,7 +954,8 @@ const submitForm = () => {
     color: #ef4444;
 }
 
-.form-input {
+.form-input,
+.form-select {
     padding: 12px 16px;
     border: 2px solid #e5e7eb;
     border-radius: 12px;
@@ -910,7 +964,8 @@ const submitForm = () => {
     background: white;
 }
 
-.form-input:focus {
+.form-input:focus,
+.form-select:focus {
     outline: none;
     border-color: #667eea;
     box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
@@ -918,33 +973,6 @@ const submitForm = () => {
 
 .input-error {
     border-color: #ef4444 !important;
-}
-
-.password-input {
-    position: relative;
-}
-
-.password-toggle {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: #6b7280;
-    cursor: pointer;
-    font-size: 18px;
-    transition: color 0.3s;
-}
-
-.password-toggle:hover {
-    color: #667eea;
-}
-
-.input-hint {
-    font-size: 12px;
-    color: #6b7280;
-    margin: 0;
 }
 
 .error-message {
@@ -1014,191 +1042,64 @@ const submitForm = () => {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
 }
 
-.checkbox-grid {
+.pieces-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
 }
 
-.checkbox-card {
-    position: relative;
-    cursor: pointer;
-}
-
-.checkbox-card input[type="checkbox"] {
-    position: absolute;
-    opacity: 0;
-}
-
-.checkbox-content {
-    padding: 16px;
-    border: 2px solid #e5e7eb;
-    border-radius: 12px;
-    text-align: center;
-    transition: all 0.3s;
+.piece-card {
     background: white;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    height: 100%;
-}
-
-.checkbox-content i {
-    font-size: 28px;
-    color: #667eea;
-}
-
-.checkbox-content span {
-    font-size: 13px;
-    font-weight: 500;
-    color: #374151;
-}
-
-.checkbox-card input:checked + .checkbox-content {
-    border-color: #667eea;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-}
-
-.documents-section {
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.documents-intro {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    padding: 16px 20px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 24px;
-    color: #1e40af;
-    font-weight: 500;
-}
-
-.documents-intro i {
-    font-size: 20px;
-}
-
-.document-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
-.document-card {
-    cursor: pointer;
-    display: block;
-}
-
-.document-card input[type="checkbox"] {
-    display: none;
-}
-
-.document-content {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 20px;
     border: 2px solid #e5e7eb;
     border-radius: 16px;
-    background: white;
+    padding: 20px;
+    text-align: center;
     transition: all 0.3s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
 }
 
-.document-content > i {
+.piece-card:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.piece-card > i {
     font-size: 32px;
     color: #667eea;
-    width: 50px;
+}
+
+.piece-card > label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+}
+
+.piece-input {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
     text-align: center;
-}
-
-.document-content > div:nth-child(2) {
-    flex: 1;
-}
-
-.document-content h4 {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
     color: #1f2937;
-    margin: 0 0 4px 0;
-}
-
-.document-content p {
-    font-size: 13px;
-    color: #6b7280;
-    margin: 0;
-}
-
-.checkmark {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: #e5e7eb;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     transition: all 0.3s;
-    flex-shrink: 0;
 }
 
-.checkmark i {
-    font-size: 16px;
-    color: white;
-    opacity: 0;
-    transition: opacity 0.3s;
+.piece-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.document-card input:checked + .document-content {
-    border-color: #10b981;
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.05) 100%);
-}
-
-.document-card input:checked + .document-content .checkmark {
-    background: #10b981;
-}
-
-.document-card input:checked + .document-content .checkmark i {
-    opacity: 1;
-}
-
-.document-card:hover .document-content {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.success-message {
-    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-    padding: 20px;
-    border-radius: 16px;
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-    border: 2px solid #10b981;
-}
-
-.success-message > i {
-    font-size: 28px;
-    color: #059669;
-    flex-shrink: 0;
-}
-
-.success-message h4 {
-    font-size: 18px;
-    font-weight: 700;
-    color: #065f46;
-    margin: 0 0 8px 0;
-}
-
-.success-message p {
-    font-size: 14px;
-    color: #047857;
-    margin: 0;
-    line-height: 1.6;
+.piece-input::placeholder {
+    color: #9ca3af;
+    font-weight: 400;
 }
 
 .modal-footer {
@@ -1335,8 +1236,7 @@ const submitForm = () => {
         font-size: 10px;
     }
 
-    .radio-grid,
-    .checkbox-grid {
+    .radio-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 
@@ -1367,65 +1267,87 @@ const submitForm = () => {
     background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
 }
 
-/* Styles pour les pièces */
-.pieces-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 16px;
+.optional-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    background: #dbeafe;
+    color: #1e40af;
+    border-radius: 6px;
+    font-weight: 500;
 }
 
-.piece-card {
-    background: white;
-    border: 2px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 20px;
-    text-align: center;
+.file-input {
+    display: none;
+}
+
+.upload-button {
+    width: 100%;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
     transition: all 0.3s;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.upload-button.secondary {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+}
+
+.upload-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.upload-button.secondary:hover {
+    box-shadow: 0 6px 16px rgba(107, 114, 128, 0.4);
+}
+
+.upload-button i {
+    font-size: 18px;
+}
+
+.file-preview {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    border: 2px solid #10b981;
+    border-radius: 10px;
+    display: flex;
     align-items: center;
     gap: 12px;
+    animation: slideIn 0.3s ease;
 }
 
-.piece-card:hover {
-    border-color: #667eea;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.piece-card > i {
-    font-size: 32px;
-    color: #667eea;
+.file-preview > i {
+    font-size: 20px;
+    color: #059669;
+    flex-shrink: 0;
 }
 
-.piece-card > label {
+.file-preview span {
+    flex: 1;
     font-size: 14px;
-    font-weight: 600;
-    color: #374151;
-    margin: 0;
+    font-weight: 500;
+    color: #065f46;
+    word-break: break-all;
 }
-
-.piece-input {
-    width: 100%;
-    padding: 10px;
-    border: 2px solid #e5e7eb;
-    border-radius: 10px;
-    text-align: center;
-    font-size: 18px;
-    font-weight: 600;
-    color: #1f2937;
-    transition: all 0.3s;
-}
-
-.piece-input:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.piece-input::placeholder {
-    color: #9ca3af;
-    font-weight: 400;
-}
-
 </style>

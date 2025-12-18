@@ -3,63 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bail Commercial</title>
+    <title>Contrat de Location à Usage Commercial</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 20px;
-            line-height: 1.6;
-            color: #333;
-            font-size: 12px;
+            line-height: 1.4;
+            color: #000;
+            font-size: 11px;
         }
         .header {
             text-align: center;
+            margin-bottom: 20px;
             border-bottom: 2px solid #000;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            padding-bottom: 15px;
         }
         .header h1 {
-            font-size: 18px;
-            margin: 0;
+            font-size: 16px;
+            margin: 5px 0;
             text-transform: uppercase;
             font-weight: bold;
         }
-        .partie {
-            margin: 20px 0;
-            padding: 10px;
-            background: #f8f9fa;
-            border-left: 4px solid #ffc107;
+        .header-info {
+            font-size: 10px;
+            margin: 3px 0;
         }
-        .partie h3 {
-            margin: 0 0 10px 0;
-            font-size: 14px;
+        .contrat-numero {
+            text-align: right;
+            margin-bottom: 15px;
             font-weight: bold;
         }
+        .section {
+            margin: 15px 0;
+        }
+        .section-title {
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .partie-box {
+            border: 1px solid #000;
+            padding: 10px;
+            margin: 10px 0;
+            background: #f9f9f9;
+        }
+        .info-line {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        .info-label {
+            font-weight: bold;
+            width: 40%;
+        }
+        .info-value {
+            width: 58%;
+        }
         .article {
-            margin: 20px 0;
+            margin: 12px 0;
         }
         .article-title {
             font-weight: bold;
-            font-size: 13px;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
         }
         .article-content {
-            margin-left: 15px;
             text-align: justify;
+            margin-left: 10px;
         }
-        .bien-details {
-            background: #f0f0f0;
+        .note-box {
+            border: 2px solid #000;
             padding: 10px;
-            margin: 8px 0;
-            border-radius: 3px;
+            margin: 15px 0;
+            background: #ffffcc;
         }
-        .prix {
-            font-weight: bold;
-            color: #ffc107;
+        .note-box strong {
+            text-decoration: underline;
         }
         .signatures {
-            margin-top: 40px;
+            margin-top: 30px;
             width: 100%;
         }
         .signatures table {
@@ -73,27 +96,24 @@
             padding: 10px;
         }
         .signature-box {
-            border: 1px solid #ddd;
-            min-height: 120px;
+            border: 1px solid #000;
+            min-height: 100px;
             position: relative;
-            background: #fafafa;
+            background: #fff;
             padding: 5px;
         }
         .signature-image {
-            max-width: 200px;
-            max-height: 80px;
+            max-width: 180px;
+            max-height: 70px;
             object-fit: contain;
             display: block;
             margin: 10px auto;
-            border: 1px solid #ddd;
-            background: white;
         }
         .signature-placeholder {
-            color: #999;
+            color: #666;
             font-style: italic;
-            padding: 40px 10px;
+            padding: 35px 10px;
             text-align: center;
-            line-height: 1.4;
         }
         .signature-info {
             position: absolute;
@@ -101,289 +121,336 @@
             left: 0;
             right: 0;
             text-align: center;
-            font-size: 10px;
-            color: #666;
-        }
-        .signature-date {
             font-size: 9px;
-            color: #666;
-            margin-top: 3px;
-        }
-        .date-lieu {
-            text-align: right;
-            margin: 25px 0;
-            font-style: italic;
         }
         .footer {
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 1px solid #ccc;
-            font-size: 10px;
-            color: #666;
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #000;
+            font-size: 9px;
             text-align: center;
         }
-        .text-center {
-            text-align: center;
+        ul {
+            margin: 5px 0;
+            padding-left: 20px;
         }
-        .signature-status {
-            margin: 20px 0;
-            padding: 15px;
-            border-radius: 5px;
-            text-align: center;
-            font-weight: bold;
-        }
-        .signature-status.fully-signed {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-        }
-        .signature-status.partially-signed {
-            background: #fff3cd;
-            border: 1px solid #ffeeba;
-            color: #856404;
-        }
-        .signature-status.not-signed {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-        }
-        .note-importante {
-            background: #fff3cd;
-            padding: 15px;
-            margin: 10px 0;
-            border-left: 4px solid #ffc107;
-            font-weight: bold;
+        li {
+            margin: 3px 0;
         }
     </style>
 </head>
 <body>
 <div class="header">
-    <h1>BAIL COMMERCIAL (3-6-9 ANS)</h1>
-    @if(isset($signature_status))
-        <div class="signature-status {{ $signature_status === 'entierement_signe' ? 'fully-signed' : ($signature_status === 'partiellement_signe' ? 'partially-signed' : 'not-signed') }}">
-            @if($signature_status === 'entierement_signe')
-                ✓ DOCUMENT ENTIÈREMENT SIGNÉ
-            @elseif($signature_status === 'partiellement_signe')
-                ⚠ DOCUMENT PARTIELLEMENT SIGNÉ
-            @else
-                ⚠ DOCUMENT NON SIGNÉ
-            @endif
+    <h1>CAURIS IMMOBILIER</h1>
+    <div class="header-info">RC : SN.DKR.2009.A.11649 - NINEA : 009017189</div>
+    <div class="header-info">TEL : 77 448 32 28 / 77 516 72 28 / 76 785 98 48</div>
+    <div class="header-info">EMAIL : caurisimmobiliere@gmail.com</div>
+    <div class="header-info">ADRESSE : Keur Massar Rond Point Jaxaay P.A.U 14</div>
+</div>
+
+<div class="contrat-numero">
+    Contrat N°: {{ 'C' . str_pad($location->id, 4, '0', STR_PAD_LEFT) }}
+</div>
+
+<h2 style="text-align: center; text-decoration: underline; margin: 20px 0;">
+    CONTRAT DE LOCATION A USAGE COMMERCIAL
+</h2>
+
+<div class="section-title" style="text-align: center; margin: 20px 0;">ENTRE LES SOUSSIGNÉS</div>
+
+<div class="partie-box">
+    <div style="font-weight: bold; margin-bottom: 10px;">M/Mme/Mlle {{ $bailleur->name }}</div>
+    <div style="margin-bottom: 10px;">représenté par Cauris Immo</div>
+</div>
+
+<div style="text-align: center; margin: 15px 0; font-weight: bold;">ET</div>
+
+<div class="partie-box">
+    <div style="font-weight: bold; margin-bottom: 10px;">M/Mme/Mlle {{ $locataire->name }}</div>
+    @php
+        $dossier = \App\Models\ClientDossier::where('client_id', $locataire->id)->first();
+    @endphp
+    <div class="info-line">
+        <span class="info-label">Numéro CNI :</span>
+        <span class="info-value">{{ $dossier->numero_cni ?? 'N/A' }}</span>
+    </div>
+    <div class="info-line">
+        <span class="info-label">Situation Matrimoniale :</span>
+        <span class="info-value">{{ $dossier ? ($dossier->situation_familiale == 'marie' ? 'MARIÉ(E)' : 'CÉLIBATAIRE') : 'N/A' }}</span>
+    </div>
+    <div class="info-line">
+        <span class="info-label">TEL :</span>
+        <span class="info-value">{{ $locataire->telephone ?? 'N/A' }}</span>
+    </div>
+    <div class="info-line">
+        <span class="info-label">Profession :</span>
+        <span class="info-value">{{ $dossier->profession ?? 'COMMERÇANT' }}</span>
+    </div>
+    <div class="info-line">
+        <span class="info-label">WHATSAPP :</span>
+        <span class="info-value">{{ $locataire->telephone ?? 'N/A' }}</span>
+    </div>
+    @if($dossier && $dossier->derniere_quittance_path)
+        <div class="info-line">
+            <span class="info-label">Dernière quittance de loyer :</span>
+            <span class="info-value">Fournie</span>
         </div>
     @endif
-</div>
-
-<div class="partie">
-    <h3>Le Bailleur :</h3>
-    <p><strong>{{ $bailleur->name }}</strong>, propriétaire du bien situé au {{ $bien->address }}, {{ $bien->city }}</p>
-</div>
-
-<div class="partie">
-    <h3>Le Locataire (Locataire Commercial) :</h3>
-    <p><strong>{{ $locataire->name }}</strong>, domicilié {{ $locataire->email }}</p>
-</div>
-
-<div class="partie">
-    <h3>L'Agence Immobilière :</h3>
-    <p><strong>{{ $agence['nom'] }}</strong>, {{ $agence['adresse'] }}, {{ $agence['ville'] }}, représentée par {{ $agence['representant'] }}</p>
-</div>
-
-<div class="text-center" style="margin: 25px 0; font-weight: bold; font-size: 14px;">
-    IL A ÉTÉ CONVENU CE QUI SUIT :
-</div>
-
-<div class="article">
-    <div class="article-title">Article 1 – Objet du contrat</div>
-    <div class="article-content">
-        Le présent bail commercial porte sur la location d'un local à usage commercial, industriel ou artisanal. Le preneur déclare vouloir exploiter dans les lieux un fonds de commerce et s'engage à exercer son activité conformément à la réglementation en vigueur.
+    <div class="info-line">
+        <span class="info-label">ADRESSE :</span>
+        <span class="info-value">{{ $bien->address }}, {{ $bien->city }}</span>
     </div>
-</div>
-
-<div class="article">
-    <div class="article-title">Article 2 – Désignation des locaux</div>
-    <div class="article-content">
-        <div class="bien-details">
-            <strong>{{ $bien->title }}</strong><br>
-            Superficie : {{ number_format($bien->superficy, 0, ',', ' ') }} m²<br>
-            Nombre de pièces : {{ $bien->rooms }}<br>
-            @if($bien->floors) Nombre d'étages : {{ $bien->floors }}<br> @endif
-            Adresse : {{ $bien->address }}, {{ $bien->city }}<br>
-            @if($bien->description) Description : {{ $bien->description }} @endif
+    @if($dossier && $dossier->personne_contact)
+        <div class="info-line">
+            <span class="info-label">En cas de force majeure, contacter :</span>
+            <span class="info-value">{{ $dossier->personne_contact }}</span>
         </div>
-        <div class="note-importante">
-            Note : Les locaux sont loués pour l'exploitation d'une activité commerciale, industrielle ou artisanale uniquement.
+        <div class="info-line">
+            <span class="info-label">Téléphone :</span>
+            <span class="info-value">{{ $dossier->telephone_contact }}</span>
         </div>
+    @endif
+    <div class="info-line">
+        <span class="info-label">RÉFÉRENCE :</span>
+        <span class="info-value">{{ $dossier->personne_contact ?? 'LUI-MÊME' }}</span>
     </div>
 </div>
 
-<div class="article">
-    <div class="article-title">Article 3 – Destination des locaux</div>
-    <div class="article-content">
-        Les locaux sont exclusivement destinés à l'exercice d'une activité commerciale, industrielle ou artisanale. Le preneur s'interdit formellement d'affecter les lieux à usage d'habitation. Toute modification de la destination des locaux devra faire l'objet d'un accord écrit préalable du bailleur et respecter les réglementations d'urbanisme en vigueur.
-    </div>
+<div class="note-box">
+    <strong>NB :</strong><br>
+    **La caution ne sera restituée au locataire qu'après le règlement de tous les arriérés de loyer et la remise
+    en état des lieux.<br><br>
+    A la signature du présent contrat, une caution de garantie équivalente à <strong>01 (un) mois</strong> et
+    <strong>01 mois d'avance de loyer</strong> seront versés par le preneur au bailleur.<br><br>
+    La caution couvre les garanties suivantes :<br>
+    - Eventuelles dégradations du bien immobilier<br>
+    - Eventuels arriérés de loyer<br>
+    - Production des comptes clôturés des abonnements SENELEC, SONATEL et SDE<br><br>
+    A défaut il sera prélevé sur ladite caution les sommes correspondantes aux frais de remise en état des lieux,
+    ainsi que le montant des factures d'eau, d'électricité et de téléphone non réglé. Il demeure bien entendu que
+    ces formalités de remise en état et réalisation des travaux devront être effectuées pendant la période du préavis.
 </div>
 
-<div class="article">
-    <div class="article-title">Article 4 – Durée du bail (Bail 3-6-9 ans)</div>
+<div class="section">
+    <div class="article-title">LES DÉSIGNATIONS</div>
     <div class="article-content">
-        Le bail est conclu pour une durée ferme de <strong>9 ans</strong>, du {{ \Carbon\Carbon::parse($location->date_debut)->format('d/m/Y') }}
-        au {{ \Carbon\Carbon::parse($location->date_fin)->format('d/m/Y') }}.
+        Le bailleur {{ $bailleur->name }} donne en location à {{ $locataire->name }} les lieux à usage exclusivement
+        <strong>commerciale</strong>, qui les accepte comme tels : <strong>{{ strtoupper($bien->title) }}</strong>.<br><br>
+        Situé à : {{ $bien->address }}, {{ $bien->city }}<br>
+        Superficie : {{ number_format($bien->superficy, 0, ',', ' ') }} m²<br>
+        Composition : {{ $bien->rooms }} pièce(s)
+        @if($bien->description)
+            <br>Description : {{ $bien->description }}
+        @endif
         <br><br>
-        <strong>Faculté de résiliation triennale :</strong>
-        <ul style="margin-left: 20px; margin-top: 8px;">
-            <li>Le preneur dispose d'une faculté de résiliation à l'expiration de chaque période triennale (à 3, 6 ou 9 ans)</li>
-            <li>Cette faculté doit être exercée par acte d'huissier ou lettre recommandée avec AR</li>
-            <li>Le préavis est de 6 mois avant l'échéance triennale</li>
-            <li>Le bailleur ne peut résilier qu'à l'expiration des 9 ans, sauf motif grave et légitime</li>
-        </ul>
-        <br>
-        À l'expiration du bail, celui-ci sera renouvelé par tacite reconduction pour une période de 9 ans, sauf congé donné dans les formes et délais légaux.
+        Un état des lieux sera fait contradictoirement avec le preneur lors de la prise de possession des lieux.
+    </div>
+</div>
+
+<div class="section">
+    <div class="article-title">I. LOYER</div>
+    <div class="article-content">
+        La présente location est acceptée et consentie sur la base d'un rapport de surface corrigée moyennant un
+        loyer mensuel de <strong>{{ number_format($location->loyer_mensuel, 0, ',', ' ') }} FCFA TTC</strong> par mois,
+        payable par terme à échoir et d'avance au plus tard le <strong>05 de chaque mois</strong>.<br><br>
+        Une pénalité de <strong>cinq pour cent (05%)</strong> sur le loyer sera versée par le preneur en cas de retard
+        de paiement c'est à dire après le 05 de chaque mois.<br><br>
+        Tout mois entamé par le preneur est dû dans son intégralité.<br><br>
+        Le loyer est portable et non quérable dans les bureaux de Cauris Immo : sis à Keur Massar/Jaxaay-Parcelles
+        unité 14 Villa N° 31 à l'angle Ouest du grand Rond-point.
+    </div>
+</div>
+
+<div class="section">
+    <div class="article-title">II. CAUTION</div>
+    <div class="article-content">
+        Montant total de la caution et premier mois :
+        <strong>{{ number_format($location->loyer_mensuel * 2, 0, ',', ' ') }} FCFA</strong>
+    </div>
+</div>
+
+<div class="section">
+    <div class="article-title">III. DURÉE</div>
+    <div class="article-content">
+        Le présent bail à usage commercial commence à compter de sa date de signature
+        ({{ \Carbon\Carbon::parse($location->date_debut)->format('d/m/Y') }}) et est consenti pour une période de
+        <strong>{{ \Carbon\Carbon::parse($location->date_debut)->diffInMonths($location->date_fin) }} mois</strong>,
+        soit jusqu'au <strong>{{ \Carbon\Carbon::parse($location->date_fin)->format('d/m/Y') }}</strong>,
+        renouvelable par tacite reconduction.
+    </div>
+</div>
+
+<div class="section">
+    <div class="article-title">IV. CHARGES ET CONDITIONS</div>
+    <div class="article-content">
+        Le présent bail est accepté aux charges et conditions ordinaires de droits ci-après :
     </div>
 </div>
 
 <div class="article">
-    <div class="article-title">Article 5 – Loyer et révision</div>
+    <div class="article-title">Article 1 : TENUE DES LOCAUX</div>
     <div class="article-content">
-        Le loyer annuel hors taxes et hors charges est fixé à <span class="prix">{{ number_format($location->loyer_mensuel * 12, 0, ',', ' ') }} FCFA</span>,
-        soit <span class="prix">{{ number_format($location->loyer_mensuel, 0, ',', ' ') }} FCFA</span> par mois.
-        <br><br>
-        Le loyer est payable trimestriellement à terme échu, par virement bancaire ou chèque, au domicile du bailleur ou en tout autre lieu qui pourrait être indiqué ultérieurement.
-        <br><br>
-        <strong>Révision du loyer :</strong> Le loyer sera révisé annuellement à la date anniversaire du contrat, en fonction de la variation de l'indice trimestriel des loyers commerciaux (ILC) ou de l'indice trimestriel des loyers des activités tertiaires (ILAT) publié par l'Institut National de la Statistique.
+        1/ Le preneur reconnaît par la présente, prendre les lieux loués en bon état locatif et s'engage en conséquence
+        à les rendre au moment de son départ, en parfait état d'entretien. Il s'engage formellement à acquitter exactement,
+        pendant toute la durée de son occupation du paiement des loyers tout taxes comprises et de l'exécution des
+        conditions de bail.<br><br>
+        2/ Le preneur veille à ne pas troubler la jouissance paisible des voisins par le bruit, la fumée ou autrement
+        de fait ou du fait de ses ayants-droits ou de ses préposés.<br><br>
+        3/ Le preneur s'engage à assurer ses biens, des risques locatifs, d'incendies et de vol d'objet de valeur ou
+        autre et à faire recours aux services d'une compagnie d'assurance accréditée au Sénégal, faute de quoi toute
+        responsabilité du bailleur est dégagée en cas d'avènement de tout événement malheureux. C'est pourquoi elle
+        conseille fortement au locataire de souscrire à une compagnie d'assurance habilitée afin d'être couvert au besoin.<br><br>
+        4/ Le preneur ne pourra faire aucun aménagement, aucune transformation ou modification dans la disposition des
+        locaux sans l'autorisation expresse préalable du bailleur. Tout embellissement, aménagement, amélioration des
+        locaux appartiendront de plein droit au bailleur en fin de contrat. Il peut arriver des cas où les deux parties
+        conviennent par un accord écrit et signé que des travaux non locatifs soient financés par le locataire. Ces frais
+        supportés par le locataire seront imputés au loyer de chaque mois jusqu'à l'épuisement total de la dette vis-à-vis
+        du locataire.
     </div>
 </div>
 
 <div class="article">
-    <div class="article-title">Article 6 – Dépôt de garantie</div>
+    <div class="article-title">Article 2 : SOUS-LOCATION ET CESSION</div>
     <div class="article-content">
-        Un dépôt de garantie de <span class="prix">{{ number_format($location->loyer_mensuel * 3, 0, ',', ' ') }} FCFA</span> (équivalent à 3 mois de loyer) a été versé par le preneur lors de la signature du bail. Ce dépôt sera restitué dans un délai de 3 mois après la fin du bail, déduction faite des sommes éventuellement dues et des dégradations constatées.
+        Par ailleurs le preneur ne peut céder ou sous-louer en tout ou partie, sans l'autorisation formelle et par
+        écrit de l'agence sous peine de résiliation du contrat.
     </div>
 </div>
 
 <div class="article">
-    <div class="article-title">Article 7 – Charges et taxes</div>
+    <div class="article-title">Article 3 : HYGIÈNE</div>
     <div class="article-content">
-        Le preneur supportera en sus du loyer :
-        <ul style="margin-left: 20px; margin-top: 8px;">
-            <li>Les charges locatives (eau, électricité, chauffage, entretien des parties communes)</li>
-            <li>La taxe d'enlèvement des ordures ménagères</li>
-            <li>La taxe professionnelle et tous impôts commerciaux liés à son activité</li>
-            <li>Les primes d'assurance pour ses risques locatifs et son activité</li>
-            <li>L'entretien courant et les menues réparations des locaux</li>
-        </ul>
+        Pour maintenir une bonne hygiène de vie, l'élevage ou la détention d'animaux domestiques ou sauvages est
+        formellement interdit.
     </div>
 </div>
 
 <div class="article">
-    <div class="article-title">Article 8 – Travaux et aménagements</div>
+    <div class="article-title">Article 4 : OBLIGATIONS FISCALES</div>
     <div class="article-content">
-        <strong>Par le preneur :</strong> Le preneur peut réaliser, à ses frais, les aménagements nécessaires à l'exercice de son activité, sous réserve de l'autorisation écrite du bailleur pour les travaux affectant la structure ou l'aspect extérieur du bâtiment.
-        <br><br>
-        <strong>Par le bailleur :</strong> Le bailleur s'engage à effectuer les grosses réparations et les travaux de mise en conformité avec les normes de sécurité et d'accessibilité en vigueur.
+        Le preneur satisfera à toutes les prescriptions des services de police de voierie et d'hygiène, afin que le
+        bailleur ne soit nullement inquiété à ce sujet.<br><br>
+        Il versera exactement les contributions, taxes et patentes et tout autre impôt pouvant exister ou être établi,
+        à raison d'occupation des lieux loués à l'agence qui se chargera de les verser au service des impôts et domaines.
+        Il s'acquittera également, dans les mois, de la taxe d'enlèvement sur les ordures ménagères.
     </div>
 </div>
 
 <div class="article">
-    <div class="article-title">Article 9 – Obligations du preneur</div>
+    <div class="article-title">Article 5 : CHARGES</div>
     <div class="article-content">
-        Le preneur s'engage à :
-        <ul style="margin-left: 20px; margin-top: 8px;">
-            <li>Payer le loyer et les charges aux échéances convenues</li>
-            <li>Exploiter personnellement et effectivement le fonds de commerce</li>
-            <li>Entretenir les locaux en bon état et y effectuer les réparations locatives</li>
-            <li>Souscrire une assurance multirisque professionnelle couvrant les risques locatifs</li>
-            <li>Respecter les réglementations relatives à son activité professionnelle</li>
-            <li>Ne pas exercer d'activités illicites ou dangereuses</li>
-            <li>Ne pas causer de troubles de jouissance au voisinage</li>
-            <li>Obtenir toutes les autorisations administratives nécessaires à son activité</li>
-        </ul>
+        Les consommations d'eau, d'électricité, et de téléphone ainsi que le vidange des fosses septiques sont à la
+        charge exclusive du ou des locataires.
     </div>
 </div>
 
 <div class="article">
-    <div class="article-title">Article 10 – Obligations du bailleur</div>
+    <div class="article-title">Article 6 : PRÉAVIS</div>
     <div class="article-content">
-        Le bailleur s'engage à :
-        <ul style="margin-left: 20px; margin-top: 8px;">
-            <li>Délivrer les locaux en bon état et conformes aux normes de sécurité</li>
-            <li>Garantir la jouissance paisible des lieux</li>
-            <li>Effectuer les grosses réparations (toiture, murs porteurs, fondations)</li>
-            <li>Assurer la mise en conformité du local avec les normes en vigueur</li>
-            <li>Ne pas s'opposer aux aménagements nécessaires à l'activité du preneur</li>
-        </ul>
+        La partie ayant pris l'initiative de la rupture du contrat doit en informer son vis-à-vis par acte extrajudiciaire
+        contre récépissé ou par exploit d'huissier <strong>six mois à l'avance pour le bailleur</strong> et
+        <strong>deux mois pour le preneur</strong>.<br><br>
+        Lorsque le preneur aura reçu ou donné congé, le bailleur pourra faire mettre un écriteau à l'emplacement de son
+        choix indiquant que les lieux sont à louer. Le preneur devra laisser visiter les jours ouvrables sur rendez-vous
+        au moins 3 fois par semaine. Il en serait de même en cas de mise en vente.
     </div>
 </div>
 
 <div class="article">
-    <div class="article-title">Article 11 – Cession et sous-location</div>
+    <div class="article-title">Article 7 : RÉVISION DU LOYER</div>
     <div class="article-content">
-        Le preneur peut céder son bail à l'acquéreur de son fonds de commerce ou de son entreprise. Toute sous-location, même partielle, est interdite sans l'accord écrit préalable du bailleur, qui ne peut le refuser sans motif légitime et sérieux.
+        Chaque année, le bailleur se réserve le droit de réviser le loyer pour se conformer au prix actuel du marché
+        ou répondre aux exigences de l'inflation.
     </div>
 </div>
 
 <div class="article">
-    <div class="article-title">Article 12 – Droit au renouvellement</div>
+    <div class="article-title">Article 8 : TRAVAUX</div>
     <div class="article-content">
-        Le présent bail confère au preneur un droit au renouvellement conformément aux dispositions légales régissant les baux commerciaux. Le bailleur qui refuse le renouvellement devra verser au preneur une indemnité d'éviction, sauf en cas de motif grave et légitime.
+        Le propriétaire ou le bailleur peut effectuer des aménagements, des modifications ou de gros travaux (exemple:
+        élévation) dans son immeuble sans obligation d'informer le ou les occupants. Il n'a pas besoin de son ou de leur
+        approbation pour exécuter ces travaux. Toute entrave ou opposition du preneur constitue une clause résolutoire.
+        Il appartient donc au locataire de prendre les dispositions nécessaires pendant la durée des travaux pour se
+        protéger et mettre à l'abri sa famille et ses biens contre tout désagrément. Dans le cas contraire, la
+        responsabilité du bailleur est totalement dégagée.
     </div>
 </div>
 
-<div class="article">
-    <div class="article-title">Article 13 – Résiliation</div>
+<div class="section">
+    <div class="article-title">V. CLAUSES RÉSOLUTOIRES</div>
     <div class="article-content">
-        <strong>Résiliation triennale :</strong> Le preneur peut résilier le bail à l'expiration de chaque période de 3 ans moyennant un préavis de 6 mois.
-        <br><br>
-        <strong>Résiliation anticipée :</strong> En dehors des périodes triennales, la résiliation anticipée n'est possible qu'en cas de faute grave de l'une des parties ou par accord mutuel.
+        A défaut du paiement d'un seul terme de loyer à son échéance ou l'inexécution d'une quelconque des clauses et
+        conditions de bails, celui-ci sera résilié de plein droit si bon semble au bailleur sans formalité judiciaire,
+        <strong>trente (30) jours</strong> après une simple mise en demeure par lettre recommandée de payer ou d'exécuter,
+        demeurée sans effet, quelle que soit la cause de cette carence et nonobstant toutes consignations ultérieures,
+        l'expulsion sera prononcée par simple ordonnance de référé.<br><br>
+        En cas d'occupation des lieux après la cessation du bail, il sera dû par l'occupant jusqu'à son expulsion, une
+        indemnité égale au <strong>double du loyer</strong> et des charges contractuelles.<br><br>
+        En cas de résiliation du bail aux torts du locataire, le dépôt de garantie restera acquis au bailleur à titre
+        d'indemnité conventionnelle.<br><br>
+        Tous les frais de justice (émolument d'huissier de justice, honoraires d'avocat, enrôlement etc…) supportés par
+        l'agence lors d'une procédure judiciaire du fait du manquement du locataire à ses obligations seront totalement
+        remboursés par celui lors de la régulation de sa situation.
     </div>
 </div>
 
-<div class="article">
-    <div class="article-title">Article 14 – Clause résolutoire</div>
+<div class="section">
+    <div class="article-title">VI. IMPÔTS ET TAXES</div>
     <div class="article-content">
-        À défaut de paiement du loyer ou des charges aux termes convenus, ou en cas de non-respect des obligations du preneur, et un mois après un commandement de payer demeuré infructueux, le présent bail pourra être résilié de plein droit par le bailleur.
+        Les frais et honoraires des présentes ainsi que les droits d'enrégistrement et de timbres sont à la charge
+        exclusive du preneur ainsi que toutes les pénalités exigibles de son fait sans recours contre l'agence
+        immobilière ou le propriétaire.<br><br>
+        Une TVA de <strong>18%</strong> sera collectée chaque mois sur le loyer et reversée aux services fiscaux.<br><br>
+        Le preneur s'acquittera également de ses taxes et de ses consommations d'eau et d'électricité.<br><br>
+        Enregistrement de <strong>02% du montant Toutes Taxes Comprises</strong> à payer aux impôts par le preneur pour une année.<br><br>
+        Le preneur fera également le nécessaire pour que le renouvellement des droits d'enregistrement soit réglé en
+        temps utile afin que le bailleur ne puisse, être inquiété.
     </div>
 </div>
 
-<div class="date-lieu">
-    Fait à {{ $ville_signature }}, le {{ $date_creation }}, en deux exemplaires originaux.
+<div style="margin: 30px 0;">
+    <div style="text-align: right; margin-bottom: 10px;">
+        <strong>Fait à Dakar, Keur Massar le {{ \Carbon\Carbon::parse($location->created_at)->format('d/m/Y') }}</strong>
+    </div>
+    <div style="text-align: center; font-weight: bold; margin-bottom: 20px;">
+        En foi de quoi cette présente est établie pour servir et valoir ce qui est de droit<br>
+        Lu et approuvés par les deux parties,
+    </div>
 </div>
 
 <div class="signatures">
     <table>
         <tr>
             <td>
-                <div><strong>Le Bailleur</strong></div>
-                <div class="signature-box">
-                    @if(isset($bailleur_signature) && $bailleur_signature['is_signed'] && $bailleur_signature['data'])
-                        <img src="{{ $bailleur_signature['data'] }}" alt="Signature bailleur" class="signature-image" />
-                        <div class="signature-info">
-                            {{ $bailleur->name }}<br>
-                            <div class="signature-date">
-                                Signé le {{ \Carbon\Carbon::parse($bailleur_signature['signed_at'])->format('d/m/Y à H:i') }}
-                            </div>
-                        </div>
-                    @else
-                        <div class="signature-placeholder">
-                            Aucune signature<br>
-                            {{ $bailleur->name }}
-                        </div>
-                    @endif
-                </div>
-            </td>
-            <td>
-                <div><strong>Le Locataire</strong></div>
+                <div><strong>LE PRENEUR</strong></div>
                 <div class="signature-box">
                     @if(isset($locataire_signature) && $locataire_signature['is_signed'] && $locataire_signature['data'])
                         <img src="{{ $locataire_signature['data'] }}" alt="Signature preneur" class="signature-image" />
                         <div class="signature-info">
                             {{ $locataire->name }}<br>
-                            <div class="signature-date">
-                                Signé le {{ \Carbon\Carbon::parse($locataire_signature['signed_at'])->format('d/m/Y à H:i') }}
-                            </div>
+                            Signé le {{ \Carbon\Carbon::parse($locataire_signature['signed_at'])->format('d/m/Y à H:i') }}
                         </div>
                     @else
                         <div class="signature-placeholder">
-                            Aucune signature<br>
+                            Signature à apposer<br>
                             {{ $locataire->name }}
+                        </div>
+                    @endif
+                </div>
+            </td>
+            <td>
+                <div><strong>LE BAILLEUR</strong></div>
+                <div class="signature-box">
+                    @if(isset($bailleur_signature) && $bailleur_signature['is_signed'] && $bailleur_signature['data'])
+                        <img src="{{ $bailleur_signature['data'] }}" alt="Signature agence" class="signature-image" />
+                        <div class="signature-info">
+                            {{ $bailleur->name }}<br>
+                            Signé le {{ \Carbon\Carbon::parse($bailleur_signature['signed_at'])->format('d/m/Y à H:i') }}
+                        </div>
+                    @else
+                        <div class="signature-placeholder">
+                            Signature à apposer<br>
+                            Pour Cauris Immo
                         </div>
                     @endif
                 </div>
@@ -392,12 +459,17 @@
     </table>
 </div>
 
+<div style="margin-top: 20px; padding: 10px; border: 1px solid #000; font-size: 10px;">
+    <strong>Pièce Jointe :</strong><br>
+    - Fiche État des lieux
+</div>
+
 <div class="footer">
-    <p>Document généré automatiquement le {{ now()->format('d/m/Y à H:i') }}</p>
-    <p>Cauris Immo - Keur Massar, Jaxaay, Unité 14, Dakar</p>
-    <p>Téléphone: +221 77 448 32 28 - Email: caurisimmobiliere@gmail.com</p>
+    Document généré le {{ now()->format('d/m/Y à H:i') }}<br>
+    CAURIS IMMOBILIER - Keur Massar Rond Point Jaxaay P.A.U 14<br>
+    Tel: 77 448 32 28 / 77 516 72 28 / 76 785 98 48 - Email: caurisimmobiliere@gmail.com
     @if(isset($signature_status) && $signature_status === 'entierement_signe')
-        <p><strong>Document certifié avec signatures électroniques horodatées</strong></p>
+        <br><strong>Document certifié avec signatures électroniques horodatées</strong>
     @endif
 </div>
 </body>

@@ -1,17 +1,7 @@
 <template>
-    <div>
-        <!-- Menu mobile -->
-        <div class="site-mobile-menu site-navbar-target">
-            <div class="site-mobile-menu-header">
-                <div class="site-mobile-menu-close">
-                    <span class="icofont-close js-menu-toggle"></span>
-                </div>
-            </div>
-            <div class="site-mobile-menu-body"></div>
-        </div>
-
+    <div class="home-page">
         <!-- Section Hero avec slider -->
-        <div class="hero-section position-relative">
+        <section class="hero-section">
             <div class="hero-slider">
                 <div
                     v-for="(bien, index) in heroSliderBiens"
@@ -19,956 +9,865 @@
                     class="slide-item"
                 >
                     <img
-                        :src="bien.images[0]?.url || defaultImage1"                        :alt="`${bien.title} - Slide ${index + 1}`"
-                        class="img-fluid w-100 h-100 object-cover"
+                        :src="bien.images[0]?.url || defaultImage1"
+                        :alt="`${bien.title} - Slide ${index + 1}`"
+                        class="slide-image"
                     />
                     <div class="slide-overlay"></div>
                 </div>
 
-                <!-- Slides par défaut si pas assez de biens -->
                 <div v-if="heroSliderBiens.length === 0" class="slide-item">
-                    <img :src="defaultImage1" alt="Slide par défaut 1" class="img-fluid w-100 h-100 object-cover" />
+                    <img :src="defaultImage1" alt="Slide 1" class="slide-image" />
                     <div class="slide-overlay"></div>
                 </div>
                 <div v-if="heroSliderBiens.length <= 1" class="slide-item">
-                    <img :src="defaultImage2" alt="Slide par défaut 2" class="img-fluid w-100 h-100 object-cover" />
+                    <img :src="defaultImage2" alt="Slide 2" class="slide-image" />
                     <div class="slide-overlay"></div>
                 </div>
                 <div v-if="heroSliderBiens.length <= 2" class="slide-item">
-                    <img :src="defaultImage3" alt="Slide par défaut 3" class="img-fluid w-100 h-100 object-cover" />
+                    <img :src="defaultImage3" alt="Slide 3" class="slide-image" />
                     <div class="slide-overlay"></div>
                 </div>
             </div>
 
-            <!-- Contenu Hero superposé -->
-            <div class="hero-content position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
-                <div class="text-center text-light">
-                    <h1 class="hero-title mb-4" data-aos="fade-up">
-                        Bienvenue dans le portail de l'agence immobiliere Cauris Immo.
-                    </h1>
+            <div class="hero-content">
+                <div class="hero-inner">
+                    <div class="brand-header">
+                        <div class="brand-logo">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                            </svg>
+                        </div>
+                        <h1 class="brand-name">Cauris Immo</h1>
+                    </div>
 
-                    <!-- Barre de recherche principale -->
-                    <form
-                        @submit.prevent="performMainSearch"
-                        class="hero-search-form d-flex align-items-stretch mb-3"
-                        data-aos="fade-up"
-                        data-aos-delay="200"
-                    >
-                        <div class="search-input-wrapper">
+                    <p class="hero-subtitle">
+                        Votre partenaire de confiance pour tous vos projets immobiliers
+                    </p>
+                    <p class="hero-description">
+                        Maisons • Appartements • Terrains • Studios • Construction • Gestion Locative
+                    </p>
+
+                    <form @submit.prevent="performMainSearch" class="search-form">
+                        <div class="search-wrapper">
+                            <i class="fas fa-search search-icon"></i>
                             <input
                                 type="text"
-                                class="form-control search-input"
-                                placeholder="Votre quartier ou ville. ex: Dakar, Almadies"
+                                class="search-input"
+                                placeholder="Rechercher par quartier ou ville... (ex: Dakar, Almadies)"
                                 v-model="mainSearchQuery"
                                 @input="onMainSearchInput"
                             />
-
-                            <!-- Suggestions de recherche -->
-                            <div v-if="searchSuggestions.length > 0" class="search-suggestions">
+                            <div v-if="searchSuggestions.length > 0" class="suggestions">
                                 <div
                                     v-for="suggestion in searchSuggestions"
                                     :key="suggestion.id"
                                     class="suggestion-item"
                                     @click="selectSuggestion(suggestion)"
                                 >
-                                    <i class="fas fa-map-marker-alt me-2"></i>
+                                    <i class="fas fa-map-marker-alt"></i>
                                     {{ suggestion.label }}
                                 </div>
                             </div>
                         </div>
-
-                        <button type="submit" class="btn btn-primary search-btn">
-                            <i class="fas fa-search me-2"></i>
+                        <button type="submit" class="search-button">
                             Rechercher
                         </button>
                     </form>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Section Propriétés principales -->
-        <div class="section py-5">
+        <!-- Section Statistiques -->
+        <section class="stats-section">
             <div class="container">
-                <!-- En-tête de section -->
-                <div class="row mb-5 align-items-center">
-                    <div class="col-lg-6">
-                        <h2 class="font-weight-bold text-primary heading">
-                            {{ hasActiveFilters ? 'Propriétés Filtrées' : 'Nos Propriétés Vedettes' }}
-                        </h2>
-                        <p class="text-muted">
-                            {{ currentBiensCount }} propriété{{ currentBiensCount > 1 ? 's' : '' }}
-                            {{ hasActiveFilters ? 'trouvée' : 'disponible' }}{{ currentBiensCount > 1 ? 's' : '' }}
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-home"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number">150+</div>
+                            <div class="stat-label">Portefeuille biens</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number">200+</div>
+                            <div class="stat-label">Clients Satisfaits</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number">8+</div>
+                            <div class="stat-label">Années d'Expérience</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-number">100%</div>
+                            <div class="stat-label">Biens Vérifiés</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section À Propos -->
+        <section class="about-section">
+            <div class="container">
+                <div class="about-content">
+                    <div class="about-text">
+                        <h2 class="section-title">Cauris Immo, Votre Expert Immobilier au Sénégal</h2>
+                        <div class="title-underline"></div>
+
+                        <p class="lead-text">
+                            Depuis plus de 8 ans, <strong>Cauris Immo</strong> s'impose comme l'agence immobilière de référence au Sénégal, accompagnant particuliers et professionnels dans la concrétisation de leurs projets immobiliers.
                         </p>
+
+                        <div class="description-blocks">
+                            <div class="desc-block">
+                                <h3><i class="fas fa-check-circle"></i> Notre Expertise</h3>
+                                <p>
+                                    Spécialisés dans la <strong>vente, location et gestion de patrimoine immobilier</strong>, nous proposons une sélection rigoureuse de biens de qualité : <strong>maisons individuelles, appartements modernes, terrains viabilisés, studios fonctionnels</strong>, adaptés à tous les budgets et besoins.
+                                </p>
+                            </div>
+
+                            <div class="desc-block">
+                                <h3><i class="fas fa-check-circle"></i> Services Complets</h3>
+                                <p>
+                                    Au-delà de la simple transaction, nous offrons un <strong>accompagnement personnalisé</strong> incluant la <strong>construction clé en main, le suivi de projets, la gestion locative complète</strong> et des conseils juridiques pour sécuriser vos investissements.
+                                </p>
+                            </div>
+
+                            <div class="desc-block">
+                                <h3><i class="fas fa-check-circle"></i> Notre Engagement</h3>
+                                <p>
+                                    Chaque bien est <strong>vérifié, certifié et conforme aux normes</strong> légales sénégalaises. Notre équipe d'experts vous garantit transparence, professionnalisme et réactivité à chaque étape de votre projet immobilier.
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
+                    <div class="values-grid">
+                        <div class="value-card">
+                            <div class="value-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <h3 class="value-title">Fiabilité</h3>
+                            <p class="value-description">
+                                Tous nos biens sont vérifiés et conformes aux normes légales
+                            </p>
+                        </div>
+                        <div class="value-card">
+                            <div class="value-icon">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <h3 class="value-title">Excellence</h3>
+                            <p class="value-description">
+                                Service personnalisé et accompagnement professionnel
+                            </p>
+                        </div>
+                        <div class="value-card">
+                            <div class="value-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <h3 class="value-title">Expertise</h3>
+                            <p class="value-description">
+                                Une équipe de professionnels expérimentés à votre service
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section Propriétés -->
+        <section class="properties-section">
+            <div class="container">
+                <div class="section-header-center">
+                    <h2 class="section-title">
+                        {{ hasActiveFilters ? 'Propriétés Filtrées' : 'Nos Propriétés Vedettes' }}
+                    </h2>
+                    <div class="title-underline"></div>
+                    <p class="section-subtitle">
+                        {{ currentBiensCount }} propriété{{ currentBiensCount > 1 ? 's' : '' }}
+                        {{ hasActiveFilters ? 'trouvée' : 'disponible' }}{{ currentBiensCount > 1 ? 's' : '' }}
+                    </p>
                 </div>
 
-                <!-- Filtres rapides et contrôles -->
-                <div class="row mb-4" v-if="biens.length > 0">
-                    <div class="col-md-8">
-                        <div class="quick-filters d-flex gap-2 flex-wrap">
+                <div class="filters-container" v-if="biens.length > 0">
+                    <!-- Filtres par catégorie -->
+                    <div class="filters-section">
+                        <h3 class="filters-section-title">Par Type de Bien</h3>
+                        <div class="quick-filters">
                             <button
                                 @click="setQuickFilter('all')"
-                                :class="['btn btn-sm filter-btn', currentQuickFilter === 'all' ? 'btn-primary' : 'btn-outline-primary']"
+                                :class="['filter-chip', { active: currentQuickFilter === 'all' }]"
                             >
-                                Tous ({{ stats.total }})
+                                <i class="fas fa-th"></i>
+                                <span class="filter-label">Tous</span>
+                                <span class="filter-count">{{ stats.total }}</span>
                             </button>
                             <button
                                 @click="setQuickFilter('maison')"
-                                :class="['btn btn-sm filter-btn', currentQuickFilter === 'maison' ? 'btn-success' : 'btn-outline-success']"
+                                :class="['filter-chip', { active: currentQuickFilter === 'maison' }]"
                             >
-                                Maisons ({{ stats.maisons }})
+                                <i class="fas fa-home"></i>
+                                <span class="filter-label">Maisons</span>
+                                <span class="filter-count">{{ stats.maisons }}</span>
                             </button>
                             <button
                                 @click="setQuickFilter('appartement')"
-                                :class="['btn btn-sm filter-btn', currentQuickFilter === 'appartement' ? 'btn-info' : 'btn-outline-info']"
+                                :class="['filter-chip', { active: currentQuickFilter === 'appartement' }]"
                             >
-                                Appartements ({{ stats.appartements }})
+                                <i class="fas fa-building"></i>
+                                <span class="filter-label">Appartements</span>
+                                <span class="filter-count">{{ stats.appartements }}</span>
                             </button>
                             <button
-                                @click="setQuickFilter('luxury')"
-                                :class="['btn btn-sm filter-btn', currentQuickFilter === 'luxury' ? 'btn-warning' : 'btn-outline-warning']"
+                                @click="setQuickFilter('terrain')"
+                                :class="['filter-chip', { active: currentQuickFilter === 'terrain' }]"
                             >
-                                Luxe ({{ stats.luxury }})
+                                <i class="fas fa-map"></i>
+                                <span class="filter-label">Terrains</span>
+                                <span class="filter-count">{{ stats.terrains }}</span>
+                            </button>
+                            <button
+                                @click="setQuickFilter('studio')"
+                                :class="['filter-chip', { active: currentQuickFilter === 'studio' }]"
+                            >
+                                <i class="fas fa-door-open"></i>
+                                <span class="filter-label">Studios</span>
+                                <span class="filter-count">{{ stats.studios }}</span>
                             </button>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <select class="form-select form-select-sm" v-model="sortBy" @change="applySorting">
-                            <option value="default">Trier par</option>
+
+                    <!-- Filtres par type de transaction -->
+                    <div class="filters-section">
+                        <h3 class="filters-section-title">Par Type de Transaction</h3>
+                        <div class="quick-filters">
+                            <button
+                                @click="setQuickFilter('vente')"
+                                :class="['filter-chip filter-vente', { active: currentQuickFilter === 'vente' }]"
+                            >
+                                <i class="fas fa-tag"></i>
+                                <span class="filter-label">À Vendre</span>
+                                <span class="filter-count">{{ stats.vente }}</span>
+                            </button>
+                            <button
+                                @click="setQuickFilter('location')"
+                                :class="['filter-chip filter-location', { active: currentQuickFilter === 'location' }]"
+                            >
+                                <i class="fas fa-key"></i>
+                                <span class="filter-label">À Louer</span>
+                                <span class="filter-count">{{ stats.location }}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Contrôles de vue et tri -->
+                    <div class="controls-row">
+                        <div class="view-controls">
+                            <div class="view-toggle">
+                                <button
+                                    @click="viewMode = 'grid'"
+                                    :class="['view-btn', { active: viewMode === 'grid' }]"
+                                    title="Vue grille"
+                                >
+                                    <i class="fas fa-th"></i>
+                                </button>
+                                <button
+                                    @click="viewMode = 'carousel'"
+                                    :class="['view-btn', { active: viewMode === 'carousel' }]"
+                                    title="Vue carrousel"
+                                >
+                                    <i class="fas fa-sliders-h"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <select class="sort-select" v-model="sortBy" @change="applySorting">
+                            <option value="default">Trier par défaut</option>
                             <option value="price_asc">Prix croissant</option>
                             <option value="price_desc">Prix décroissant</option>
-                            <option value="rooms_asc">Chambres croissant</option>
-                            <option value="rooms_desc">Chambres décroissant</option>
                             <option value="recent">Plus récents</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Filtres avancés (repliables) -->
-                <div class="advanced-filters mb-4" v-if="biens.length > 0">
-                    <button
-                        class="btn btn-outline-secondary btn-sm mb-3"
-                        @click="showAdvancedFilters = !showAdvancedFilters"
-                    >
-                        <i :class="['fas', showAdvancedFilters ? 'fa-chevron-up' : 'fa-chevron-down', 'me-2']"></i>
-                        Filtres avancés
-                    </button>
-
-                    <div v-show="showAdvancedFilters" class="advanced-filters-content">
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label">Prix minimum</label>
-                                <input
-                                    type="number"
-                                    class="form-control"
-                                    placeholder="Prix min"
-                                    v-model="advancedFilters.minPrice"
-                                    @input="applyAdvancedFilters"
-                                />
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Prix maximum</label>
-                                <input
-                                    type="number"
-                                    class="form-control"
-                                    placeholder="Prix max"
-                                    v-model="advancedFilters.maxPrice"
-                                    @input="applyAdvancedFilters"
-                                />
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Chambres</label>
-                                <select class="form-select" v-model="advancedFilters.rooms" @change="applyAdvancedFilters">
-                                    <option value="">Toutes</option>
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                    <option value="5+">5+</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Salles de bain</label>
-                                <select class="form-select" v-model="advancedFilters.bathrooms" @change="applyAdvancedFilters">
-                                    <option value="">Toutes</option>
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4+">4+</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Actions</label>
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-primary btn-sm" @click="applyAdvancedFilters">
-                                        Appliquer
-                                    </button>
-                                    <button class="btn btn-outline-secondary btn-sm" @click="clearAllFilters">
-                                        Reset
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Message si aucun bien trouvé -->
-                <div v-if="displayedBiens.length === 0" class="text-center py-5">
-                    <div class="alert alert-warning">
-                        <h5><i class="fas fa-search me-2"></i>Aucune propriété trouvée</h5>
-                        <p>
-                            Aucune propriété ne correspond à vos critères de recherche.
-                            <button class="btn btn-link p-0 alert-link" @click="clearAllFilters">
-                                Effacer tous les filtres
-                            </button> pour voir toutes les propriétés disponibles.
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Grille des propriétés -->
-                <div class="row" v-if="paginatedBiens.length > 0 && !useSlider">
+                <div class="properties-grid" v-if="viewMode === 'grid' && paginatedBiens.length > 0">
                     <div
                         v-for="bien in paginatedBiens"
                         :key="bien.id"
-                        class="col-lg-4 col-md-6 mb-4"
+                        class="property-card"
                     >
-                        <div class="property-card h-100">
-                            <Link :href="route('biens.show', bien.id)" class="property-image">
+                        <Link :href="route('biens.show', bien.id)" class="property-link">
+                            <div class="property-image">
                                 <img
-                                    :src="bien.images[0]?.url || defaultImage1"                                    :alt="bien.title"
-                                    class="img-fluid"
+                                    :src="bien.images[0]?.url || defaultImage1"
+                                    :alt="bien.title"
                                 />
-                                <div class="property-overlay">
-                                    <span class="btn btn-primary">Voir détails</span>
+                                <div class="property-badge" v-if="getBienType(bien)">
+                                    {{ getBienType(bien) }}
                                 </div>
-                            </Link>
-
-                            <div class="property-content p-3">
-                                <div class="price mb-2">
-                                    <span class="h5 text-primary">{{ formatPrice(bien.price) }} FCFA</span>
-                                    <span v-if="getBienType(bien)" :class="['badge ms-2', getBienTypeBadge(bien)]">
-                                        {{ getBienType(bien) }}
-                                    </span>
+                                <div class="property-mandat-badge" v-if="getMandatType(bien)">
+                                    {{ getMandatType(bien) }}
                                 </div>
+                            </div>
 
-                                <div class="location mb-3">
-                                    <span class="d-block text-muted">{{ bien.address }}</span>
-                                    <span class="d-block fw-bold">{{ bien.city }}</span>
+                            <div class="property-body">
+                                <div class="property-price">
+                                    {{ formatPrice(bien.price) }} FCFA
                                 </div>
 
-                                <div class="specs d-flex justify-content-between mb-3">
-                                    <span class="d-flex align-items-center">
-                                        <i class="fas fa-bed me-2 text-primary"></i>
-                                        <span>{{ bien.rooms || 0 }}</span>
-                                    </span>
-                                    <span class="d-flex align-items-center">
-                                        <i class="fas fa-bath me-2 text-primary"></i>
-                                        <span>{{ bien.bathrooms || 0 }}</span>
-                                    </span>
-                                    <span class="d-flex align-items-center" v-if="bien.floors">
-                                        <i class="fas fa-building me-2 text-primary"></i>
-                                        <span>{{ bien.floors }}</span>
-                                    </span>
-                                    <span class="d-flex align-items-center" v-if="bien.superficy">
-                                        <i class="fas fa-ruler-combined me-2 text-primary"></i>
+                                <div class="property-location">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>{{ bien.city }}, {{ bien.address }}</span>
+                                </div>
+
+                                <div class="property-specs">
+                                    <div class="spec-item" v-if="bien.rooms">
+                                        <i class="fas fa-bed"></i>
+                                        <span>{{ bien.rooms }}</span>
+                                    </div>
+                                    <div class="spec-item" v-if="bien.bathrooms">
+                                        <i class="fas fa-bath"></i>
+                                        <span>{{ bien.bathrooms }}</span>
+                                    </div>
+                                    <div class="spec-item" v-if="bien.superficy">
+                                        <i class="fas fa-ruler-combined"></i>
                                         <span>{{ bien.superficy }}m²</span>
-                                    </span>
+                                    </div>
                                 </div>
 
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <Link
-                                        :href="route('biens.show', bien.id)"
-                                        class="btn btn-outline-primary btn-sm"
-                                    >
+                                <div class="property-footer">
+                                    <span class="property-category">{{ getCategoryName(bien) }}</span>
+                                    <span class="view-details">
                                         Voir détails
-                                    </Link>
-                                    <span class="text-muted small">
-                                        {{ getCategoryName(bien) }}
+                                        <i class="fas fa-arrow-right"></i>
                                     </span>
                                 </div>
                             </div>
-                        </div>
+                        </Link>
                     </div>
                 </div>
 
-                <!-- Vue slider (alternative) -->
-                <div class="row" v-if="displayedBiens.length > 0 && useSlider">
-                    <div class="col-12">
-                        <div class="property-slider-wrap">
-                            <div class="property-slider">
+                <div class="properties-carousel-container" v-if="viewMode === 'carousel' && displayedBiens.length > 0">
+                    <div class="carousel-wrapper">
+                        <button
+                            @click="previousSlide"
+                            class="carousel-nav-btn prev"
+                            :disabled="carouselIndex === 0"
+                        >
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+
+                        <div class="carousel-track-container">
+                            <div class="carousel-track" :style="{ transform: `translateX(-${carouselIndex * 100}%)` }">
                                 <div
                                     v-for="bien in displayedBiens"
                                     :key="bien.id"
-                                    class="property-item"
+                                    class="carousel-slide"
                                 >
-                                    <Link :href="route('biens.show', bien.id)" class="img">
-                                        <img
-                                            :src="bien.images[0]?.url || defaultImage1"                                            :alt="bien.title"
-                                            class="img-fluid"
-                                        />
-                                    </Link>
-
-                                    <div class="property-content">
-                                        <div class="price mb-2">
-                                            <span>{{ formatPrice(bien.price) }} FCFA</span>
-                                            <span v-if="getBienType(bien)" :class="['badge ms-2', getBienTypeBadge(bien)]">
-                                                {{ getBienType(bien) }}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span class="d-block mb-2 text-black-50">{{ bien.address }}</span>
-                                            <span class="city d-block mb-3">{{ bien.city }}</span>
-
-                                            <div class="specs d-flex mb-4">
-                                                <span class="d-block d-flex align-items-center me-3">
-                                                    <span class="icon-bed me-2"></span>
-                                                    <span class="caption">{{ bien.rooms || 0 }} Chambres</span>
-                                                </span>
-                                                <span class="d-block d-flex align-items-center">
-                                                    <span class="icon-bath me-2"></span>
-                                                    <span class="caption">{{ bien.bathrooms || 0 }} Salles de bain</span>
-                                                </span>
+                                    <div class="property-card">
+                                        <Link :href="route('biens.show', bien.id)" class="property-link">
+                                            <div class="property-image">
+                                                <img
+                                                    :src="bien.images[0]?.url || defaultImage1"
+                                                    :alt="bien.title"
+                                                />
+                                                <div class="property-badge" v-if="getBienType(bien)">
+                                                    {{ getBienType(bien) }}
+                                                </div>
+                                                <div class="property-mandat-badge" v-if="getMandatType(bien)">
+                                                    {{ getMandatType(bien) }}
+                                                </div>
                                             </div>
 
-                                            <Link
-                                                :href="route('biens.show', bien.id)"
-                                                class="btn btn-primary py-2 px-3"
-                                            >
-                                                Voir les détails
-                                            </Link>
-                                        </div>
+                                            <div class="property-body">
+                                                <div class="property-price">
+                                                    {{ formatPrice(bien.price) }} FCFA
+                                                </div>
+
+                                                <div class="property-location">
+                                                    <i class="fas fa-map-marker-alt"></i>
+                                                    <span>{{ bien.city }}, {{ bien.address }}</span>
+                                                </div>
+
+                                                <div class="property-specs">
+                                                    <div class="spec-item" v-if="bien.rooms">
+                                                        <i class="fas fa-bed"></i>
+                                                        <span>{{ bien.rooms }}</span>
+                                                    </div>
+                                                    <div class="spec-item" v-if="bien.bathrooms">
+                                                        <i class="fas fa-bath"></i>
+                                                        <span>{{ bien.bathrooms }}</span>
+                                                    </div>
+                                                    <div class="spec-item" v-if="bien.superficy">
+                                                        <i class="fas fa-ruler-combined"></i>
+                                                        <span>{{ bien.superficy }}m²</span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="property-footer">
+                                                    <span class="property-category">{{ getCategoryName(bien) }}</span>
+                                                    <span class="view-details">
+                                                        Voir détails
+                                                        <i class="fas fa-arrow-right"></i>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </Link>
                                     </div>
                                 </div>
                             </div>
-
-                            <div
-                                id="property-nav"
-                                class="controls"
-                                v-if="displayedBiens.length > 3"
-                            >
-                                <span class="prev" data-controls="prev">Précédent</span>
-                                <span class="next" data-controls="next">Suivant</span>
-                            </div>
                         </div>
+
+                        <button
+                            @click="nextSlide"
+                            class="carousel-nav-btn next"
+                            :disabled="carouselIndex >= displayedBiens.length - 1"
+                        >
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+
+                    <div class="carousel-indicators">
+                        <button
+                            v-for="(bien, index) in displayedBiens"
+                            :key="index"
+                            @click="goToSlide(index)"
+                            :class="['indicator-dot', { active: carouselIndex === index }]"
+                        ></button>
+                    </div>
+
+                    <div class="carousel-counter">
+                        {{ carouselIndex + 1 }} / {{ displayedBiens.length }}
                     </div>
                 </div>
 
-                <!-- Pagination -->
-                <div class="row mt-4" v-if="totalPages > 1 && !useSlider">
-                    <div class="col-12">
-                        <nav class="d-flex justify-content-center">
-                            <ul class="pagination">
-                                <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                                    <button
-                                        class="page-link"
-                                        @click="changePage(currentPage - 1)"
-                                        :disabled="currentPage === 1"
-                                    >
-                                        Précédent
-                                    </button>
-                                </li>
-
-                                <li
-                                    v-for="page in visiblePages"
-                                    :key="page"
-                                    class="page-item"
-                                    :class="{ active: currentPage === page, disabled: page === '...' }"
-                                >
-                                    <button
-                                        v-if="page !== '...'"
-                                        class="page-link"
-                                        @click="changePage(page)"
-                                    >
-                                        {{ page }}
-                                    </button>
-                                    <span v-else class="page-link">...</span>
-                                </li>
-
-                                <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                                    <button
-                                        class="page-link"
-                                        @click="changePage(currentPage + 1)"
-                                        :disabled="currentPage === totalPages"
-                                    >
-                                        Suivant
-                                    </button>
-                                </li>
-                            </ul>
-                        </nav>
-                    </div>
+                <div v-if="displayedBiens.length === 0" class="no-results">
+                    <i class="fas fa-search"></i>
+                    <h3>Aucune propriété trouvée</h3>
+                    <p>Aucune propriété ne correspond à vos critères</p>
+                    <button @click="clearAllFilters" class="btn-reset">
+                        Effacer les filtres
+                    </button>
                 </div>
 
-                <!-- Bouton pour basculer entre les vues -->
-                <div class="row mt-4" v-if="displayedBiens.length > 0">
-                    <div class="col-12 text-center">
-                        <div class="btn-group" role="group">
-                            <button
-                                type="button"
-                                class="btn btn-outline-primary"
-                                :class="{ active: useSlider }"
-                                @click="toggleView(true)"
-                            >
-                                <i class="fas fa-th-list me-2"></i>Vue Carrousel
-                            </button>
-                            <button
-                                type="button"
-                                class="btn btn-outline-primary"
-                                :class="{ active: !useSlider }"
-                                @click="toggleView(false)"
-                            >
-                                <i class="fas fa-th-large me-2"></i>Vue Grille
-                            </button>
-                        </div>
+                <nav class="pagination" v-if="viewMode === 'grid' && totalPages > 1">
+                    <button
+                        @click="changePage(currentPage - 1)"
+                        :disabled="currentPage === 1"
+                        class="page-btn"
+                    >
+                        <i class="fas fa-chevron-left"></i>
+                        Précédent
+                    </button>
+
+                    <div class="page-numbers">
+                        <button
+                            v-for="page in visiblePages"
+                            :key="page"
+                            @click="page !== '...' && changePage(page)"
+                            :class="['page-number', { active: currentPage === page, dots: page === '...' }]"
+                            :disabled="page === '...'"
+                        >
+                            {{ page }}
+                        </button>
                     </div>
-                </div>
+
+                    <button
+                        @click="changePage(currentPage + 1)"
+                        :disabled="currentPage === totalPages"
+                        class="page-btn"
+                    >
+                        Suivant
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </nav>
             </div>
-        </div>
+        </section>
 
-
-
-        <!-- Section statistiques -->
-        <div class="section section-stats py-5">
+        <!-- Section Services -->
+        <section class="services-section">
             <div class="container">
-                <div class="row justify-content-center text-center mb-5">
-                    <div class="col-lg-8">
-                        <h2 class="font-weight-bold heading text-primary mb-4">
-                            Trouvons ensemble la propriété parfaite pour vous
-                        </h2>
-                        <p class="text-black-50">
-                            Nous offrons des services immobiliers complets pour vous aider à trouver votre propriété idéale.
-                        </p>
-                    </div>
+                <div class="section-header-center">
+                    <h2 class="section-title">Nos Services Immobiliers</h2>
+                    <div class="title-underline"></div>
+                    <p class="section-subtitle">
+                        Des solutions complètes pour répondre à tous vos besoins immobiliers
+                    </p>
                 </div>
 
-                <div class="row justify-content-between align-items-center">
-                    <div class="col-lg-6 mb-5 mb-lg-0">
-                        <div class="stats-image">
-                            <img
-                                :src="biens.length > 1 && biens[1].images && biens[1].images.length >= 0 ? biens[0].images[0].url : defaultImage1"
-                                :alt="biens[0]?.title || 'Propriété exemple'"
-                                class="img-fluid rounded shadow"
-                            />
-                        </div>
-                    </div>
-                    <div class="col-lg-5">
-                        <div class="stats-features">
-                            <div class="feature-item d-flex mb-4">
-                                <div class="feature-icon me-3">
-                                    <span class="icon-home2"></span>
-                                </div>
-                                <div class="feature-text">
-                                    <h3 class="heading">150 + Propriétés</h3>
-                                    <p class="text-black-50">
-                                        Large portefeuille de propriétés vérifiées dans toutes les régions du Sénégal.
-                                    </p>
+                <div class="services-carousel">
+                    <div class="services-grid">
+                        <div class="service-card">
+                            <div class="service-icon-wrapper">
+                                <div class="service-icon">
+                                    <i class="fas fa-home"></i>
                                 </div>
                             </div>
-
-                            <div class="feature-item d-flex mb-4">
-                                <div class="feature-icon me-3">
-                                    <span class="icon-person"></span>
-                                </div>
-                                <div class="feature-text">
-                                    <h3 class="heading">Agents Qualifiés</h3>
-                                    <p class="text-black-50">
-                                        Agents professionnels avec une expérience prouvée dans l'immobilier sénégalais.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div class="feature-item d-flex">
-                                <div class="feature-icon me-3">
-                                    <span class="icon-security"></span>
-                                </div>
-                                <div class="feature-text">
-                                    <h3 class="heading">Propriétés Vérifiées</h3>
-                                    <p class="text-black-50">
-                                        Toutes nos propriétés sont vérifiées et conformes à la législation sénégalaise.
-                                    </p>
-                                </div>
+                            <h3 class="service-title">Vente de Propriétés</h3>
+                            <p class="service-description">
+                                Large sélection de <strong>maisons, appartements, terrains et studios</strong> dans toutes les régions du Sénégal. Chaque bien est vérifié pour garantir qualité et sécurité juridique.
+                            </p>
+                            <div class="service-features">
+                                <span><i class="fas fa-check"></i> Biens certifiés</span>
+                                <span><i class="fas fa-check"></i> Prix transparents</span>
+                                <span><i class="fas fa-check"></i> Visites organisées</span>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Section Solutions Immobilières - Redesignée -->
-        <section class="solutions-section py-5">
-            <div class="container">
-                <div class="row justify-content-center text-center mb-5">
-                    <div class="col-lg-8">
-                        <h2 class="font-weight-bold heading text-primary mb-3">
-                            Nos Solutions Immobilières au Sénégal
-                        </h2>
-                        <p class="text-black-50">
-                            Simplifiez vos démarches immobilières grâce à nos services dédiés à la location, la gestion et l'accompagnement personnalisé.
-                        </p>
-                    </div>
-                </div>
+                        <div class="service-card">
+                            <div class="service-icon-wrapper">
+                                <div class="service-icon">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                            </div>
+                            <h3 class="service-title">Construction & Projets</h3>
+                            <p class="service-description">
+                                Accompagnement de vos <strong>projets de construction</strong> de A à Z. Conception architecturale, suivi de chantier et livraison clés en main avec notre équipe d'experts.
+                            </p>
+                            <div class="service-features">
+                                <span><i class="fas fa-check"></i> Design personnalisé</span>
+                                <span><i class="fas fa-check"></i> Suivi rigoureux</span>
+                                <span><i class="fas fa-check"></i> Délais respectés</span>
+                            </div>
+                        </div>
 
-                <div class="row g-4">
-                    <!-- Service 1 - Fiche de Dépôt -->
-                    <div class="col-lg-4 col-md-6">
-                        <div class="solution-card-modern h-100">
-                            <div class="solution-icon-wrapper">
-                                <div class="solution-icon-modern">
+                        <div class="service-card">
+                            <div class="service-icon-wrapper">
+                                <div class="service-icon">
                                     <i class="fas fa-file-signature"></i>
                                 </div>
                             </div>
-                            <h3 class="solution-title-modern">Soumettre une Fiche de Dépôt</h3>
-                            <p class="solution-description-modern">
-                                Déposez facilement votre fiche de location en indiquant vos informations personnelles,
-                                vos critères de logement et votre budget. Nos agents analyseront votre profil afin de
-                                vous proposer des biens parfaitement adaptés à vos attentes.
+                            <h3 class="service-title">Gestion Locative</h3>
+                            <p class="service-description">
+                                <strong>Gestion complète de vos biens</strong> : recherche de locataires, gestion administrative, maintenance, recouvrement des loyers. Nous gérons tout pour vous en toute sérénité.
                             </p>
-                            <button @click="showModal = true" class="solution-btn-modern">
-                                <span>Remplir la fiche</span>
-                                <i class="fas fa-arrow-right ms-2"></i>
-                            </button>
+                            <div class="service-features">
+                                <span><i class="fas fa-check"></i> Locataires vérifiés</span>
+                                <span><i class="fas fa-check"></i> Maintenance assurée</span>
+                                <span><i class="fas fa-check"></i> Paiements garantis</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Service 2 - Accompagnement -->
-                    <div class="col-lg-4 col-md-6">
-                        <div class="solution-card-modern h-100">
-                            <div class="solution-icon-wrapper">
-                                <div class="solution-icon-modern">
+                        <div class="service-card">
+                            <div class="service-icon-wrapper">
+                                <div class="service-icon">
                                     <i class="fas fa-handshake"></i>
                                 </div>
                             </div>
-                            <h3 class="solution-title-modern">Accompagnement Personnalisé</h3>
-                            <p class="solution-description-modern">
-                                Bénéficiez d'un suivi complet par nos conseillers immobiliers. Nous vous guidons à chaque étape,
-                                de la sélection du bien jusqu'à la signature du contrat de location ou d'achat.
+                            <h3 class="service-title">Accompagnement Personnalisé</h3>
+                            <p class="service-description">
+                                <strong>Conseiller dédié</strong> qui analyse vos besoins, budget et attentes pour vous proposer les solutions les plus adaptées à votre situation personnelle.
                             </p>
-                            <Link :href="route('conversations.index')" class="solution-btn-modern">
-                                <span>Contacter un conseiller</span>
-                                <i class="fas fa-arrow-right ms-2"></i>
-                            </Link>
-                        </div>
-                    </div>
-
-                    <!-- Service 3 - Estimation -->
-                    <div class="col-lg-4 col-md-6">
-                        <div class="solution-card-modern h-100">
-                            <div class="solution-icon-wrapper">
-                                <div class="solution-icon-modern">
-                                    <i class="fas fa-chart-line"></i>
-                                </div>
+                            <div class="service-features">
+                                <span><i class="fas fa-check"></i> Conseils experts</span>
+                                <span><i class="fas fa-check"></i> Écoute personnalisée</span>
+                                <span><i class="fas fa-check"></i> Suivi continu</span>
                             </div>
-                            <h3 class="solution-title-modern">Estimation de Bien Immobilier</h3>
-                            <p class="solution-description-modern">
-                                Obtenez une estimation précise et fiable de la valeur locative ou marchande de votre bien.
-                                Nos experts se basent sur les données du marché, la localisation et les caractéristiques
-                                de votre propriété pour vous aider à fixer un prix juste et compétitif.
-                            </p>
-                            <Link class="solution-btn-modern">
-                                <span>Estimer mon bien</span>
-                                <i class="fas fa-arrow-right ms-2"></i>
-                            </Link>
                         </div>
                     </div>
+                </div>
+
+                <div class="cta-actions">
+                    <button
+                        @click="handleActionClick('deposer-fiche')"
+                        class="cta-button primary"
+                    >
+                        <i class="fas fa-file-alt"></i>
+                        Déposer une fiche de demande
+                    </button>
+
+                    <button
+                        @click="handleActionClick('contacter-agence')"
+                        class="cta-button primary"
+                    >
+                        <i class="fas fa-phone"></i>
+                        Contacter l'agence
+                    </button>
                 </div>
             </div>
         </section>
 
-        <!-- Section Équipe - Redesignée -->
-        <section class="team-section-modern py-5 bg-light">
+        <!-- Section Équipe -->
+        <section class="team-section">
             <div class="container">
-                <div class="row justify-content-center text-center mb-5">
-                    <div class="col-lg-8">
-                        <h2 class="font-weight-bold heading text-primary mb-4">
-                            Notre Équipe
-                        </h2>
-                        <p class="text-black-50">
-                            Rencontrez notre équipe dédiée de professionnels prêts à vous accompagner dans tous vos projets immobiliers.
-                        </p>
-                    </div>
+                <div class="section-header-center">
+                    <h2 class="section-title">Notre Équipe Professionnelle</h2>
+                    <div class="title-underline"></div>
+                    <p class="section-subtitle">
+                        Des experts dévoués pour la réussite de vos projets immobiliers
+                    </p>
                 </div>
 
-                <!-- Ligne 1 : PDG + Assistante + Agent Commercial -->
-                <div class="row g-4 mb-4">
-                    <div class="col-lg-4 col-md-6">
-                        <div class="team-card-modern director-highlight">
-                            <div class="team-card-header">
-                                <img
-                                    :src="directorImage"
-                                    alt="Yancouba Goudiaby"
-                                    class="team-img-modern"
-                                />
-                                <div class="team-badge director-badge">
+                <div class="team-structure">
+                    <div class="direction-row">
+                        <div class="team-member featured director">
+                            <div class="member-icon">
+                                <i class="fas fa-user-tie"></i>
+                                <div class="member-badge">
                                     <i class="fas fa-crown"></i>
                                 </div>
                             </div>
-                            <div class="team-card-body">
-                                <h4 class="team-name-modern">Yancouba Goudiaby</h4>
-                                <span class="team-role-badge director">DIRECTEUR GÉNÉRAL</span>
-                                <p class="team-desc-modern">
-                                    Visionnaire et leader de l'entreprise, supervisant l'ensemble des opérations et la stratégie globale.
-                                </p>
-                                <div class="team-social-modern">
-                                    <a href="#"><i class="fab fa-twitter"></i></a>
-                                    <a href="#"><i class="fab fa-facebook"></i></a>
-                                    <a href="#"><i class="fab fa-linkedin"></i></a>
-                                </div>
-                            </div>
+                            <h3 class="member-name">Yancouba Goudiaby</h3>
+                            <div class="member-role">Directeur Général</div>
+                            <p class="member-desc">
+                                Visionnaire et stratège, supervise l'ensemble des opérations et le développement de l'entreprise
+                            </p>
                         </div>
-                    </div>
 
-                    <div class="col-lg-4 col-md-6">
-                        <div class="team-card-modern assistant-highlight">
-                            <div class="team-card-header">
-                                <img
-                                    :src="assistantImage"
-                                    alt="Leyla Goudiaby"
-                                    class="team-img-modern"
-                                />
-                                <div class="team-badge assistant-badge">
+                        <div class="team-member featured assistant">
+                            <div class="member-icon">
+                                <i class="fas fa-user-circle"></i>
+                                <div class="member-badge assistant-badge">
                                     <i class="fas fa-star"></i>
                                 </div>
                             </div>
-                            <div class="team-card-body">
-                                <h4 class="team-name-modern">Leyla Goudiaby</h4>
-                                <span class="team-role-badge assistant">ASSISTANTE DG</span>
-                                <p class="team-desc-modern">
-                                    Soutien essentiel à la direction, coordonne les activités et assure la liaison entre services.
-                                </p>
-                                <div class="team-social-modern">
-                                    <a href="#"><i class="fab fa-twitter"></i></a>
-                                    <a href="#"><i class="fab fa-facebook"></i></a>
-                                    <a href="#"><i class="fab fa-linkedin"></i></a>
-                                </div>
-                            </div>
+                            <h3 class="member-name">Leyla Goudiaby</h3>
+                            <div class="member-role assistant-role">Assistante DG</div>
+                            <p class="member-desc">
+                                Coordonne les activités et assure la liaison entre les services
+                            </p>
                         </div>
                     </div>
 
-                    <div class="col-lg-4 col-md-6">
-                        <div class="team-card-modern">
-                            <div class="team-card-header">
-                                <img
-                                    :src="habibImage"
-                                    alt="Habib Seck"
-                                    class="team-img-modern"
-                                />
+                    <div class="team-grid">
+                        <div class="team-member">
+                            <div class="member-icon">
+                                <i class="fas fa-user"></i>
                             </div>
-                            <div class="team-card-body">
-                                <h4 class="team-name-modern">Habib Seck</h4>
-                                <span class="team-role-badge commercial">AGENT COMMERCIAL</span>
-                                <p class="team-desc-modern">
-                                    Expert en développement commercial et relations clients, spécialisé en prospection.
-                                </p>
-                                <div class="team-social-modern">
-                                    <a href="#"><i class="fab fa-twitter"></i></a>
-                                    <a href="#"><i class="fab fa-facebook"></i></a>
-                                    <a href="#"><i class="fab fa-linkedin"></i></a>
-                                </div>
-                            </div>
+                            <h3 class="member-name">Habib Seck</h3>
+                            <div class="member-role commercial-role">Agent Commercial</div>
+                            <p class="member-desc">
+                                Expert en développement commercial et relations clients
+                            </p>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Ligne 2 : Elias + Mr Badji + Leyla Comptable -->
-                <div class="row g-4 mb-4">
-                    <div class="col-lg-4 col-md-6">
-                        <div class="team-card-modern">
-                            <div class="team-card-header">
-                                <img
-                                    :src="eliasImage"
-                                    alt="Elias Sané"
-                                    class="team-img-modern"
-                                />
+                        <div class="team-member">
+                            <div class="member-icon">
+                                <i class="fas fa-user"></i>
                             </div>
-                            <div class="team-card-body">
-                                <h4 class="team-name-modern">Elias Sané</h4>
-                                <span class="team-role-badge recovery">AGENT DE RECOUVREMENT</span>
-                                <p class="team-desc-modern">
-                                    Spécialiste en gestion des créances et suivi des paiements.
-                                </p>
-                                <div class="team-social-modern">
-                                    <a href="#"><i class="fab fa-linkedin"></i></a>
-                                </div>
-                            </div>
+                            <h3 class="member-name">Elias Sané</h3>
+                            <div class="member-role recovery-role">Agent de Recouvrement</div>
+                            <p class="member-desc">
+                                Spécialiste en gestion des créances et suivi des paiements
+                            </p>
                         </div>
-                    </div>
 
-                    <div class="col-lg-4 col-md-6">
-                        <div class="team-card-modern">
-                            <div class="team-card-header">
-                                <img
-                                    :src="badjiImage"
-                                    alt="Mr Badji"
-                                    class="team-img-modern"
-                                />
+                        <div class="team-member">
+                            <div class="member-icon">
+                                <i class="fas fa-user"></i>
                             </div>
-                            <div class="team-card-body">
-                                <h4 class="team-name-modern">Mr Badji</h4>
-                                <span class="team-role-badge recovery">AGENT DE RECOUVREMENT</span>
-                                <p class="team-desc-modern">
-                                    Expert en recouvrement avec une approche professionnelle et orientée résultats.
-                                </p>
-                                <div class="team-social-modern">
-                                    <a href="#"><i class="fab fa-linkedin"></i></a>
-                                </div>
-                            </div>
+                            <h3 class="member-name">Mr Badji</h3>
+                            <div class="member-role recovery-role">Agent de Recouvrement</div>
+                            <p class="member-desc">
+                                Expert en recouvrement avec approche professionnelle
+                            </p>
                         </div>
-                    </div>
 
-                    <div class="col-lg-4 col-md-6">
-                        <div class="team-card-modern">
-                            <div class="team-card-header">
-                                <img
-                                    :src="leylaComptableImage"
-                                    alt="Leyla Goudiaby"
-                                    class="team-img-modern"
-                                />
+                        <div class="team-member">
+                            <div class="member-icon">
+                                <i class="fas fa-user"></i>
                             </div>
-                            <div class="team-card-body">
-                                <h4 class="team-name-modern">Leyla Goudiaby</h4>
-                                <span class="team-role-badge accounting">COMPTABLE</span>
-                                <p class="team-desc-modern">
-                                    Gestion rigoureuse de la comptabilité et des finances de l'entreprise.
-                                </p>
-                                <div class="team-social-modern">
-                                    <a href="#"><i class="fab fa-linkedin"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Ligne 3 : Ousmane Assistant + Ousmane IT + Huissier -->
-                <div class="row g-4">
-                    <div class="col-lg-4 col-md-6">
-                        <div class="team-card-modern">
-                            <div class="team-card-header">
-                                <img
-                                    :src="ousmaneAssistantImage"
-                                    alt="Ousmane Fall"
-                                    class="team-img-modern"
-                                />
-                            </div>
-                            <div class="team-card-body">
-                                <h4 class="team-name-modern">Ousmane Fall</h4>
-                                <span class="team-role-badge accounting">ASSISTANT COMPTABLE</span>
-                                <p class="team-desc-modern">
-                                    Support comptable et gestion des opérations financières quotidiennes.
-                                </p>
-                                <div class="team-social-modern">
-                                    <a href="#"><i class="fab fa-linkedin"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-4 col-md-6">
-                        <div class="team-card-modern">
-                            <div class="team-card-header">
-                                <img
-                                    :src="ousmaneITImage"
-                                    alt="Ousmane Fall"
-                                    class="team-img-modern"
-                                />
-                            </div>
-                            <div class="team-card-body">
-                                <h4 class="team-name-modern">Ousmane Fall</h4>
-                                <span class="team-role-badge it">RESPONSABLE IT</span>
-                                <p class="team-desc-modern">
-                                    Gestion et maintenance de l'infrastructure informatique de l'entreprise.
-                                </p>
-                                <div class="team-social-modern">
-                                    <a href="#"><i class="fab fa-linkedin"></i></a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-4 col-md-6">
-                        <div class="team-card-modern">
-                            <div class="team-card-header">
-                                <img
-                                    :src="huissierImage"
-                                    alt="Huissier de justice"
-                                    class="team-img-modern"
-                                />
-                            </div>
-                            <div class="team-card-body">
-                                <h4 class="team-name-modern">Mr X</h4>
-                                <span class="team-role-badge legal">HUISSIER DE JUSTICE</span>
-                                <p class="team-desc-modern">
-                                    Expert juridique assurant le respect des procédures légales et réglementaires.
-                                </p>
-                                <div class="team-social-modern">
-                                    <a href="#"><i class="fab fa-linkedin"></i></a>
-                                </div>
-                            </div>
+                            <h3 class="member-name">Ousmane Fall</h3>
+                            <div class="member-role it-role">Responsable IT</div>
+                            <p class="member-desc">
+                                Gestion de l'infrastructure informatique de l'entreprise
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
-    </div>
-    <!-- Modal de demande de location -->
-    <ClientDossierModal
-        :show="showModal"
-        @close="showModal = false"
-        @success="handleSuccess"
-    />
 
-    <!-- Toast de succès -->
-    <Transition name="toast">
-        <div v-if="showSuccessToast" class="success-toast">
-            <div class="toast-content">
+        <!-- Section Contact -->
+        <section class="contact-section">
+            <div class="container">
+                <div class="contact-wrapper">
+                    <div class="contact-info">
+                        <h2 class="contact-title">Prêt à Concrétiser Votre Projet ?</h2>
+                        <p class="contact-text">
+                            Contactez-nous dès aujourd'hui pour une consultation gratuite et personnalisée
+                        </p>
+
+                        <div class="contact-items">
+                            <div class="contact-item">
+                                <div class="contact-icon">
+                                    <i class="fas fa-phone"></i>
+                                </div>
+                                <div>
+                                    <h4>Téléphone</h4>
+                                    <p>+221 78 291 53 18</p>
+                                </div>
+                            </div>
+
+                            <div class="contact-item">
+                                <div class="contact-icon">
+                                    <i class="fas fa-envelope"></i>
+                                </div>
+                                <div>
+                                    <h4>Email</h4>
+                                    <p>caurisimmobiliere@gmail.com</p>
+                                </div>
+                            </div>
+
+                            <div class="contact-item">
+                                <div class="contact-icon">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </div>
+                                <div>
+                                    <h4>Adresse</h4>
+                                    <p>Keur Massar, Parcelles Assainies, Jaxaay, Unité 14, Dakar, Sénégal</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="contact-action">
+                        <button
+                            @click="handleActionClick('contacter-agence')"
+                            class="cta-button primary"
+                        >
+                            <i class="fas fa-phone"></i>
+                            Contacter l'agence
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <ClientDossierModal
+            :show="showModal"
+            @close="showModal = false"
+            @success="handleSuccess"
+        />
+
+        <Transition name="toast">
+            <div v-if="showSuccessToast" class="success-toast">
                 <i class="fas fa-check-circle"></i>
                 <div>
                     <h4>Demande envoyée avec succès !</h4>
-                    <p>Vous serez notifié dès qu'un logement correspondant sera disponible.</p>
+                    <p>Nous vous contacterons très prochainement.</p>
                 </div>
+                <button @click="showSuccessToast = false">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <button @click="showSuccessToast = false" class="toast-close">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    </Transition>
+        </Transition>
+    </div>
 </template>
+
 <script setup>
-import { Link } from '@inertiajs/vue3'
+import { Link, usePage, router } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import { onMounted, computed, ref, watch, nextTick } from 'vue'
-import { router } from '@inertiajs/vue3'
 import { tns } from 'tiny-slider/src/tiny-slider'
-import ChatWidget from '../Pages/ChatWidget.vue'
-import ClientDossierModal from '../Pages/ClientDossiers/Create.vue';
+import ClientDossierModal from '../Pages/ClientDossiers/Create.vue'
 
-
-// Images par défaut
 import defaultImage1 from '@/assets/images/hero_bg_3.jpg'
 import defaultImage2 from '@/assets/images/hero_bg_2.jpg'
 import defaultImage3 from '@/assets/images/hero_bg_1.jpg'
 
+const page = usePage()
 
-// ✅ Variables pour le modal
-const showModal = ref(false)
-const showSuccessToast = ref(false)
-
-// ✅ Fonction de gestion du succès
-const handleSuccess = () => {
-    showSuccessToast.value = true
-
-    // Masquer automatiquement après 5 secondes
-    setTimeout(() => {
-        showSuccessToast.value = false
-    }, 5000)
-}
-
-
-
-
-// Props du contrôleur
 const props = defineProps({
-    biens: {
-        type: Array,
-        default: () => []
-    },
-    totalBiens: {
-        type: Number,
-        default: 0
-    },
-    stats: {
-        type: Object,
-        default: () => ({
+    biens: { type: Array, default: () => [] },
+    totalBiens: { type: Number, default: 0 },
+    stats: { type: Object, default: () => ({
             total: 0,
             maisons: 0,
             appartements: 0,
-            luxury: 0,
-            recent: 0
-        })
-    },
-    categories: {
-        type: Array,
-        default: () => []
-    },
-    cities: {
-        type: Array,
-        default: () => []
-    },
-    filters: {
-        type: Object,
-        default: () => ({})
-    }
+            terrains: 0,
+            studios: 0,
+            vente: 0,
+            location: 0
+        }) },
+    categories: { type: Array, default: () => [] },
+    cities: { type: Array, default: () => [] },
+    filters: { type: Object, default: () => ({}) }
 })
 
-const getFirstImageUrl = (bien) => {
-    try {
-        // Utiliser toRaw pour accéder aux données brutes si nécessaire
-        const bienData = bien;
+const isGuest = computed(() => {
+    const user = page.props.auth?.user
 
-        // Vérifier si le bien a des images
-        if (bienData?.images && Array.isArray(bienData.images) && bienData.images.length > 0) {
-            const firstImage = bienData.images[0];
-
-            console.log('Première image:', firstImage); // Debug
-
-            // Priorité à l'attribut 'url' si disponible
-            if (firstImage?.url) {
-                return firstImage.url;
-            }
-
-            // Sinon, construire l'URL depuis chemin_image
-            if (firstImage?.chemin_image) {
-                return `/storage/${firstImage.chemin_image}`;
-            }
-        }
-
-        console.warn('Aucune image trouvée pour le bien:', bienData?.id || 'ID inconnu');
-    } catch (error) {
-        console.error('Erreur dans getFirstImageUrl:', error);
+    if (user?.is_guest === true || user?.is_guest === 1) {
+        return true
     }
 
-    // ✅ Image par défaut si aucune image n'est disponible
-    return defaultImage1;
+    if (user?.roles && Array.isArray(user.roles)) {
+        const hasVisiteurRole = user.roles.includes('visiteur')
+        const hasOnlyVisiteurRole = user.roles.length === 1 && hasVisiteurRole
+
+        if (hasOnlyVisiteurRole) {
+            return true
+        }
+    }
+
+    if (user?.email && user.email.includes('guest_') && user.email.includes('@temporary.local')) {
+        return true
+    }
+
+    if (!user) {
+        return true
+    }
+
+    return false
+})
+
+const handleActionClick = (action) => {
+    if (isGuest.value) {
+        sessionStorage.setItem('intended_action', action)
+        sessionStorage.setItem('redirect_after_login', window.location.pathname)
+
+        router.visit(route('login'), {
+            data: {
+                message: 'Veuillez vous connecter pour accéder à ce service'
+            }
+        })
+        return
+    }
+
+    if (action === 'deposer-fiche') {
+        showModal.value = true
+    } else if (action === 'contacter-agence') {
+        router.visit(route('conversations.index'))
+    }
 }
+
+// State variables
+const showModal = ref(false)
+const showSuccessToast = ref(false)
 const mainSearchQuery = ref('')
 const searchSuggestions = ref([])
 const currentQuickFilter = ref('all')
 const sortBy = ref('default')
-const useSlider = ref(false)
-const showAdvancedFilters = ref(false)
 const currentPage = ref(1)
 const itemsPerPage = ref(9)
+const viewMode = ref('grid')
+const carouselIndex = ref(0)
 
-// Filtres avancés
-const advancedFilters = ref({
-    minPrice: props.filters.min_price || '',
-    maxPrice: props.filters.max_price || '',
-    rooms: props.filters.rooms || '',
-    bathrooms: props.filters.bathrooms || '',
-    city: props.filters.city || ''
-})
-
-// Sliders
 let heroSlider = null
-let propertySlider = null
 
 // Computed properties
-const heroSliderBiens = computed(() => {
-    return props.biens.filter(bien => bien.images).slice(0, 3)
-})
-
-const hasActiveFilters = computed(() => {
-    return currentQuickFilter.value !== 'all' ||
-        advancedFilters.value.minPrice ||
-        advancedFilters.value.maxPrice ||
-        advancedFilters.value.rooms ||
-        advancedFilters.value.bathrooms ||
-        mainSearchQuery.value
-})
+const heroSliderBiens = computed(() => props.biens.filter(bien => bien.images).slice(0, 3))
+const hasActiveFilters = computed(() => currentQuickFilter.value !== 'all' || mainSearchQuery.value)
 
 const filteredBiens = computed(() => {
     let result = [...props.biens]
 
-    // Filtre par recherche principale
     if (mainSearchQuery.value) {
         const query = mainSearchQuery.value.toLowerCase()
         result = result.filter(bien =>
@@ -978,44 +877,28 @@ const filteredBiens = computed(() => {
         )
     }
 
-    // Filtre rapide
     if (currentQuickFilter.value !== 'all') {
         result = result.filter(bien => {
+            const categoryName = bien.category?.name?.toLowerCase() || ''
+            const mandatType = bien.mandat?.type_mandat?.toLowerCase() || ''
+
             switch (currentQuickFilter.value) {
                 case 'maison':
-                    return bien.category &&
-                        bien.category.name.toLowerCase().includes('maison')
+                    return categoryName.includes('maison')
                 case 'appartement':
-                    return bien.category &&
-                        bien.category.name.toLowerCase().includes('appartement')
-                case 'luxury':
-                    return bien.price >= 50000000
+                    return categoryName.includes('appartement')
+                case 'terrain':
+                    return categoryName.includes('terrain')
+                case 'studio':
+                    return categoryName.includes('studio')
+                case 'vente':
+                    return mandatType === 'vente'
+                case 'location':
+                    return mandatType === 'gestion_locative'
                 default:
                     return true
             }
         })
-    }
-
-    // Filtres avancés
-    if (advancedFilters.value.minPrice) {
-        result = result.filter(bien => bien.price >= parseInt(advancedFilters.value.minPrice))
-    }
-    if (advancedFilters.value.maxPrice) {
-        result = result.filter(bien => bien.price <= parseInt(advancedFilters.value.maxPrice))
-    }
-    if (advancedFilters.value.rooms) {
-        if (advancedFilters.value.rooms === '5+') {
-            result = result.filter(bien => bien.rooms >= 5)
-        } else {
-            result = result.filter(bien => bien.rooms === parseInt(advancedFilters.value.rooms))
-        }
-    }
-    if (advancedFilters.value.bathrooms) {
-        if (advancedFilters.value.bathrooms === '4+') {
-            result = result.filter(bien => bien.bathrooms >= 4)
-        } else {
-            result = result.filter(bien => bien.bathrooms === parseInt(advancedFilters.value.bathrooms))
-        }
     }
 
     return result
@@ -1024,19 +907,12 @@ const filteredBiens = computed(() => {
 const displayedBiens = computed(() => {
     let result = [...filteredBiens.value]
 
-    // Tri
     switch (sortBy.value) {
         case 'price_asc':
             result.sort((a, b) => a.price - b.price)
             break
         case 'price_desc':
             result.sort((a, b) => b.price - a.price)
-            break
-        case 'rooms_asc':
-            result.sort((a, b) => a.rooms - b.rooms)
-            break
-        case 'rooms_desc':
-            result.sort((a, b) => b.rooms - a.rooms)
             break
         case 'recent':
             result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -1047,14 +923,10 @@ const displayedBiens = computed(() => {
 })
 
 const currentBiensCount = computed(() => displayedBiens.value.length)
-
-// Pagination
 const totalPages = computed(() => Math.ceil(displayedBiens.value.length / itemsPerPage.value))
-
 const paginatedBiens = computed(() => {
     const start = (currentPage.value - 1) * itemsPerPage.value
-    const end = start + itemsPerPage.value
-    return displayedBiens.value.slice(start, end)
+    return displayedBiens.value.slice(start, start + itemsPerPage.value)
 })
 
 const visiblePages = computed(() => {
@@ -1063,9 +935,7 @@ const visiblePages = computed(() => {
     const current = currentPage.value
 
     if (total <= 7) {
-        for (let i = 1; i <= total; i++) {
-            pages.push(i)
-        }
+        for (let i = 1; i <= total; i++) pages.push(i)
     } else {
         if (current <= 4) {
             for (let i = 1; i <= 5; i++) pages.push(i)
@@ -1087,54 +957,34 @@ const visiblePages = computed(() => {
     return pages
 })
 
-// Méthodes utilitaires
-const formatPrice = (price) => {
-    return new Intl.NumberFormat('fr-FR').format(price)
-}
+// Methods
+const formatPrice = (price) => new Intl.NumberFormat('fr-FR').format(price)
 
 const getBienType = (bien) => {
-    if (bien.price >= 50000000) return 'Luxe'
     if (bien.category && bien.category.name) {
-        const categoryName = bien.category.name.toLowerCase()
-        if (categoryName.includes('maison')) return 'Maison'
-        if (categoryName.includes('appartement')) return 'Appartement'
+        return bien.category.name
     }
     return ''
 }
 
-const getBienTypeBadge = (bien) => {
-    const type = getBienType(bien)
-    switch (type) {
-        case 'Luxe': return 'bg-warning text-dark'
-        case 'Maison': return 'bg-success'
-        case 'Appartement': return 'bg-info'
-        default: return 'bg-secondary'
+const getMandatType = (bien) => {
+    if (bien.mandat && bien.mandat.type_mandat) {
+        return bien.mandat.type_mandat === 'vente' ? 'À Vendre' : 'À Louer'
     }
+    return ''
 }
 
-const getCategoryName = (bien) => {
-    return bien.category ? bien.category.name : 'Non catégorisé'
-}
+const getCategoryName = (bien) => bien.category ? bien.category.name : 'Non catégorisé'
 
-// Méthodes de recherche
-const performMainSearch = () => {
-    currentPage.value = 1
-    // Optionnel : rediriger vers la page de recherche complète
-    // router.get('/biens', { search: mainSearchQuery.value })
-}
+const performMainSearch = () => currentPage.value = 1
 
 const onMainSearchInput = async () => {
     if (mainSearchQuery.value.length >= 2) {
-        // Simulation d'autocomplétion (remplacer par un appel API si nécessaire)
         const query = mainSearchQuery.value.toLowerCase()
         searchSuggestions.value = props.cities
             .filter(city => city.toLowerCase().includes(query))
             .slice(0, 5)
-            .map(city => ({
-                id: city,
-                label: city,
-                city: city
-            }))
+            .map(city => ({ id: city, label: city, city }))
     } else {
         searchSuggestions.value = []
     }
@@ -1146,76 +996,54 @@ const selectSuggestion = (suggestion) => {
     performMainSearch()
 }
 
-// Méthodes de filtrage
 const setQuickFilter = (filter) => {
     currentQuickFilter.value = filter
     currentPage.value = 1
 }
 
-const applyAdvancedFilters = () => {
-    currentPage.value = 1
-}
-
-const applySorting = () => {
-    currentPage.value = 1
-}
+const applySorting = () => currentPage.value = 1
 
 const clearAllFilters = () => {
     mainSearchQuery.value = ''
     currentQuickFilter.value = 'all'
     sortBy.value = 'default'
-    advancedFilters.value = {
-        minPrice: '',
-        maxPrice: '',
-        rooms: '',
-        bathrooms: '',
-        city: ''
-    }
     currentPage.value = 1
     searchSuggestions.value = []
 }
 
-// Méthodes de pagination
 const changePage = (page) => {
-    if (page >= 1 && page <= totalPages.value && page !== '...') {
+    if (page >= 1 && page <= totalPages.value) {
         currentPage.value = page
         window.scrollTo({ top: 300, behavior: 'smooth' })
     }
 }
 
-// Méthodes de vue
-const toggleView = (slider) => {
-    useSlider.value = slider
-    if (slider) {
-        nextTick(() => {
-            initPropertySlider()
-        })
+const previousSlide = () => {
+    if (carouselIndex.value > 0) {
+        carouselIndex.value--
     }
 }
 
-const chatWidgetRef = ref(null)
-
-const openChatAssistant = () => {
-    // Le widget s'ouvrira automatiquement au clic sur le bouton
-    // Le composant ChatWidget gère son propre état d'ouverture
-    console.log('Ouverture du chat assistant demandée')
-    // Vous pouvez aussi faire défiler vers le bas pour montrer le widget
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+const nextSlide = () => {
+    if (carouselIndex.value < displayedBiens.value.length - 1) {
+        carouselIndex.value++
+    }
 }
 
-const scheduleVisit = () => {
-    // Implémenter la planification de visite
-    console.log('Planification de visite')
+const goToSlide = (index) => {
+    carouselIndex.value = index
 }
 
+const handleSuccess = () => {
+    showSuccessToast.value = true
+    setTimeout(() => showSuccessToast.value = false, 5000)
+}
 
-
-// Initialisation des sliders
 const initHeroSlider = () => {
     if (heroSliderBiens.value.length > 0) {
         nextTick(() => {
-            const heroSliderElement = document.querySelector('.hero-slider')
-            if (heroSliderElement && !heroSlider) {
+            const element = document.querySelector('.hero-slider')
+            if (element && !heroSlider) {
                 heroSlider = tns({
                     container: '.hero-slider',
                     items: 1,
@@ -1232,779 +1060,1501 @@ const initHeroSlider = () => {
     }
 }
 
-const initPropertySlider = () => {
-    if (displayedBiens.value.length > 0 && useSlider.value) {
-        nextTick(() => {
-            const propertySliderElement = document.querySelector('.property-slider')
-            if (propertySliderElement && !propertySlider && displayedBiens.value.length > 3) {
-                propertySlider = tns({
-                    container: '.property-slider',
-                    items: 3,
-                    gutter: 30,
-                    autoplay: false,
-                    controlsContainer: '#property-nav',
-                    responsive: {
-                        0: { items: 1 },
-                        700: { items: 2 },
-                        1024: { items: 3 }
-                    }
-                })
-            }
-        })
-    }
-}
-
-// Watchers
-watch([currentQuickFilter, mainSearchQuery, advancedFilters], () => {
-    currentPage.value = 1
-}, { deep: true })
-
-watch(useSlider, (newVal) => {
-    if (newVal && displayedBiens.value.length > 3) {
-        nextTick(() => {
-            initPropertySlider()
-        })
-    }
+watch(viewMode, () => {
+    carouselIndex.value = 0
 })
 
-// Lifecycle
 onMounted(() => {
-    console.log('Biens reçus:', props.biens);
-    console.log('Premier bien:', props.biens[0]);
-    if (props.biens[0]?.images) {
-        console.log('Images du premier bien:', props.biens[0].images);
-    }
-
-    if (props.filters) {
-        Object.keys(props.filters).forEach(key => {
-            if (props.filters[key] && advancedFilters.value.hasOwnProperty(key)) {
-                advancedFilters.value[key] = props.filters[key]
-            }
-        })
-    }
-
-    // Initialiser les sliders
     initHeroSlider()
 
-    // Initialiser le property slider si nécessaire
-    if (useSlider.value) {
-        initPropertySlider()
-    }
-
-    // Gestionnaire pour fermer les suggestions quand on clique ailleurs
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('.search-input-wrapper')) {
+        if (!e.target.closest('.search-wrapper')) {
             searchSuggestions.value = []
         }
     })
+
+    const intendedAction = sessionStorage.getItem('intended_action')
+    if (intendedAction && !isGuest.value) {
+        sessionStorage.removeItem('intended_action')
+        sessionStorage.removeItem('redirect_after_login')
+
+        if (intendedAction === 'deposer-fiche') {
+            showModal.value = true
+        } else if (intendedAction === 'contacter-agence') {
+            router.visit(route('conversations.index'))
+        }
+    }
 })
 </script>
 
 <style scoped>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-/* ============================================
-   SECTION SOLUTIONS - Design Moderne
-   ============================================ */
-.solutions-section {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+.home-page {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #1f2937;
+    background: #ffffff;
+}
+
+.container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+/* Hero Section */
+.hero-section {
+    height: 100vh;
+    min-height: 650px;
     position: relative;
     overflow: hidden;
 }
 
-.solutions-section::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -10%;
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(0, 96, 100, 0.05) 0%, transparent 70%);
-    border-radius: 50%;
-}
-
-.solution-card-modern {
-    background: white;
-    border-radius: 20px;
-    padding: 2.5rem;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-    border: 1px solid rgba(0, 96, 100, 0.1);
-    position: relative;
-    overflow: hidden;
-}
-
-.solution-card-modern::before {
-    content: '';
+.hero-slider {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    height: 4px;
-    background: linear-gradient(90deg, #006064, #00838f);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.4s ease;
+    height: 100%;
 }
 
-.solution-card-modern:hover::before {
-    transform: scaleX(1);
-}
-
-.solution-card-modern:hover {
-    transform: translateY(-15px);
-    box-shadow: 0 20px 60px rgba(0, 96, 100, 0.15);
-}
-
-.solution-icon-wrapper {
-    margin-bottom: 2rem;
-}
-
-.solution-icon-modern {
-    width: 90px;
-    height: 90px;
-    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto;
+.slide-item {
     position: relative;
-    box-shadow: 0 10px 30px rgba(0, 96, 100, 0.3);
-    transition: all 0.4s ease;
-}
-
-.solution-card-modern:hover .solution-icon-modern {
-    transform: rotateY(360deg);
-    box-shadow: 0 15px 40px rgba(0, 96, 100, 0.4);
-}
-
-.solution-icon-modern i {
-    font-size: 2.5rem;
-    color: white;
-}
-
-.solution-title-modern {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1f2937;
-    margin-bottom: 1.25rem;
-    text-align: center;
-}
-
-.solution-description-modern {
-    color: #6b7280;
-    line-height: 1.7;
-    font-size: 0.95rem;
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-.solution-btn-modern {
-    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
-    color: white;
-    padding: 1rem 2rem;
-    border-radius: 50px;
-    font-weight: 600;
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     width: 100%;
-    text-decoration: none;
-    box-shadow: 0 4px 15px rgba(0, 96, 100, 0.3);
+    height: 100%;
 }
 
-.solution-btn-modern:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(0, 96, 100, 0.4);
-    color: white;
-    text-decoration: none;
-}
-
-.solution-btn-modern i {
-    transition: transform 0.3s ease;
-}
-
-.solution-btn-modern:hover i {
-    transform: translateX(5px);
-}
-
-/* ============================================
-   SECTION SOLUTIONS - Design Moderne
-   ============================================ */
-.solutions-section {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    position: relative;
-    overflow: hidden;
-}
-
-.solutions-section::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -10%;
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(0, 96, 100, 0.05) 0%, transparent 70%);
-    border-radius: 50%;
-}
-
-.solution-card-modern {
-    background: white;
-    border-radius: 20px;
-    padding: 2.5rem;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-    border: 1px solid rgba(0, 96, 100, 0.1);
-    position: relative;
-    overflow: hidden;
-}
-
-.solution-card-modern::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
+.slide-image {
     width: 100%;
-    height: 4px;
-    background: linear-gradient(90deg, #006064, #00838f);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.4s ease;
-}
-
-.solution-card-modern:hover::before {
-    transform: scaleX(1);
-}
-
-.solution-card-modern:hover {
-    transform: translateY(-15px);
-    box-shadow: 0 20px 60px rgba(0, 96, 100, 0.15);
-}
-
-.solution-icon-wrapper {
-    margin-bottom: 2rem;
-}
-
-.solution-icon-modern {
-    width: 90px;
-    height: 90px;
-    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto;
-    position: relative;
-    box-shadow: 0 10px 30px rgba(0, 96, 100, 0.3);
-    transition: all 0.4s ease;
-}
-
-.solution-card-modern:hover .solution-icon-modern {
-    transform: rotateY(360deg);
-    box-shadow: 0 15px 40px rgba(0, 96, 100, 0.4);
-}
-
-.solution-icon-modern i {
-    font-size: 2.5rem;
-    color: white;
-}
-
-.solution-title-modern {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1f2937;
-    margin-bottom: 1.25rem;
-    text-align: center;
-}
-
-.solution-description-modern {
-    color: #6b7280;
-    line-height: 1.7;
-    font-size: 0.95rem;
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-.solution-btn-modern {
-    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
-    color: white;
-    padding: 1rem 2rem;
-    border-radius: 50px;
-    font-weight: 600;
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    text-decoration: none;
-    box-shadow: 0 4px 15px rgba(0, 96, 100, 0.3);
-}
-
-.solution-btn-modern:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(0, 96, 100, 0.4);
-    color: white;
-    text-decoration: none;
-}
-
-.solution-btn-modern i {
-    transition: transform 0.3s ease;
-}
-
-.solution-btn-modern:hover i {
-    transform: translateX(5px);
-}
-
-/* ============================================
-   SECTION ÉQUIPE - Design Moderne
-   ============================================ */
-.team-section-modern {
-    position: relative;
-}
-
-/* Featured Card - Directeur */
-.team-featured-card {
-    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
-    border-radius: 25px;
-    padding: 3rem;
-    box-shadow: 0 20px 60px rgba(0, 96, 100, 0.3);
-    color: white;
-    position: relative;
-    overflow: hidden;
-}
-
-.team-featured-card::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -20%;
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-    border-radius: 50%;
-}
-
-.featured-image-wrapper {
-    position: relative;
-    display: inline-block;
-}
-
-.featured-img {
-    width: 200px;
-    height: 200px;
-    border-radius: 50%;
+    height: 100%;
     object-fit: cover;
-    border: 6px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
 }
 
-.featured-badge {
+.slide-overlay {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(0, 96, 100, 0.9) 0%, rgba(0, 131, 143, 0.85) 100%);
+}
+
+.hero-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.hero-inner {
+    text-align: center;
+    max-width: 900px;
+    padding: 2rem;
+}
+
+/* Brand Header */
+.brand-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 2.5rem;
+    animation: fadeInDown 1s ease;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.brand-logo {
+    width: 90px;
+    height: 90px;
+    background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    animation: pulse 3s infinite;
+}
+
+.brand-logo svg {
     width: 50px;
     height: 50px;
-    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 5px 20px rgba(251, 191, 36, 0.5);
-    animation: pulse 2s infinite;
+    color: #006064;
 }
 
 @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
+    0%, 100% { transform: scale(1); box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3); }
+    50% { transform: scale(1.05); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4); }
 }
 
-.featured-badge i {
-    font-size: 1.5rem;
+.brand-name {
+    font-size: 4.5rem;
+    font-weight: 900;
     color: white;
+    text-shadow: 3px 5px 10px rgba(0, 0, 0, 0.4);
+    letter-spacing: -2px;
+    line-height: 1;
 }
 
-.featured-content {
-    padding-left: 2rem;
+.hero-subtitle {
+    font-size: 1.6rem;
+    color: rgba(255, 255, 255, 0.98);
+    font-weight: 500;
+    margin-bottom: 1.25rem;
+    line-height: 1.5;
+    animation: fadeIn 1.2s ease;
 }
 
-.featured-name {
-    font-size: 2.5rem;
-    font-weight: 800;
-    margin-bottom: 0.5rem;
-}
-
-.featured-role {
-    font-size: 1.25rem;
+.hero-description {
+    font-size: 1.15rem;
+    color: rgba(255, 255, 255, 0.95);
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.9);
-    margin-bottom: 1.5rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    margin-bottom: 3.5rem;
+    letter-spacing: 1.5px;
+    animation: fadeIn 1.4s ease;
 }
 
-.featured-description {
-    font-size: 1.1rem;
-    line-height: 1.8;
-    color: rgba(255, 255, 255, 0.9);
-    margin-bottom: 2rem;
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
-.featured-social {
+/* Search Form */
+.search-form {
     display: flex;
-    gap: 1rem;
+    max-width: 750px;
+    margin: 0 auto;
+    gap: 0;
+    animation: fadeInUp 1.6s ease;
 }
 
-.social-icon {
-    width: 50px;
-    height: 50px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.search-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.search-icon {
+    position: absolute;
+    left: 1.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    font-size: 1.25rem;
+    z-index: 1;
+}
+
+.search-input {
+    width: 100%;
+    padding: 1.5rem 1.75rem 1.5rem 4rem;
+    border: none;
+    border-radius: 60px 0 0 60px;
+    font-size: 1.05rem;
+    outline: none;
+    background: white;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.search-input:focus {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.search-input::placeholder {
+    color: #9ca3af;
+}
+
+.search-button {
+    padding: 1.5rem 3.5rem;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: white;
+    border: none;
+    border-radius: 0 60px 60px 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 15px 50px rgba(251, 191, 36, 0.35);
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+.search-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 60px rgba(251, 191, 36, 0.45);
+}
+
+.suggestions {
+    position: absolute;
+    top: calc(100% + 12px);
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    z-index: 100;
+}
+
+.suggestion-item {
+    padding: 1.15rem 1.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 1.15rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background: #f9fafb;
+}
+
+.suggestion-item i {
+    color: #006064;
+    font-size: 1.1rem;
+}
+
+/* Stats Section */
+.stats-section {
+    padding: 6rem 0;
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    margin-top: -100px;
+    position: relative;
+    z-index: 5;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 3rem;
+}
+
+.stat-card {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(15px);
+    padding: 3rem 2.5rem;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    transition: all 0.4s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-12px);
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+}
+
+.stat-icon {
+    width: 75px;
+    height: 75px;
+    min-width: 75px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.stat-icon i {
+    font-size: 2.25rem;
     color: white;
-    transition: all 0.3s ease;
-    text-decoration: none;
-    backdrop-filter: blur(10px);
 }
 
-.social-icon:hover {
+.stat-content {
+    flex: 1;
+}
+
+.stat-number {
+    font-size: 3.25rem;
+    font-weight: 900;
+    color: white;
+    margin-bottom: 0.35rem;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+/* Section Headers */
+.section-header-center {
+    text-align: center;
+    margin-bottom: 5rem;
+}
+
+.section-title {
+    font-size: 3rem;
+    font-weight: 900;
+    color: #1f2937;
+    margin-bottom: 1.25rem;
+    line-height: 1.2;
+}
+
+.title-underline {
+    width: 90px;
+    height: 5px;
+    background: linear-gradient(90deg, #006064, #fbbf24);
+    margin: 0 auto 2rem;
+    border-radius: 3px;
+}
+
+.section-subtitle {
+    font-size: 1.15rem;
+    color: #6b7280;
+    margin-top: 0.75rem;
+    line-height: 1.6;
+}
+
+/* About Section */
+.about-section {
+    padding: 8rem 0;
+    background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);
+}
+
+.about-content {
+    display: grid;
+    gap: 5rem;
+}
+
+.about-text {
+    max-width: 100%;
+}
+
+.about-text .section-title {
+    text-align: left;
+    font-size: 2.75rem;
+}
+
+.about-text .title-underline {
+    margin: 0 0 2.5rem 0;
+}
+
+.lead-text {
+    font-size: 1.35rem;
+    line-height: 1.8;
+    color: #374151;
+    margin-bottom: 3rem;
+    font-weight: 500;
+}
+
+.description-blocks {
+    display: grid;
+    gap: 2.5rem;
+}
+
+.desc-block {
     background: white;
-    color: #006064;
-    transform: translateY(-5px);
-}
-
-/* Section Équipe */
-.team-section-modern {
-    position: relative;
-    background: #f8f9fa;
-}
-
-/* Team Cards */
-.team-card-modern {
-    background: white;
+    padding: 2.5rem;
     border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+    border-left: 5px solid #006064;
+    transition: all 0.3s ease;
+}
+
+.desc-block:hover {
+    transform: translateX(8px);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.1);
+}
+
+.desc-block h3 {
+    font-size: 1.4rem;
+    color: #006064;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 700;
+}
+
+.desc-block h3 i {
+    font-size: 1.3rem;
+}
+
+.desc-block p {
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: #4b5563;
+}
+
+.values-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 3rem;
+}
+
+.value-card {
+    background: white;
+    padding: 3rem 2.5rem;
+    border-radius: 25px;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
     transition: all 0.4s ease;
-    height: 100%;
+    border: 2px solid transparent;
+    text-align: center;
+}
+
+.value-card:hover {
+    transform: translateY(-12px);
+    border-color: #006064;
+    box-shadow: 0 25px 60px rgba(0, 96, 100, 0.18);
+}
+
+.value-icon {
+    width: 90px;
+    height: 90px;
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.75rem;
+    transition: transform 0.3s ease;
+}
+
+.value-card:hover .value-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.value-icon i {
+    font-size: 2.75rem;
+    color: white;
+}
+
+.value-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #1f2937;
+    margin-bottom: 1rem;
+}
+
+.value-description {
+    color: #6b7280;
+    line-height: 1.7;
+    font-size: 1.05rem;
+}
+
+/* Properties Section */
+.properties-section {
+    padding: 8rem 0;
+    background: white;
+}
+
+.filters-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4rem;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.quick-filters {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.filter-chip {
+    padding: 1rem 2rem;
+    border: 2px solid #e5e7eb;
+    background: white;
+    border-radius: 60px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: #6b7280;
+    font-family: inherit;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.filter-chip i {
+    font-size: 1.1rem;
+}
+
+.filter-chip:hover {
+    border-color: #006064;
+    color: #006064;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.filter-chip.active {
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    border-color: #006064;
+    color: white;
+    box-shadow: 0 6px 20px rgba(0, 96, 100, 0.35);
+}
+
+.sort-select {
+    padding: 1rem 2rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 60px;
+    font-weight: 700;
+    cursor: pointer;
+    outline: none;
+    background: white;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    font-size: 1rem;
+    color: #6b7280;
+}
+
+.sort-select:focus {
+    border-color: #006064;
+    box-shadow: 0 4px 15px rgba(0, 96, 100, 0.15);
+}
+
+/* Properties Grid */
+.properties-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 3rem;
+}
+
+/* Carousel Styles - NOUVEAU */
+.properties-carousel-container {
+    position: relative;
+    margin-bottom: 3rem;
+}
+
+.carousel-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.carousel-track-container {
+    flex: 1;
+    overflow: hidden;
+    border-radius: 25px;
+}
+
+.carousel-track {
+    display: flex;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.carousel-slide {
+    min-width: 100%;
+    padding: 0 1rem;
+}
+
+.carousel-nav-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 25px rgba(0, 96, 100, 0.3);
+}
+
+.carousel-nav-btn:hover:not(:disabled) {
+    transform: scale(1.1);
+    box-shadow: 0 12px 35px rgba(0, 96, 100, 0.4);
+}
+
+.carousel-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.carousel-indicators {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 2.5rem;
+}
+
+.indicator-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #d1d5db;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+.indicator-dot:hover {
+    background: #9ca3af;
+    transform: scale(1.2);
+}
+
+.indicator-dot.active {
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    width: 32px;
+    border-radius: 6px;
+}
+
+.carousel-counter {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #6b7280;
+}
+
+/* Styles pour les boutons de vue - NOUVEAU */
+.view-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.view-toggle {
+    display: flex;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 60px;
+    overflow: hidden;
+}
+
+.view-btn {
+    padding: 1rem 1.75rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: #6b7280;
+    font-size: 1.15rem;
+}
+
+.view-btn:hover {
+    background: #f9fafb;
+    color: #006064;
+}
+
+.view-btn.active {
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    color: white;
+}
+
+.property-card {
+    background: white;
+    border-radius: 25px;
+    overflow: hidden;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.09);
+    transition: all 0.4s ease;
     border: 2px solid transparent;
 }
 
-.team-card-modern:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+.property-card:hover {
+    transform: translateY(-15px);
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.18);
+    border-color: #006064;
 }
 
-/* Highlights spéciaux */
-.director-highlight {
-    border-color: #fbbf24;
-    background: linear-gradient(to bottom, #fffbeb 0%, white 30%);
+.property-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
 }
 
-.assistant-highlight {
-    border-color: #c084fc;
-    background: linear-gradient(to bottom, #faf5ff 0%, white 30%);
-}
-
-/* Header with image */
-.team-card-header {
+.property-image {
     position: relative;
-    padding: 2rem 2rem 0;
-    text-align: center;
+    height: 270px;
+    overflow: hidden;
+    background: #f3f4f6;
 }
 
-.team-img-modern {
-    width: 140px;
-    height: 140px;
-    border-radius: 50%;
+.property-image img {
+    width: 100%;
+    height: 100%;
     object-fit: cover;
-    border: 5px solid #f8f9fa;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-    transition: transform 0.4s ease;
+    transition: transform 0.5s ease;
 }
 
-.team-card-modern:hover .team-img-modern {
-    transform: scale(1.05);
+.property-card:hover .property-image img {
+    transform: scale(1.15);
 }
 
-/* Badge sur l'image */
-.team-badge {
+.property-badge {
     position: absolute;
-    top: 2rem;
-    right: calc(50% - 70px);
-    width: 35px;
-    height: 35px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 0.9rem;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
-.director-badge {
+    top: 1.25rem;
+    right: 1.25rem;
     background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-    animation: pulse 2s infinite;
-}
-
-.assistant-badge {
-    background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-}
-
-/* Card Body */
-.team-card-body {
-    padding: 1.5rem 2rem 2rem;
-    text-align: center;
-}
-
-.team-name-modern {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #1f2937;
-    margin-bottom: 0.75rem;
-}
-
-/* Role Badge */
-.team-role-badge {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    border-radius: 50px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
+    color: white;
+    padding: 0.65rem 1.35rem;
+    border-radius: 60px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    box-shadow: 0 6px 20px rgba(251, 191, 36, 0.45);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
-.team-role-badge.director {
+.property-body {
+    padding: 2rem;
+}
+
+.property-price {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #006064;
+    margin-bottom: 1.25rem;
+}
+
+.property-location {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    color: #6b7280;
+    margin-bottom: 1.5rem;
+    font-size: 1.05rem;
+}
+
+.property-location i {
+    color: #006064;
+    font-size: 1.15rem;
+}
+
+.property-specs {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 1.75rem;
+    padding: 1.25rem;
+    background: #f9fafb;
+    border-radius: 15px;
+}
+
+.spec-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: #4b5563;
+    font-weight: 600;
+    font-size: 1.05rem;
+}
+
+.spec-item i {
+    color: #006064;
+    font-size: 1.25rem;
+}
+
+.property-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1.5rem;
+    border-top: 2px solid #e5e7eb;
+}
+
+.property-category {
+    font-size: 0.95rem;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+.view-details {
+    font-weight: 800;
+    color: #006064;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+}
+
+.view-details i {
+    font-size: 0.9rem;
+    transition: transform 0.3s ease;
+}
+
+.property-card:hover .view-details {
+    color: #00838f;
+}
+
+.property-card:hover .view-details i {
+    transform: translateX(5px);
+}
+
+/* No Results */
+.no-results {
+    text-align: center;
+    padding: 5rem 2rem;
+}
+
+.no-results i {
+    font-size: 5rem;
+    color: #d1d5db;
+    margin-bottom: 2rem;
+}
+
+.no-results h3 {
+    font-size: 2rem;
+    color: #1f2937;
+    margin-bottom: 1.25rem;
+    font-weight: 700;
+}
+
+.no-results p {
+    color: #6b7280;
+    margin-bottom: 2.5rem;
+    font-size: 1.1rem;
+}
+
+.btn-reset {
+    padding: 1.15rem 2.5rem;
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    color: white;
+    border: none;
+    border-radius: 60px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    font-size: 1.05rem;
+}
+
+.btn-reset:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0, 96, 100, 0.35);
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.25rem;
+    margin-top: 5rem;
+}
+
+.page-btn {
+    padding: 1rem 2rem;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 60px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: #6b7280;
+    font-family: inherit;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.page-btn i {
+    font-size: 0.9rem;
+}
+
+.page-btn:hover:not(:disabled) {
+    border-color: #006064;
+    color: #006064;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.page-numbers {
+    display: flex;
+    gap: 0.65rem;
+}
+
+.page-number {
+    width: 50px;
+    height: 50px;
+    border: 2px solid #e5e7eb;
+    background: white;
+    border-radius: 50%;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: #6b7280;
+    font-family: inherit;
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.page-number:hover:not(.dots):not(.active) {
+    border-color: #006064;
+    color: #006064;
+    transform: scale(1.1);
+}
+
+.page-number.active {
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    border-color: #006064;
+    color: white;
+    box-shadow: 0 6px 20px rgba(0, 96, 100, 0.35);
+}
+
+.page-number.dots {
+    border: none;
+    cursor: default;
+}
+
+/* Services Section */
+.services-section {
+    padding: 8rem 0;
+    background: linear-gradient(to bottom, #f9fafb 0%, #ffffff 100%);
+}
+
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+    margin-bottom: 5rem;
+}
+
+.service-card {
+    background: white;
+    padding: 3rem 2.5rem;
+    border-radius: 25px;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+    transition: all 0.4s ease;
+    border-top: 5px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.service-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 96, 100, 0.05), transparent);
+    transition: left 0.6s ease;
+}
+
+.service-card:hover::before {
+    left: 100%;
+}
+
+.service-card:nth-child(1) {
+    border-top-color: #fbbf24;
+}
+
+.service-card:nth-child(2) {
+    border-top-color: #006064;
+}
+
+.service-card:nth-child(3) {
+    border-top-color: #10b981;
+}
+
+.service-card:nth-child(4) {
+    border-top-color: #8b5cf6;
+}
+
+.service-card:hover {
+    transform: translateY(-12px);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15);
+}
+
+.service-icon-wrapper {
+    margin-bottom: 2rem;
+}
+
+.service-icon {
+    width: 90px;
+    height: 90px;
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.4s ease;
+}
+
+.service-card:hover .service-icon {
+    transform: scale(1.15) rotate(8deg);
+}
+
+.service-icon i {
+    font-size: 2.75rem;
+    color: white;
+}
+
+.service-title {
+    font-size: 1.65rem;
+    font-weight: 800;
+    color: #1f2937;
+    margin-bottom: 1.25rem;
+}
+
+.service-description {
+    color: #4b5563;
+    line-height: 1.9;
+    font-size: 1.05rem;
+    margin-bottom: 2rem;
+}
+
+.service-features {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.service-features span {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    color: #6b7280;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.service-features i {
+    color: #10b981;
+    font-size: 1rem;
+}
+
+.cta-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.cta-button {
+    padding: 1.5rem 3rem;
+    border-radius: 60px;
+    font-weight: 800;
+    font-size: 1.15rem;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    border: none;
+}
+
+.cta-button i {
+    font-size: 1.2rem;
+}
+
+.cta-button.primary {
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    color: white;
+    box-shadow: 0 12px 35px rgba(0, 96, 100, 0.3);
+}
+
+.cta-button.primary:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 50px rgba(0, 96, 100, 0.4);
+}
+
+.cta-button.secondary {
+    background: white;
+    color: #006064;
+    border: 3px solid #006064;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08);
+}
+
+.cta-button.secondary:hover {
+    transform: translateY(-4px);
+    background: #006064;
+    color: white;
+    box-shadow: 0 18px 50px rgba(0, 96, 100, 0.3);
+}
+
+/* Team Section */
+.team-section {
+    padding: 8rem 0;
+    background: white;
+}
+
+.team-structure {
+    display: grid;
+    gap: 3rem;
+}
+
+.direction-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 3rem;
+    margin-bottom: 2rem;
+}
+
+.team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+}
+
+.team-member {
+    background: white;
+    padding: 3rem 2.5rem;
+    border-radius: 25px;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+    transition: all 0.4s ease;
+    text-align: center;
+    border: 2px solid transparent;
+    position: relative;
+}
+
+.team-member:hover {
+    transform: translateY(-12px);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15);
+    border-color: #e5e7eb;
+}
+
+.team-member.featured {
+    border-color: #fbbf24;
+    background: linear-gradient(to bottom, #fffbeb 0%, white 25%);
+    box-shadow: 0 15px 45px rgba(251, 191, 36, 0.15);
+}
+
+.team-member.featured:hover {
+    border-color: #fbbf24;
+    box-shadow: 0 30px 70px rgba(251, 191, 36, 0.25);
+}
+
+.member-icon {
+    position: relative;
+    width: 130px;
+    height: 130px;
+    margin: 0 auto 2rem;
+}
+
+.member-icon i {
+    width: 130px;
+    height: 130px;
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    color: white;
+    box-shadow: 0 12px 35px rgba(0, 96, 100, 0.3);
+    transition: transform 0.4s ease;
+}
+
+.team-member:hover .member-icon i {
+    transform: scale(1.08);
+}
+
+.member-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    animation: pulse 3s infinite;
+}
+
+.member-badge.assistant-badge {
+    background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+}
+
+.member-badge i {
+    font-size: 1.25rem;
+    width: auto;
+    height: auto;
+    background: none;
+    box-shadow: none;
+}
+
+.member-name {
+    font-size: 1.65rem;
+    font-weight: 800;
+    color: #1f2937;
+    margin-bottom: 1rem;
+}
+
+.member-role {
+    display: inline-block;
+    padding: 0.65rem 1.35rem;
+    border-radius: 60px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    margin-bottom: 1.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
     background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
     color: #92400e;
 }
 
-.team-role-badge.assistant {
+.assistant-role {
     background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%);
     color: #7c3aed;
 }
 
-.team-role-badge.commercial {
+.commercial-role {
     background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
     color: #1e40af;
 }
 
-.team-role-badge.recovery {
+.recovery-role {
     background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
     color: #115e59;
 }
 
-.team-role-badge.accounting {
-    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-    color: #065f46;
-}
-
-.team-role-badge.it {
+.it-role {
     background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
     color: #9a3412;
 }
 
-.team-role-badge.legal {
-    background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
-    color: #991b1b;
+.member-desc {
+    color: #6b7280;
+    font-size: 1rem;
+    line-height: 1.7;
 }
 
-/* Description */
-.team-desc-modern {
-    color: #6b7280;
-    font-size: 0.95rem;
-    line-height: 1.6;
+/* Contact Section */
+.contact-section {
+    padding: 8rem 0;
+    background: linear-gradient(135deg, #006064 0%, #00838f 100%);
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.contact-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 500px;
+    height: 500px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 50%;
+}
+
+.contact-section::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -5%;
+    width: 400px;
+    height: 400px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 50%;
+}
+
+.contact-wrapper {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 5rem;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+}
+
+.contact-info {
+    max-width: 600px;
+}
+
+.contact-title {
+    font-size: 3.25rem;
+    font-weight: 900;
     margin-bottom: 1.5rem;
-    min-height: 75px;
+    line-height: 1.2;
 }
 
-/* Social Links */
-.team-social-modern {
-    display: flex;
-    justify-content: center;
-    gap: 0.75rem;
-}
-
-.team-social-modern a {
-    width: 40px;
-    height: 40px;
-    background: #f3f4f6;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #6b7280;
-    transition: all 0.3s ease;
-    text-decoration: none;
-}
-
-.team-social-modern a:hover {
-    background: #006064;
-    color: white;
-    transform: translateY(-3px);
-}
-
-/* Responsive */
-@media (max-width: 992px) {
-    .team-card-modern {
-        margin-bottom: 1rem;
-    }
-}
-
-@media (max-width: 768px) {
-    .team-img-modern {
-        width: 120px;
-        height: 120px;
-    }
-
-    .team-name-modern {
-        font-size: 1.1rem;
-    }
-
-    .team-desc-modern {
-        font-size: 0.875rem;
-        min-height: auto;
-    }
-}
-/* Styles existants de votre Home.vue */
-
-.solution-card {
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s;
-}
-
-.solution-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-}
-
-.solution-icon {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 36px;
-}
-
-.solution-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: #1f2937;
-}
-
-.solution-description {
-    color: #6b7280;
+.contact-text {
+    font-size: 1.25rem;
+    margin-bottom: 3rem;
+    color: rgba(255, 255, 255, 0.95);
     line-height: 1.6;
-    font-size: 15px;
 }
 
-.solution-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.contact-items {
+    display: grid;
+    gap: 2rem;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 1.75rem;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.contact-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateX(8px);
+}
+
+.contact-icon {
+    width: 60px;
+    height: 60px;
+    min-width: 60px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.contact-icon i {
+    font-size: 1.75rem;
+}
+
+.contact-item h4 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+}
+
+.contact-item p {
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.contact-action {
+    display: flex;
+    align-items: center;
+}
+
+.contact-btn {
+    padding: 1.75rem 3.5rem;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
     color: white;
-    padding: 14px 32px;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 16px;
     border: none;
+    border-radius: 60px;
+    font-size: 1.2rem;
+    font-weight: 800;
     cursor: pointer;
-    transition: all 0.3s;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    transition: all 0.4s ease;
+    box-shadow: 0 15px 45px rgba(251, 191, 36, 0.35);
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    white-space: nowrap;
 }
 
-.solution-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+.contact-btn i {
+    font-size: 1.3rem;
 }
 
-/* Toast de succès */
+.contact-btn:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px rgba(251, 191, 36, 0.45);
+}
+
+/* Toast Notification */
 .success-toast {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    top: 2rem;
+    right: 2rem;
     background: white;
-    border-radius: 16px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-    padding: 20px;
-    max-width: 400px;
-    z-index: 10000;
-    border-left: 4px solid #10b981;
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-}
-
-.toast-content {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    flex: 1;
-}
-
-.toast-content > i {
-    font-size: 24px;
-    color: #10b981;
-    flex-shrink: 0;
-}
-
-.toast-content h4 {
-    font-size: 16px;
-    font-weight: 700;
-    color: #1f2937;
-    margin: 0 0 4px 0;
-}
-
-.toast-content p {
-    font-size: 14px;
-    color: #6b7280;
-    margin: 0;
-}
-
-.toast-close {
-    background: none;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    font-size: 18px;
-    padding: 0;
-    width: 24px;
-    height: 24px;
+    padding: 1.75rem 2rem;
+    border-radius: 20px;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
     display: flex;
     align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: all 0.3s;
+    gap: 1.25rem;
+    z-index: 1000;
+    max-width: 450px;
+    border-left: 5px solid #10b981;
 }
 
-.toast-close:hover {
-    background: #f3f4f6;
-    color: #374151;
+.success-toast i:first-child {
+    font-size: 2.25rem;
+    color: #10b981;
 }
 
-/* Transitions pour le toast */
+.success-toast h4 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #1f2937;
+    margin-bottom: 0.35rem;
+}
+
+.success-toast p {
+    font-size: 0.95rem;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.success-toast button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #9ca3af;
+    font-size: 1.35rem;
+    padding: 0;
+    margin-left: auto;
+    transition: color 0.2s ease;
+}
+
+.success-toast button:hover {
+    color: #6b7280;
+}
+
 .toast-enter-active,
 .toast-leave-active {
-    transition: all 0.3s ease;
+    transition: all 0.4s ease;
 }
 
 .toast-enter-from {
@@ -2017,858 +2567,210 @@ onMounted(() => {
     transform: translateX(100px);
 }
 
-@media (max-width: 768px) {
-    .success-toast {
-        top: 10px;
-        right: 10px;
-        left: 10px;
-        max-width: none;
-    }
-}
-/* Styles Hero Section */
-.hero-section {
-    height: 70vh;
-    min-height: 500px;
-    position: relative;
-    overflow: hidden;
-}
-
-.hero-slider {
-    height: 100%;
-}
-
-.slide-item {
-    height: 100%;
-    position: relative;
-}
-
-.slide-item img {
-    height: 100%;
-    object-fit: cover;
-}
-
-.slide-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.4);
-}
-
-.hero-content {
-    z-index: 10;
-}
-
-.hero-title {
-    font-size: 3rem;
-    font-weight: 700;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    margin-bottom: 2rem;
-}
-
-/* Styles de recherche */
-.hero-search-form {
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.search-input-wrapper {
-    position: relative;
-    flex: 1;
-}
-
-.search-input {
-    border: none;
-    border-radius: 50px 0 0 50px;
-    padding: 1rem 1.5rem;
-    font-size: 1rem;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-.search-input:focus {
-    outline: none;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-}
-
-.search-btn {
-    border-radius: 0 50px 50px 0;
-    padding: 1rem 2rem;
-    font-weight: 600;
-    background: linear-gradient(135deg, #006064, #00838f);
-    border: none;
-    transition: all 0.3s ease;
-}
-
-.search-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 96, 100, 0.4);
-}
-
-.search-suggestions {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border-radius: 0 0 10px 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-}
-
-.suggestion-item {
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    border-bottom: 1px solid #eee;
-    transition: background-color 0.2s ease;
-}
-
-.suggestion-item:hover {
-    background-color: #f8f9fa;
-}
-
-.suggestion-item:last-child {
-    border-bottom: none;
-}
-
-/* Styles des filtres */
-.quick-filters {
-    margin-bottom: 1rem;
-}
-
-.filter-btn {
-    border-radius: 25px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.filter-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.advanced-filters-content {
-    background: #f8f9fa;
-    padding: 1.5rem;
-    border-radius: 10px;
-    margin-top: 1rem;
-}
-
-/* Styles des cartes de propriétés */
-.property-card {
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-    transition: all 0.3s ease;
-    border: 1px solid #f0f0f0;
-}
-
-.property-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
-}
-
-.property-image {
-    position: relative;
-    display: block;
-    overflow: hidden;
-    height: 250px;
-}
-
-.property-image img {
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
-}
-
-.property-image:hover img {
-    transform: scale(1.05);
-}
-
-.property-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.property-image:hover .property-overlay {
-    opacity: 1;
-}
-
-.specs {
-    background: #f8f9fa;
-    padding: 0.75rem;
-    border-radius: 8px;
-}
-
-.specs i {
-    color: #006064;
-    font-size: 1.1rem;
-}
-
-/* Styles des services */
-.service-card {
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-    border: 1px solid #f0f0f0;
-}
-
-.service-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
-}
-
-.service-icon {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto;
-    background: linear-gradient(135deg, #006064, #00838f);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.3s ease;
-}
-
-.service-card:hover .service-icon {
-    transform: scale(1.1);
-}
-
-.service-icon i {
-    font-size: 2rem;
-    color: white;
-}
-
-.service-title {
-    color: #006064;
-    font-size: 1.5rem;
-    font-weight: 600;
-}
-
-.service-btn {
-    background: linear-gradient(135deg, #006064, #00838f);
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 25px;
-    text-decoration: none;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    display: inline-block;
-    border: none;
-    cursor: pointer;
-}
-
-.service-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 96, 100, 0.3);
-    color: white;
-    text-decoration: none;
-}
-
-/* Styles statistiques */
-.feature-item {
-    align-items: flex-start;
-}
-
-.feature-icon {
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(135deg, #006064, #00838f);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.feature-icon span {
-    font-size: 1.5rem;
-    color: white;
-}
-
-.feature-text h3 {
-    color: #006064;
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-/* Styles équipe */
-.team-member {
-    background: white;
-    border-radius: 15px;
-    padding: 2rem;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease;
-    height: 100%;
-}
-
-.team-member:hover {
-    transform: translateY(-5px);
-}
-
-.member-image img {
-    width: 120px;
-    height: 120px;
-    object-fit: cover;
-    margin: 0 auto;
-}
-
-.member-name {
-    color: #006064;
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-.member-role {
-    color: #00838f;
-    font-weight: 500;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 1rem;
-}
-
-.social-links {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 1rem;
-}
-
-.social-link {
-    display: inline-block;
-    width: 40px;
-    height: 40px;
-    background: #f8f9fa;
-    border-radius: 50%;
-    text-align: center;
-    line-height: 40px;
-    color: #666;
-    transition: all 0.3s ease;
-    text-decoration: none;
-}
-
-.social-link:hover {
-    background: #006064;
-    color: white;
-    transform: translateY(-2px);
-    text-decoration: none;
-}
-
-/* Pagination */
-.pagination {
-    gap: 0.5rem;
-}
-
-.page-link {
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
-    color: #006064;
-    transition: all 0.3s ease;
-}
-
-.page-link:hover {
-    background-color: #006064;
-    border-color: #006064;
-    color: white;
-    transform: translateY(-2px);
-}
-
-.page-item.active .page-link {
-    background-color: #006064;
-    border-color: #006064;
-    color: white;
-}
-
-/* Vue toggle buttons */
-.btn-group .btn {
-    border-radius: 25px;
-}
-
-.btn-group .btn:first-child {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.btn-group .btn:last-child {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-}
-
-.btn-group .btn.active {
-    background-color: #006064;
-    border-color: #006064;
-    color: white;
-    box-shadow: 0 4px 12px rgba(0, 96, 100, 0.3);
-}
-
-/* Messages d'alerte */
-.alert-warning {
-    background: linear-gradient(135deg, #fff3cd, #ffeaa7);
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.2);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .hero-title {
-        font-size: 2rem;
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .contact-wrapper {
+        grid-template-columns: 1fr;
+        gap: 3rem;
     }
 
-    .hero-search-form {
+    .contact-action {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0 1.5rem;
+    }
+
+    .brand-header {
         flex-direction: column;
-        max-width: 90%;
+        gap: 1.5rem;
+    }
+
+    .brand-name {
+        font-size: 3rem;
+    }
+
+    .brand-logo {
+        width: 70px;
+        height: 70px;
+    }
+
+    .brand-logo svg {
+        width: 40px;
+        height: 40px;
+    }
+
+    .hero-subtitle {
+        font-size: 1.25rem;
+    }
+
+    .hero-description {
+        font-size: 1rem;
+    }
+
+    .search-form {
+        flex-direction: column;
+        gap: 1rem;
     }
 
     .search-input {
-        border-radius: 15px;
-        margin-bottom: 0.5rem;
+        border-radius: 60px;
+        padding: 1.35rem 1.5rem 1.35rem 3.75rem;
     }
 
-    .search-btn {
-        border-radius: 15px;
-    }
-
-    .quick-filters {
-        justify-content: center;
-    }
-
-    .filter-btn {
-        margin-bottom: 0.5rem;
-    }
-
-    .advanced-filters-content {
-        padding: 1rem;
-    }
-
-    .btn-group {
-        display: flex;
-        flex-direction: column;
+    .search-button {
+        border-radius: 60px;
         width: 100%;
     }
 
-    .btn-group .btn {
-        border-radius: 8px !important;
-        margin-bottom: 0.5rem;
+    .section-title {
+        font-size: 2.25rem;
     }
 
-    .property-card {
-        margin-bottom: 2rem;
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .properties-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .filters-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .quick-filters {
+        flex-direction: column;
+    }
+
+    .filter-chip {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .sort-select {
+        width: 100%;
+    }
+
+    .services-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cta-actions {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .cta-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .direction-row {
+        grid-template-columns: 1fr;
+    }
+
+    .team-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .contact-title {
+        font-size: 2.25rem;
+    }
+
+    .contact-wrapper {
+        gap: 2.5rem;
+    }
+
+    .contact-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 1.5rem 2.5rem;
+    }
+
+    .success-toast {
+        right: 1rem;
+        left: 1rem;
+        max-width: none;
     }
 
     .pagination {
         flex-wrap: wrap;
+    }
+
+    .page-numbers {
+        order: 3;
+        width: 100%;
         justify-content: center;
-    }
-
-    .member-image img {
-        width: 100px;
-        height: 100px;
+        margin-top: 1rem;
     }
 }
 
-/* Animations */
-@keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
+@media (max-width: 480px) {
+    .brand-name {
+        font-size: 2.25rem;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+
+    .hero-subtitle {
+        font-size: 1.1rem;
+    }
+
+    .section-title {
+        font-size: 1.85rem;
+    }
+
+    .property-specs {
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .contact-title {
+        font-size: 1.85rem;
     }
 }
 
-.property-card {
-    animation: slideInUp 0.5s ease-out;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-/* Badges */
-.badge {
-    transition: all 0.3s ease;
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
+.home-page {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #1f2937;
+    background: #ffffff;
 }
 
-.badge:hover {
-    transform: scale(1.05);
+.container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem;
 }
 
-/* Loading states */
-.loading {
-    opacity: 0.7;
-    pointer-events: none;
-}
-
-/* Focus states pour l'accessibilité */
-.search-input:focus,
-.form-control:focus,
-.form-select:focus {
-    border-color: #006064;
-    box-shadow: 0 0 0 0.2rem rgba(0, 96, 100, 0.25);
-}
-
-.btn:focus {
-    box-shadow: 0 0 0 0.2rem rgba(0, 96, 100, 0.25);
-}
-
-/* Styles pour les sections */
-.section {
-    padding: 4rem 0;
-}
-
-.features-section,
-.team-section {
-    background-color: #f8f9fa;
-}
-
-.section-stats {
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-}
-
-/* Amélioration des titres */
-.heading {
-    font-weight: 700;
-    line-height: 1.2;
-}
-
-.text-primary {
-    color: #006064 !important;
-}
-
-/* Effets de brillance sur les boutons */
-.filter-btn::before,
-.service-btn::before,
-.search-btn::before {
-    content: '';
+/* Badge pour le type de mandat */
+.property-mandat-badge {
     position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.5s ease;
-}
-
-.filter-btn:hover::before,
-.service-btn:hover::before,
-.search-btn:hover::before {
-    left: 100%;
-}
-
-/* Amélioration des images */
-.stats-image img,
-.member-image img {
-    transition: transform 0.3s ease;
-}
-
-.stats-image:hover img,
-.member-image:hover img {
-    transform: scale(1.02);
-}
-
-/* Styles pour les sliders */
-.property-slider-wrap {
-    position: relative;
-}
-
-.controls {
-    text-align: center;
-    margin-top: 2rem;
-}
-
-.controls span {
-    background: #006064;
+    top: 1.25rem;
+    left: 1.25rem;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
-    padding: 0.5rem 1rem;
-    margin: 0 0.5rem;
-    border-radius: 25px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.controls span:hover {
-    background: #00838f;
-    transform: translateY(-2px);
-}
-
-/* Micro-interactions */
-.property-card .btn,
-.service-card .service-btn,
-.team-member .social-link {
-    transform: scale(1);
-    transition: transform 0.2s ease;
-}
-
-.property-card .btn:active,
-.service-card .service-btn:active,
-.team-member .social-link:active {
-    transform: scale(0.95);
-}
-
-/* Indicateur de chargement */
-.hero-slider::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 50px;
-    height: 50px;
-    margin: -25px 0 0 -25px;
-    border: 3px solid rgba(255, 255, 255, 0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    z-index: 1;
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* Masquer l'indicateur une fois le slider initialisé */
-.hero-slider.tns-slider::before {
-    display: none;
-}
-
-/* Positionnement du widget de chat en bas à gauche */
-:deep(.fixed) {
-    position: fixed;
-}
-
-:deep(.bottom-6) {
-    bottom: 1.5rem;
-}
-
-:deep(.right-6) {
-    right: auto !important;
-    left: 1.5rem !important; /* Change de droite à gauche */
-}
-
-:deep(.z-50) {
-    z-index: 1050;
-}
-
-/* Ajustement pour mobile */
-@media (max-width: 768px) {
-    :deep(.bottom-6) {
-        bottom: 1rem;
-    }
-
-    :deep(.right-6) {
-        left: 1rem !important;
-    }
-}
-
-.team-section {
-    position: relative;
-    overflow: hidden;
-}
-
-.team-member {
-    background: white;
-    padding: 2rem;
-    border-radius: 15px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-    transition: all 0.3s ease;
-    height: 100%;
-}
-
-.team-member:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 15px 35px rgba(0,0,0,0.15);
-}
-
-.member-image {
-    position: relative;
-    display: inline-block;
-}
-
-.member-image img {
-    width: 150px;
-    height: 150px;
-    object-fit: cover;
-    border: 5px solid #f8f9fa;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    transition: transform 0.3s ease;
-}
-
-.team-member:hover .member-image img {
-    transform: scale(1.05);
-}
-
-/* Direction Card */
-.direction-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-}
-
-.direction-card .member-name,
-.direction-card .member-description {
-    color: white;
-}
-
-.director-img {
-    width: 180px !important;
-    height: 180px !important;
-    border: 6px solid white !important;
-}
-
-.director-badge {
-    position: absolute;
-    top: 10px;
-    right: calc(50% - 90px);
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: white;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    box-shadow: 0 4px 10px rgba(245, 158, 11, 0.4);
-}
-
-/* Assistant Card */
-.assistant-card {
-    background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
-    color: white;
-    border: none;
-}
-
-.assistant-card .member-name,
-.assistant-card .member-description {
-    color: white;
-}
-
-/* Member Info */
-.member-name {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #2d3748;
-    margin-bottom: 0.5rem;
-}
-
-.member-role {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    display: inline-block;
-}
-
-.director-role {
-    background: rgba(255, 255, 255, 0.3);
-    color: white;
-}
-
-.assistant-role {
-    background: rgba(255, 255, 255, 0.3);
-    color: white;
-}
-
-.commercial-role {
-    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-    color: #4338ca;
-}
-
-.recovery-role {
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-    color: #1e40af;
-}
-
-.accounting-role {
-    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-    color: #065f46;
-}
-
-.it-role {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    color: #92400e;
-}
-
-.legal-role {
-    background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
-    color: #991b1b;
-}
-
-.member-description {
-    color: #64748b;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    margin-bottom: 1.5rem;
-}
-
-/* Social Links */
-.social-links {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-}
-
-.social-link {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #f1f5f9;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #64748b;
-    transition: all 0.3s ease;
-    text-decoration: none;
-}
-
-.social-link:hover {
-    background: #667eea;
-    color: white;
-    transform: translateY(-3px);
-}
-
-.direction-card .social-link,
-.assistant-card .social-link {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-}
-
-.direction-card .social-link:hover,
-.assistant-card .social-link:hover {
-    background: white;
-    color: #667eea;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .member-image img {
-        width: 120px;
-        height: 120px;
-    }
-
-    .director-img {
-        width: 140px !important;
-        height: 140px !important;
-    }
+    padding: 0.65rem 1.35rem;
+    border-radius: 60px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 </style>

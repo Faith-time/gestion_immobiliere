@@ -12,7 +12,7 @@ class Reservation extends Model
     protected $fillable = [
         'client_id',
         'bien_id',
-        'appartement_id', // ✅ OBLIGATOIRE pour les réservations d'appartements
+        'appartement_id',
         'montant',
         'type_montant',
         'statut',
@@ -48,6 +48,11 @@ class Reservation extends Model
     public function paiement()
     {
         return $this->belongsTo(Paiement::class);
+    }
+
+    public function paiements()
+    {
+        return $this->HasMany(Paiement::class);
     }
 
     public function vente()

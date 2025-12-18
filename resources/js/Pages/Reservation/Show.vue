@@ -16,13 +16,12 @@
                             <i :class="isVente ? 'fas fa-shopping-cart' : 'fas fa-shield-alt'" class="text-white fa-2x"></i>
                         </div>
                         <h1 class="text-4xl font-bold text-white mb-2">
-                            {{ getTitreReservation() }} #{{ reservation?.id || 'N/A' }}
+                            {{ getTitreReservation() }}
                         </h1>
                         <p class="text-white/90 text-lg mb-4">
                             {{ getSousTitreReservation() }}
                         </p>
 
-                        <!-- ✅ Badge IMMEUBLE si applicable -->
                         <div v-if="isImmeuble" class="mb-3">
                             <span class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-full text-sm font-semibold">
                                 <i class="fas fa-building mr-2"></i>
@@ -110,7 +109,6 @@
                                 </div>
                             </div>
 
-                            <!-- Info supplémentaire pour vente -->
                             <div v-if="isVente && reservation?.bien?.price" class="mt-4 p-3 bg-white rounded-lg border-l-4 border-blue-500">
                                 <div class="flex items-start">
                                     <i class="fas fa-calculator text-blue-600 mr-2 mt-1"></i>
@@ -131,7 +129,6 @@
                     </div>
                 </div>
 
-                <!-- Vérification réservation existe -->
                 <div v-if="!reservation" class="text-center py-16">
                     <div class="bg-white/70 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-12 mx-auto max-w-md">
                         <i class="fas fa-exclamation-triangle text-gray-400 text-6xl mb-4"></i>
@@ -144,7 +141,6 @@
                     </div>
                 </div>
 
-                <!-- Contenu si réservation existe -->
                 <div v-else class="space-y-8">
                     <!-- Informations générales -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -156,7 +152,6 @@
                             </h2>
 
                             <div class="space-y-4">
-                                <!-- ✅ Info IMMEUBLE + APPARTEMENT -->
                                 <div v-if="isImmeuble && reservation.appartement"
                                      class="p-4 bg-purple-50 border-2 border-purple-200 rounded-lg">
                                     <div class="flex items-center mb-2">
@@ -216,7 +211,6 @@
                                 </div>
                             </div>
 
-                            <!-- Processus -->
                             <div class="mt-6 p-4 bg-gray-50 rounded-lg">
                                 <h6 class="font-bold text-gray-800 mb-3 flex items-center">
                                     <i class="fas fa-tasks mr-2"
@@ -306,7 +300,6 @@
                                         {{ reservation.bien.address }}, {{ reservation.bien.city }}
                                     </p>
 
-                                    <!-- Badge type d'opération -->
                                     <div class="mb-4">
                                         <span v-if="isImmeuble"
                                               class="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-semibold mr-2">
@@ -360,58 +353,7 @@
                         </div>
                     </div>
 
-                    <!-- Documents fournis -->
-                    <div class="bg-white/70 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 p-6">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
-                            <i class="fas fa-folder-open text-yellow-600 mr-3"></i>
-                            Documents justificatifs
-                            <span class="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full">
-                                {{ documentsCount }}
-                            </span>
-                        </h2>
-
-                        <div class="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
-                            <p class="text-sm text-blue-800">
-                                <i class="fas fa-info-circle mr-2"></i>
-                                Ces documents permettent de vérifier votre identité et votre solvabilité.
-                            </p>
-                        </div>
-
-                        <div v-if="documentsCount > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div v-for="document in documents"
-                                 :key="document.id"
-                                 class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors border border-gray-200">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center space-x-3 flex-1">
-                                        <i :class="getFileIcon(document.fichier_path)" class="text-2xl"></i>
-                                        <div class="flex-1 min-w-0">
-                                            <h4 class="font-semibold text-gray-800 truncate">
-                                                {{ getDocumentTypeLabel(document.type_document) }}
-                                            </h4>
-                                            <p class="text-sm text-gray-600 truncate">
-                                                {{ getFileName(document.fichier_path) }}
-                                            </p>
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1"
-                                                  :class="getDocumentStatusColor(document.statut)">
-                                                {{ getDocumentStatusLabel(document.statut) }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <a :href="getDownloadUrl(document.fichier_path)"
-                                       :download="getFileName(document.fichier_path)"
-                                       class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                                       title="Télécharger">
-                                        <i class="fas fa-download"></i>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-else class="text-center py-8">
-                            <i class="fas fa-folder-open text-gray-400 text-4xl mb-3"></i>
-                            <p class="text-gray-500">Aucun document fourni</p>
-                        </div>
-                    </div>
+                    <!-- Dossier client (remplace Documents fournis) -->
 
                     <!-- Actions selon statut -->
                     <div class="bg-white/70 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 p-6">
@@ -434,6 +376,8 @@
 
                             <!-- Confirmée -->
                             <div v-else-if="reservation.statut === 'confirmée'">
+
+                                <!-- ✅ SI DÉJÀ PAYÉ - Afficher uniquement le message de confirmation -->
                                 <div v-if="isPaid" class="mb-6">
                                     <div class="inline-flex items-center justify-center bg-green-100 rounded-full p-4 mb-4">
                                         <i class="fas fa-check-circle text-green-600 fa-3x"></i>
@@ -455,12 +399,15 @@
                                         : 'Votre caution est sécurisée. L\'agence va vous contacter pour signer le bail.'
                                         }}
                                         <span v-if="isImmeuble" class="block mt-2 text-purple-600 font-semibold">
-                                            <i class="fas fa-building mr-1"></i>
-                                            Appartement {{ reservation.appartement?.numero }} réservé avec succès
-                                        </span>
+                            <i class="fas fa-building mr-1"></i>
+                            Appartement {{ reservation.appartement?.numero }} réservé avec succès
+                        </span>
                                     </p>
+
+                                    <!-- ✅ Pas de bouton de paiement ici -->
                                 </div>
 
+                                <!-- ✅ SI NON PAYÉ - Afficher le bouton de paiement -->
                                 <div v-else class="mb-6">
                                     <div class="inline-flex items-center justify-center bg-blue-100 rounded-full p-4 mb-4">
                                         <i class="fas fa-credit-card text-blue-600 fa-3x"></i>
@@ -471,9 +418,9 @@
                                     <p class="text-gray-600 mb-4">
                                         Vos documents sont validés. Procédez maintenant au paiement sécurisé.
                                         <span v-if="isImmeuble" class="block mt-2 text-purple-600">
-                                            <i class="fas fa-building mr-1"></i>
-                                            Pour l'appartement {{ reservation.appartement?.numero }}
-                                        </span>
+                            <i class="fas fa-building mr-1"></i>
+                            Pour l'appartement {{ reservation.appartement?.numero }}
+                        </span>
                                     </p>
 
                                     <div class="rounded-lg p-6 mb-6 inline-block border-2"
@@ -498,6 +445,7 @@
                                         </p>
                                     </div>
 
+                                    <!-- ✅ BOUTON DE PAIEMENT - Visible seulement si NON payé -->
                                     <button @click="initiatePayment"
                                             :disabled="processing"
                                             class="inline-flex items-center px-8 py-4 text-white rounded-lg font-bold text-lg transition-colors disabled:opacity-50 shadow-lg"
@@ -508,7 +456,6 @@
                                     </button>
                                 </div>
                             </div>
-
                             <!-- Annulée -->
                             <div v-else-if="reservation.statut === 'annulée'">
                                 <div class="mb-6">
@@ -544,6 +491,30 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modal d'aperçu d'image -->
+        <div
+            v-if="showImageModal"
+            class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+            @click="closeImageModal"
+        >
+            <div class="max-w-4xl w-full" @click.stop>
+                <div class="bg-white rounded-lg p-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Aperçu du document</h3>
+                        <button
+                            @click="closeImageModal"
+                            class="text-gray-400 hover:text-gray-600"
+                        >
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <img :src="currentImageUrl" alt="Document" class="w-full h-auto rounded" />
+                </div>
+            </div>
+        </div>
     </Layout>
 </template>
 
@@ -561,33 +532,64 @@ import placeholderImage from '@/assets/images/hero_bg_1.jpg'
 const props = defineProps({
     reservation: { type: Object, default: () => null },
     paiement: { type: Object, default: () => null },
-    documents: { type: Array, default: () => [] },
+    dossier: { type: Object, default: () => null },
     userRoles: { type: Array, default: () => [] }
 })
 
 const processing = ref(false)
+const showImageModal = ref(false)
+const currentImageUrl = ref('')
 
-// Computed properties
 const isVente = computed(() => {
     return props.reservation?.bien?.mandat?.type_mandat === 'vente'
 })
 
-// ✅ Vérifier si c'est un immeuble d'appartements
 const isImmeuble = computed(() => {
     return props.reservation?.bien?.category?.name?.toLowerCase() === 'appartement' &&
         props.reservation?.appartement_id !== null
 })
 
-const documentsCount = computed(() => props.documents?.length || 0)
-
 const isPaid = computed(() => {
-    return props.reservation?.paiement_id &&
-        (props.paiement?.statut === 'termine' ||
-            props.paiement?.statut === 'reussi' ||
-            props.reservation?.statut === 'payee')
-})
+    console.log('🔍 Vérification isPaid:', {
+        has_paiement_id: !!props.reservation?.paiement_id,
+        has_paiement_object: !!props.paiement,
+        paiement_statut: props.paiement?.statut,
+        montant_restant: props.paiement?.montant_restant,
+        reservation_statut: props.reservation?.statut
+    })
 
-// Méthodes dynamiques selon type de mandat
+    if (props.reservation?.paiement_id && props.paiement) {
+        return props.paiement.statut === 'reussi' &&
+            props.paiement.montant_restant <= 0;
+    }
+
+    // ✅ Vérification 2: Objet paiement non chargé
+    if (!props.paiement) {
+        console.log('⚠️ Objet paiement non chargé')
+        return false
+    }
+
+    // ✅ Vérification 3: Vérifier le statut
+    const statutsValides = ['reussi']
+    const statutOk = statutsValides.includes(props.paiement.statut?.toLowerCase())
+
+    // ✅ Vérification 4: Vérifier le montant restant
+    const montantRestantZero = props.paiement.montant_restant <= 0
+
+    // ✅ Vérification 5: Vérifier montant payé = montant total
+    const montantComplet = props.paiement.montant_paye >= props.paiement.montant_total
+
+    const result = (statutOk && montantRestantZero) || montantComplet
+
+    console.log('✅ Résultat isPaid:', {
+        statutOk,
+        montantRestantZero,
+        montantComplet,
+        FINAL: result
+    })
+
+    return result
+})
 const getTitreReservation = () => {
     if (isImmeuble.value) {
         return isVente.value ? 'Réservation d\'appartement - Acompte' : 'Réservation d\'appartement - Caution'
@@ -622,7 +624,6 @@ const getMontantRestant = () => {
     return props.reservation.bien.price * 0.90
 }
 
-// Fonctions utilitaires
 const formatPrice = (price) => {
     if (!price) return '0'
     return new Intl.NumberFormat('fr-FR').format(price)
@@ -663,9 +664,7 @@ const getStatusLabel = (status) => {
     const labels = {
         'en_attente': 'En cours de vérification',
         'confirmée': 'Validé - Paiement requis',
-        'payee': 'Payé',
         'payée': 'Payé',
-        'annulee': 'Annulé',
         'annulée': 'Annulé'
     }
     return labels[status] || status || 'Inconnu'
@@ -675,9 +674,7 @@ const getStatusBadgeClass = (status) => {
     const classes = {
         'en_attente': 'bg-yellow-100 text-yellow-800 border border-yellow-300',
         'confirmée': 'bg-green-100 text-green-800 border border-green-300',
-        'payee': 'bg-blue-100 text-blue-800 border border-blue-300',
         'payée': 'bg-blue-100 text-blue-800 border border-blue-300',
-        'annulee': 'bg-red-100 text-red-800 border border-red-300',
         'annulée': 'bg-red-100 text-red-800 border border-red-300'
     }
     return classes[status] || 'bg-gray-100 text-gray-800'
@@ -687,64 +684,10 @@ const getStatusIcon = (status) => {
     const icons = {
         'en_attente': 'fas fa-clock',
         'confirmée': 'fas fa-check-circle',
-        'payee': 'fas fa-check-double',
         'payée': 'fas fa-check-double',
-        'annulee': 'fas fa-times-circle',
         'annulée': 'fas fa-times-circle'
     }
     return icons[status] || 'fas fa-question-circle'
-}
-
-const getDocumentTypeLabel = (type) => {
-    const labels = {
-        'cni': 'Carte Nationale d\'Identité',
-        'passeport': 'Passeport',
-        'justificatif_domicile': 'Justificatif de domicile',
-        'bulletin_salaire': 'Bulletin de salaire',
-        'attestation_travail': 'Attestation de travail',
-        'autre': 'Autre document'
-    }
-    return labels[type] || type || 'Document'
-}
-
-const getDocumentStatusColor = (status) => {
-    const colors = {
-        'en_attente': 'bg-yellow-100 text-yellow-800',
-        'valide': 'bg-green-100 text-green-800',
-        'refuse': 'bg-red-100 text-red-800'
-    }
-    return colors[status] || 'bg-gray-100 text-gray-800'
-}
-
-const getDocumentStatusLabel = (status) => {
-    const labels = {
-        'en_attente': 'En attente',
-        'valide': 'Validé',
-        'refuse': 'Refusé'
-    }
-    return labels[status] || status || 'Inconnu'
-}
-
-const getFileName = (filePath) => {
-    if (!filePath) return 'Document'
-    return filePath.split('/').pop() || filePath
-}
-
-const getFileIcon = (filePath) => {
-    if (!filePath) return 'fas fa-file text-gray-500'
-    const extension = filePath.split('.').pop()?.toLowerCase()
-    const icons = {
-        'pdf': 'fas fa-file-pdf text-red-500',
-        'jpg': 'fas fa-file-image text-blue-500',
-        'jpeg': 'fas fa-file-image text-blue-500',
-        'png': 'fas fa-file-image text-blue-500'
-    }
-    return icons[extension] || 'fas fa-file text-gray-500'
-}
-
-const getDownloadUrl = (filePath) => {
-    if (!filePath) return '#'
-    return filePath.startsWith('/') ? filePath : `/storage/${filePath}`
 }
 
 const initiatePayment = () => {
@@ -763,6 +706,16 @@ const initiatePayment = () => {
         alert('Une erreur est survenue. Veuillez réessayer.')
     }
 }
+
+const openImageModal = (imageUrl) => {
+    currentImageUrl.value = imageUrl
+    showImageModal.value = true
+}
+
+const closeImageModal = () => {
+    showImageModal.value = false
+    currentImageUrl.value = ''
+}
 </script>
 
 <style scoped>
@@ -774,7 +727,6 @@ const initiatePayment = () => {
     @apply bg-blue-600 text-white hover:bg-blue-700;
 }
 
-/* Animations personnalisées */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -788,23 +740,5 @@ const initiatePayment = () => {
 
 .bg-gradient-to-r {
     animation: fadeIn 0.5s ease-out;
-}
-
-/* Effets de survol améliorés */
-.hover\:bg-blue-100:hover {
-    transition: all 0.2s ease-in-out;
-}
-
-.hover\:bg-green-100:hover {
-    transition: all 0.2s ease-in-out;
-}
-
-/* Style pour les badges */
-.rounded-full {
-    transition: transform 0.2s ease-in-out;
-}
-
-.rounded-full:hover {
-    transform: scale(1.05);
 }
 </style>

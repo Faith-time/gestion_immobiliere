@@ -1,5 +1,18 @@
 <template>
-    <!-- ✅ Vérification de chargement -->
+    <!-- 🔍 DEBUG - À RETIRER APRÈS -->
+    <div v-if="!reservation || !bien || !bien.price" class="alert alert-warning m-4">
+        <h4>Debug Info:</h4>
+        <pre>{{ {
+            has_reservation: !!reservation,
+            reservation_id: reservation?.id,
+            reservation_appartement_id: reservation?.appartement_id,
+            form_reservation_id: form.reservation_id,
+            form_appartement_id: form.appartement_id,
+            isImmeuble: isImmeuble,
+            bien_id: bien?.id
+        } }}</pre>
+    </div>
+
     <div v-if="!reservation || !bien || !bien.price" class="container py-5 text-center">
         <div class="spinner-border text-primary mb-3" role="status">
             <span class="visually-hidden">Chargement...</span>
@@ -520,45 +533,52 @@ export default { layout: Layout }
 
 <script setup>
 import { Link, router } from '@inertiajs/vue3'
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { route } from "ziggy-js"
 
 const props = defineProps({
-    bien: { type: Object, default: () => ({}) },
-    reservation: { type: Object, default: () => null },
+    bien: { type: Object, required: true },  // ← Changé en required
+    reservation: { type: Object, required: true },  // ← Changé en required
     appartements: { type: Array, default: () => [] },
     isImmeuble: { type: Boolean, default: false },
     typesContrat: { type: Object, default: () => ({}) },
     errors: { type: Object, default: () => ({}) }
 })
 
-// ✅ Initialisation sécurisée du form
+const getAppartementId = () => {
+    // 1. Si la réservation a déjà un appartement_id, l'utiliser
+    if (props.reservation.appartement_id) {
+        console.log('✅ Appartement depuis réservation:', props.reservation.appartement_id)
+        return props.reservation.appartement_id
+    }
+
+    // 2. Si c'est un immeuble avec UN SEUL appartement, le sélectionner automatiquement
+    if (props.isImmeuble && props.appartements && props.appartements.length === 1) {
+        console.log('✅ Auto-sélection du seul appartement disponible:', props.appartements[0].id)
+        return props.appartements[0].id
+    }
+
+    // 3. Sinon, null (l'utilisateur devra choisir)
+    return null
+}
+
 const form = ref({
-    reservation_id: null,
-    appartement_id: null,
+    reservation_id: props.reservation.id,
+    appartement_id: getAppartementId(), // ← Utiliser la fonction
     date_debut: '',
     duree_mois: '',
     type_contrat: 'bail_classique'
 })
 
-// ✅ Initialiser les valeurs après le montage
-onMounted(() => {
-    if (props.reservation) {
-        form.value.reservation_id = props.reservation.id
-        form.value.appartement_id = props.reservation.appartement_id || null
-
-        console.log('✅ Form initialisé:', {
-            reservation_id: form.value.reservation_id,
-            appartement_id: form.value.appartement_id
-        })
-    } else {
-        console.error('❌ Aucune réservation trouvée dans les props')
-    }
-})
+console.log('✅ Form initialisé:', form.value)
 
 const processing = ref(false)
 const acceptedTerms = ref(false)
 const showContractPreview = ref(true)
+
+const isFormValid = computed(() => {
+    return form.value.reservation_id !== null && form.value.reservation_id !== undefined
+})
 
 // Computed - Montants
 const montantPaiementInitial = computed(() => {
@@ -594,10 +614,18 @@ const dureesDisponibles = computed(() => {
         options.push({ value: 60, label: '5 ans (60 mois)' })
         options.push({ value: 72, label: '6 ans (72 mois)' })
     } else if (form.value.type_contrat === 'bail_meuble') {
-        options.push({ value: 9, label: '9 mois (étudiants)' })
-        options.push({ value: 12, label: '1 an (12 mois) - Minimum légal' })
-        options.push({ value: 24, label: '2 ans (24 mois)' })
-        options.push({ value: 36, label: '3 ans (36 mois)' })
+        options.push({
+            value: 1,
+            label: '1 mois - Court séjour'
+        })
+        options.push({
+            value: 2,
+            label: '2 mois - Séjour moyen'
+        })
+        options.push({
+            value: 3,
+            label: '3 mois - Maximum autorisé'
+        })
     } else if (form.value.type_contrat === 'bail_commercial') {
         options.push({ value: 36, label: '3 ans (36 mois)' })
         options.push({ value: 72, label: '6 ans (72 mois)' })
@@ -606,7 +634,6 @@ const dureesDisponibles = computed(() => {
 
     return options
 })
-
 const showContract = computed(() => {
     return form.value.date_debut && form.value.duree_mois && form.value.type_contrat
 })
@@ -627,6 +654,28 @@ const contractPreviewHtml = computed(() => {
         month: 'long',
         year: 'numeric'
     })
+
+    let clauseResiliation = ''
+    if (form.value.type_contrat === 'bail_meuble') {
+        clauseResiliation = `
+            <p>Pour un bail meublé de courte durée (1 à 3 mois), les conditions de résiliation sont les suivantes :</p>
+            <ul>
+                <li>Résiliation possible avec un préavis de 15 jours minimum</li>
+                <li>En cas de résiliation anticipée, aucun remboursement du loyer payé</li>
+                <li>Le dépôt de garantie sera restitué sous 15 jours après l'état des lieux de sortie</li>
+            </ul>
+        `
+    } else if (form.value.type_contrat === 'bail_classique') {
+        clauseResiliation = `
+            <p>Le locataire peut résilier le bail en respectant un préavis de <strong>3 mois</strong>.
+            Le bailleur peut résilier le bail pour vente, reprise ou motif légitime avec un préavis de <strong>6 mois</strong>.</p>
+        `
+    } else {
+        clauseResiliation = `
+            <p>Pour un bail commercial, la résiliation suit les règles du bail 3-6-9.
+            Un préavis de <strong>6 mois</strong> est requis pour toute résiliation.</p>
+        `
+    }
 
     return `
         <div class="contract-document">
@@ -657,6 +706,9 @@ const contractPreviewHtml = computed(() => {
             <div class="contract-section">
                 <h6 class="fw-bold text-primary">ARTICLE 3 : DURÉE DE LA LOCATION</h6>
                 <p>Le présent bail est consenti et accepté pour une durée de <strong>${form.value.duree_mois} mois</strong>, soit du <strong>${dateDebut}</strong> au <strong>${dateFinFormatted}</strong>.</p>
+                ${form.value.type_contrat === 'bail_meuble' ?
+        '<p class="text-info"><i class="fas fa-info-circle me-2"></i><strong>Bail meublé de courte durée</strong> : Idéal pour séjours temporaires, mutations professionnelles ou études.</p>'
+        : ''}
             </div>
 
             <div class="contract-section">
@@ -676,6 +728,9 @@ const contractPreviewHtml = computed(() => {
                 <div class="mt-3">
                     <h6 class="fw-bold">Paiements mensuels suivants :</h6>
                     <p>À partir du 2ème mois : <strong>${formatPrice(props.bien.price)} FCFA/mois</strong></p>
+                    ${form.value.type_contrat === 'bail_meuble' && form.value.duree_mois <= 3 ?
+        '<p class="text-muted small"><i class="fas fa-calendar-alt me-1"></i>Pour une location de courte durée, le paiement peut être effectué en une seule fois.</p>'
+        : ''}
                 </div>
             </div>
 
@@ -687,6 +742,9 @@ const contractPreviewHtml = computed(() => {
                     <li>Entretenir le bien en bon état</li>
                     <li>Souscrire une assurance habitation</li>
                     <li>Ne pas sous-louer sans accord écrit du bailleur</li>
+                    ${form.value.type_contrat === 'bail_meuble' ?
+        '<li class="text-primary"><strong>Restituer le mobilier en bon état</strong></li>'
+        : ''}
                 </ul>
             </div>
 
@@ -694,6 +752,9 @@ const contractPreviewHtml = computed(() => {
                 <h6 class="fw-bold text-primary">ARTICLE 6 : OBLIGATIONS DU BAILLEUR</h6>
                 <ul>
                     <li>Délivrer le logement en bon état d'usage</li>
+                    ${form.value.type_contrat === 'bail_meuble' ?
+        '<li class="text-primary"><strong>Fournir un logement entièrement meublé et équipé</strong></li>'
+        : ''}
                     <li>Assurer la jouissance paisible du bien</li>
                     <li>Effectuer les réparations nécessaires</li>
                     <li>Ne pas s'opposer aux aménagements raisonnables</li>
@@ -703,13 +764,13 @@ const contractPreviewHtml = computed(() => {
             <div class="contract-section">
                 <h6 class="fw-bold text-primary">ARTICLE 7 : DÉPÔT DE GARANTIE</h6>
                 <p>Un dépôt de garantie de <strong>${formatPrice(props.bien.price)} FCFA</strong> a été versé lors de la réservation.
-                Il sera restitué au locataire dans un délai d'un mois après la remise des clés, déduction faite, le cas échéant,
+                Il sera restitué au locataire dans un délai ${form.value.type_contrat === 'bail_meuble' ? 'd\'un mois' : 'de deux mois'} après la remise des clés, déduction faite, le cas échéant,
                 des sommes restant dues au bailleur et du coût des réparations locatives.</p>
             </div>
 
             <div class="contract-section">
                 <h6 class="fw-bold text-primary">ARTICLE 8 : RÉSILIATION</h6>
-                <p>Le locataire peut résilier le bail en respectant un préavis de ${selectedTypeInfo.value.type_contrat === 'bail_classique' ? '3 mois' : '1 mois'}.</p>
+                ${clauseResiliation}
             </div>
 
             <div class="contract-section">
@@ -746,23 +807,41 @@ const toggleContractPreview = () => {
 const handleSubmit = () => {
     if (!canSubmit.value) return
 
+    if (!form.value.reservation_id) {
+        console.error('❌ reservation_id manquant')
+        alert('Erreur : Réservation non trouvée')
+        return
+    }
+
+    if (props.isImmeuble && !form.value.appartement_id) {
+        console.error('❌ appartement_id requis pour un immeuble', {
+            isImmeuble: props.isImmeuble,
+            appartement_id: form.value.appartement_id,
+            appartements: props.appartements
+        })
+        alert('Erreur : Veuillez sélectionner un appartement')
+        return
+    }
+
+    console.log('📤 Envoi du formulaire:', form.value)
+
     processing.value = true
 
-    // Envoyer les données avec le montant de paiement initial (2x le loyer)
     router.post(route('locations.store'), {
         ...form.value,
-        montant_paiement: montantPaiementInitial.value  // 2 fois le prix du loyer
+        montant_paiement: montantPaiementInitial.value
     }, {
         onSuccess: () => {
+            console.log('✅ Location créée avec succès')
             processing.value = false
         },
-        onError: () => {
+        onError: (errors) => {
+            console.error('❌ Erreurs validation:', errors)
+            alert('Erreur lors de la création : ' + JSON.stringify(errors))
             processing.value = false
         }
     })
 }
-
-// Watch pour réinitialiser la durée si le type de contrat change
 watch(() => form.value.type_contrat, () => {
     form.value.duree_mois = ''
 })

@@ -1,12 +1,33 @@
 <script setup>
 import { router } from '@inertiajs/vue3'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { route } from 'ziggy-js'
 import { usePage } from '@inertiajs/vue3'
 
 const props = defineProps({
     conversations: Array,
     userRoles: Array,
+})
+
+// ✅ DEBUG : Afficher les données reçues
+onMounted(() => {
+    console.log('🔍 DEBUG - Conversations reçues:', props.conversations)
+    console.log('🔍 DEBUG - Nombre de conversations:', props.conversations?.length || 0)
+    console.log('🔍 DEBUG - Type de conversations:', Array.isArray(props.conversations) ? 'Array' : typeof props.conversations)
+
+    if (props.conversations && props.conversations.length > 0) {
+        console.log('🔍 DEBUG - Première conversation:', props.conversations[0])
+        console.log('🔍 DEBUG - Dernier message:', props.conversations[0].last_message)
+        console.log('🔍 DEBUG - Structure last_message:', {
+            exists: !!props.conversations[0].last_message,
+            message: props.conversations[0].last_message?.message,
+            sender_id: props.conversations[0].last_message?.sender_id
+        })
+    }
+
+    // ✅ Vérifier filteredConversations
+    console.log('🔍 DEBUG - Filtered conversations:', filteredConversations.value)
+    console.log('🔍 DEBUG - Filtered length:', filteredConversations.value?.length)
 })
 
 const searchTerm = ref('')
@@ -20,9 +41,18 @@ const page = usePage()
 const currentUser = computed(() => page.props.auth?.user)
 
 const filteredConversations = computed(() => {
-    if (!searchTerm.value) return props.conversations
+    // ✅ CORRECTION : Toujours retourner un tableau valide
+    if (!props.conversations || !Array.isArray(props.conversations)) {
+        console.warn('⚠️ conversations is not an array:', props.conversations)
+        return []
+    }
 
-    return props.conversations.filter(conv => {
+    if (!searchTerm.value) {
+        console.log('✅ Returning all conversations:', props.conversations.length)
+        return props.conversations
+    }
+
+    const filtered = props.conversations.filter(conv => {
         const otherUser = getOtherUser(conv)
         const searchLower = searchTerm.value.toLowerCase()
 
@@ -32,6 +62,9 @@ const filteredConversations = computed(() => {
             conv.last_message?.message?.toLowerCase().includes(searchLower)
         )
     })
+
+    console.log('✅ Filtered conversations:', filtered.length)
+    return filtered
 })
 
 const isAdmin = computed(() => {
@@ -39,7 +72,11 @@ const isAdmin = computed(() => {
 })
 
 const getOtherUser = (conversation) => {
-    return isAdmin.value ? conversation.client : conversation.admin
+    if (isAdmin.value) {
+        return conversation.client || { name: 'Client', id: null }
+    } else {
+        return { name: 'Cauris Immo', id: conversation.admin?.id || null }
+    }
 }
 
 const formatTime = (date) => {
@@ -125,7 +162,7 @@ const showConversation = (conversation) => {
             <!-- Liste des conversations -->
             <div class="flex-1 overflow-y-auto">
                 <!-- Message si aucune conversation -->
-                <div v-if="props.conversations.length === 0" class="flex flex-col items-center justify-center h-full px-4 text-center">
+                <div v-if="!conversations || conversations.length === 0" class="flex flex-col items-center justify-center h-full px-4 text-center">
                     <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                         <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -137,15 +174,16 @@ const showConversation = (conversation) => {
                         @click="openNewConversationModal"
                         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
-                        Créer une conversation
+                        Commencer une conversation
                     </button>
                 </div>
 
                 <!-- Liste -->
                 <div v-else>
+
                     <div
-                        v-for="conversation in filteredConversations"
-                        :key="conversation.id"
+                        v-for="(conversation, index) in filteredConversations"
+                        :key="`conv-${conversation.id}-${index}`"
                         @click="showConversation(conversation)"
                         class="flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors"
                         :class="{ 'bg-blue-50': conversation.unread_count > 0 }"
@@ -153,7 +191,7 @@ const showConversation = (conversation) => {
                         <!-- Avatar -->
                         <div class="flex-shrink-0 mr-3">
                             <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
-                                {{ getOtherUser(conversation).name?.charAt(0).toUpperCase() || 'A' }}
+                                {{ getOtherUser(conversation).name?.charAt(0).toUpperCase() || 'C' }}
                             </div>
                         </div>
 
@@ -161,7 +199,7 @@ const showConversation = (conversation) => {
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between mb-1">
                                 <h3 class="text-sm font-semibold text-gray-900 truncate">
-                                    {{ getOtherUser(conversation).name || 'Admin' }}
+                                    {{ getOtherUser(conversation).name }}
                                 </h3>
                                 <span class="text-xs text-gray-500">
                                     {{ formatTime(conversation.last_message_at) }}
@@ -169,10 +207,15 @@ const showConversation = (conversation) => {
                             </div>
 
                             <div class="flex items-center justify-between">
-                                <p class="text-sm text-gray-600 truncate">
-                                    <span v-if="conversation.last_message?.sender_id === currentUser.id" class="text-gray-500">Vous: </span>
-                                    {{ conversation.last_message?.message || 'Aucun message' }}
+                                <!-- ✅ DEBUG : Afficher si last_message existe -->
+                                <p v-if="conversation.last_message" class="text-sm text-gray-600 truncate">
+                                    <span v-if="conversation.last_message.sender_id === currentUser.id" class="text-gray-500">Vous: </span>
+                                    {{ conversation.last_message.message || 'Aucun message' }}
                                 </p>
+                                <p v-else class="text-sm text-red-500 truncate">
+                                    ❌ DEBUG: last_message manquant
+                                </p>
+
                                 <span
                                     v-if="conversation.unread_count > 0"
                                     class="ml-2 bg-blue-600 text-white text-xs font-bold rounded-full px-2 py-0.5"
@@ -277,7 +320,7 @@ const showConversation = (conversation) => {
                                 type="submit"
                                 class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
                             >
-                                Créer
+                                Envoyer
                             </button>
                         </div>
                     </form>

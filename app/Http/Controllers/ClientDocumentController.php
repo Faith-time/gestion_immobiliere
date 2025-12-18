@@ -15,6 +15,11 @@ class ClientDocumentController extends Controller
      */
     public function index()
     {
+        // ✅ AJOUT : Bloquer les visiteurs
+        if (Auth::user()->isGuest()) {
+            return redirect()->route('login')->with('error', 'Vous devez créer un compte pour accéder à cette fonctionnalité.');
+        }
+
         $documents = ClientDocument::where('client_id', Auth::id())
             ->latest()
             ->get();
@@ -23,16 +28,20 @@ class ClientDocumentController extends Controller
             'documents' => $documents
         ]);
     }
-
     /**
      * Enregistrer un nouveau document
      */
     public function store(Request $request)
     {
+        if (Auth::user()->isGuest()) {
+            return back()->with('error', 'Vous devez créer un compte pour soumettre des documents.');
+        }
+
         $request->validate([
             'type_document' => 'required|string|max:255',
-            'fichier' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120', // 5MB max
+            'fichier' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
+
 
         try {
             // Upload du fichier

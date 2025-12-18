@@ -185,7 +185,6 @@ const confirmSignature = (type) => {
     showConfirmModal.value = true
 }
 
-// Soumettre la signature
 const submitSignature = async () => {
     if (!signatureData.value) {
         alert('Aucune signature à soumettre')
@@ -196,52 +195,61 @@ const submitSignature = async () => {
     showConfirmModal.value = false
 
     try {
+        // ✅ CORRECTION : Utiliser router.post au lieu de fetch
         const endpoint = signatoryType.value === 'proprietaire'
-            ? route('biens.mandat.sign-proprietaire', props.bien.id)
-            : route('biens.mandat.sign-agence', props.bien.id)
+            ? 'biens.mandat.sign-proprietaire'
+            : 'biens.mandat.sign-agence'
 
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        // Utiliser Inertia pour gérer le CSRF automatiquement
+        router.post(route(endpoint, props.bien.id), {
+            signature_data: signatureData.value
+        }, {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                // Vérifier s'il y a des données dans la réponse
+                const result = page.props.flash || {}
+
+                if (result.success || !result.error) {
+                    // Mettre à jour les stats depuis les props
+                    if (page.props.signatureStats) {
+                        stats.value = page.props.signatureStats
+                    }
+
+                    // Effacer le canvas
+                    clearSignature()
+
+                    // Afficher un message de succès
+                    alert('Signature enregistrée avec succès !')
+
+                    // Recharger la page si entièrement signé
+                    if (stats.value.fully_signed) {
+                        setTimeout(() => {
+                            router.reload()
+                        }, 1000)
+                    }
+                } else {
+                    alert(result.error || 'Erreur lors de la signature')
+                }
             },
-            body: JSON.stringify({
-                signature_data: signatureData.value
-            })
+            onError: (errors) => {
+                console.error('Erreurs:', errors)
+                alert(errors.signature_data || errors.message || 'Erreur lors de la signature')
+            },
+            onFinish: () => {
+                isLoading.value = false
+                signatureData.value = ''
+                signatoryType.value = ''
+            }
         })
 
-        const result = await response.json()
-
-        if (result.success) {
-            // Mettre à jour les stats
-            stats.value = result.signature_stats
-
-            // Effacer le canvas
-            clearSignature()
-
-            // Afficher un message de succès
-            alert(result.message)
-
-            // Recharger la page si entièrement signé
-            if (stats.value.fully_signed) {
-                setTimeout(() => {
-                    router.reload()
-                }, 1000)
-            }
-        } else {
-            alert(result.message || 'Erreur lors de la signature')
-        }
     } catch (error) {
         console.error('Erreur:', error)
         alert('Erreur de communication avec le serveur')
-    } finally {
         isLoading.value = false
         signatureData.value = ''
         signatoryType.value = ''
     }
 }
-
 // Annuler une signature
 const cancelExistingSignature = async (type) => {
     if (!confirm('Êtes-vous sûr de vouloir annuler cette signature ?')) {
@@ -251,30 +259,38 @@ const cancelExistingSignature = async (type) => {
     isLoading.value = true
 
     try {
-        const response = await fetch(route('biens.mandat.cancel-signature', [props.bien.id, type]), {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        const response = await fetch(
+            route('ventes.cancel-signature', [vente.id, type]),
+            {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                }
             }
-        })
+        )
 
         const result = await response.json()
 
         if (result.success) {
-            stats.value = result.signature_stats
-            alert(result.message)
+            // Mettre à jour les stats de signature
+            signatureStats.value = result.signatureStats
+            alert(result.message || 'Signature annulée avec succès')
+
+            // Optionnel : recharger la page
+            router.reload({ preserveScroll: true })
         } else {
-            alert(result.message || 'Erreur lors de l\'annulation')
+            alert(result.error || 'Erreur lors de l\'annulation')
         }
+
     } catch (error) {
-        console.error('Erreur:', error)
+        console.error('❌ Erreur:', error)
         alert('Erreur de communication avec le serveur')
     } finally {
         isLoading.value = false
     }
 }
-
 // Télécharger le PDF
 const downloadPdf = () => {
     if (stats.value.fully_signed) {

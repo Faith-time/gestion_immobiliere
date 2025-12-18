@@ -29,7 +29,6 @@ class Vente extends Model
         'property_transferred',
         'property_transferred_at',
         'ancien_proprietaire_id',
-        'ancien_proprietaire_id',
     ];
 
     protected $casts = [
@@ -42,35 +41,38 @@ class Vente extends Model
         'updated_at' => 'datetime',
     ];
 
-    // Statuts possibles
     public const STATUT_EN_ATTENTE_PAIEMENT = 'en_attente_paiement';
     public const STATUT_EN_COURS = 'en_cours';
     public const STATUT_CONFIRMEE = 'confirmée';
     public const STATUT_ANNULEE = 'annulée';
-    // Relations
+
+    public function getBienAttribute()
+    {
+        return $this->reservation?->bien;
+    }
+    public function reservation()
+    {
+        return $this->belongsTo(Reservation::class, 'reservation_id');
+    }
+
     public function bien()
     {
         return $this->hasOneThrough(
             Bien::class,
             Reservation::class,
-            'id', // clé étrangère sur reservations
-            'id', // clé étrangère sur biens
-            'reservation_id', // clé locale sur ventes
-            'bien_id' // clé locale sur reservations
+            'id',            // Foreign key in Reservation (local key)
+            'id',            // Foreign key in Bien (local key)
+            'reservation_id',// Foreign key in Vente
+            'bien_id'        // Foreign key in Reservation
         );
     }
 
-    public function reservation()
-    {
-        return $this->belongsTo(Reservation::class, 'reservation_id');
-    }
 
     public function acheteur()
     {
         return $this->belongsTo(User::class, 'acheteur_id');
     }
 
-    // Méthodes de signature
     public function isSignedByVendeur()
     {
         return !is_null($this->vendeur_signed_at) && !is_null($this->vendeur_signature_data);
@@ -138,12 +140,17 @@ class Vente extends Model
         return $this->isFullySigned() && !$this->property_transferred && $this->statut !== 'annulee';
     }
 
+    public function paiements()
+    {
+        return $this->hasOne(Paiement::class, 'vente_id');
+    }
+
     public function paiement()
     {
         return $this->hasOne(Paiement::class, 'vente_id');
     }
 
-    public function ancienProprietaire(): BelongsTo
+    public function ancien_proprietaire(): BelongsTo
     {
         return $this->belongsTo(User::class, 'ancien_proprietaire_id');
     }
@@ -169,5 +176,11 @@ class Vente extends Model
             'date_transfert' => $this->property_transferred_at,
             'statut_vente' => $this->status,
         ];
+    }
+
+    public function isValidSale()
+    {
+        $bien = $this->reservation?->bien;
+        return $bien && $this->acheteur_id !== $bien->proprietaire_id;
     }
 }

@@ -4,29 +4,203 @@ namespace App\Http\Controllers;
 
 use App\Models\Visite;
 use App\Models\Bien;
+use App\Models\Appartement;
+use App\Services\VisiteConfirmationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class VisiteController extends Controller
 {
-    /**
-     * Lister les visites du client connecté
-     */
-    public function index()
+    protected $confirmationService;
+
+    public function __construct(VisiteConfirmationService $confirmationService)
     {
+        $this->confirmationService = $confirmationService;
+    }
+
+    /**
+     * ✅ Liste des visites - VERSION SIMPLIFIÉE
+     */
+    public function index(Request $request)
+    {
+        $user = Auth::user();
+
+        if ($user->hasRole('admin')) {
+            $visites = Visite::with([
+                'bien.category',
+                'bien.mandat',
+                'appartement',
+                'client'
+            ])
+                ->orderBy('date_visite', 'desc')
+                ->get()
+                ->map(function ($visite) {
+                    return [
+                        'id' => $visite->id,
+                        'statut' => $visite->statut,
+                        'date_visite' => $visite->date_visite,
+                        'message' => $visite->message,
+                        'created_at' => $visite->created_at,
+
+                        'bien' => [
+                            'id' => $visite->bien->id,
+                            'title' => $visite->bien->title,
+                            'address' => $visite->bien->address,
+                            'city' => $visite->bien->city,
+                            'type' => $visite->bien->category->name ?? 'N/A',
+                            'type_mandat' => $visite->bien->mandat->type_mandat ?? null,
+                        ],
+
+                        'appartement' => $visite->appartement ? [
+                            'id' => $visite->appartement->id,
+                            'numero' => $visite->appartement->numero,
+                            'etage' => $visite->appartement->etage,
+                            'etage_label' => $visite->appartement->getEtageLabel(),
+                            'superficie' => $visite->appartement->superficie,
+                            'pieces' => ($visite->appartement->salons + $visite->appartement->chambres),
+                        ] : null,
+
+                        'client' => [
+                            'id' => $visite->client->id,
+                            'name' => $visite->client->name,
+                            'email' => $visite->client->email,
+                            'telephone' => $visite->client->telephone ?? $visite->client->phone ?? 'N/A',
+                        ],
+                    ];
+                });
+
+            return Inertia::render('Admin/Visites/Index', [
+                'visites' => $visites,
+                'userRoles' => $user->roles->pluck('name'),
+            ]);
+        }
+
         $visites = Visite::with(['bien.category'])
-            ->where('client_id', Auth::id())
+            ->where('client_id', $user->id)
             ->latest('date_visite')
             ->get();
 
-        return Inertia::render('Visites/Index', [
-            'visites'   => $visites,
-            'userRoles' => Auth::user()->roles->pluck('name'),
+        return Inertia::render('/Admin/Visites/Index', [
+            'visites' => $visites,
+            'userRoles' => $user->roles->pluck('name'),
         ]);
     }
+
+    /**
+     * ✅ Confirmation de visite - APPELÉE DIRECTEMENT via /visites/action-confirmer
+     */
+    public function confirmer(Request $request)
+    {
+        $user = Auth::user();
+
+        // ✅ Récupérer l'ID depuis le body de la requête
+        $visiteId = $request->input('visite_id');
+
+        Log::info('🎯 APPEL DIRECT - confirmer()', [
+            'visite_id' => $visiteId,
+            'user_id' => $user->id,
+            'date_visite' => $request->input('date_visite'),
+            'notes' => $request->input('notes')
+        ]);
+
+        if (!$user->hasRole('admin')) {
+            Log::error('❌ Accès refusé');
+            abort(403, 'Action non autorisée');
+        }
+
+        $request->validate([
+            'visite_id' => 'required|exists:visites,id',
+            'date_visite' => 'required|date|after:today',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $visite = Visite::with([
+            'bien.category',
+            'bien.mandat',
+            'appartement',
+            'client'
+        ])->findOrFail($visiteId);
+
+        if ($visite->statut !== 'en_attente') {
+            return back()->with('error', 'Cette visite ne peut plus être confirmée.');
+        }
+
+        if ($visite->appartement_id && $visite->appartement->statut !== 'disponible') {
+            return back()->with('error', 'L\'appartement n\'est plus disponible.');
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $visite->update([
+                'statut' => 'planifiee',
+                'date_visite' => $request->date_visite,
+                'notes_admin' => $request->notes,
+                'confirmee_at' => now(),
+                'confirmee_par' => $user->id,
+            ]);
+
+            $visite->load([
+                'bien.category',
+                'bien.mandat',
+                'appartement',
+                'client'
+            ]);
+
+            Log::info('✅ AVANT appel service');
+            $messageEnvoye = $this->confirmationService->envoyerConfirmation($visite);
+            Log::info('✅ APRÈS appel service', ['resultat' => $messageEnvoye]);
+
+            DB::commit();
+
+            if ($messageEnvoye) {
+                Log::info('🎉 SUCCÈS COMPLET');
+                return redirect()->route('visites.index')->with('success', 'Visite confirmée et message envoyé au client.');
+            } else {
+                Log::warning('⚠️ Message non envoyé');
+                return redirect()->route('visites.index')->with('warning', 'Visite confirmée mais le message n\'a pas pu être envoyé.');
+            }
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('❌ ERREUR', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+
+            return back()->with('error', 'Erreur : ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * ✅ NOUVEAU : Gestionnaire d'actions directes
+     */
+    private function handleAction(Request $request)
+    {
+        $action = $request->input('action');
+
+        switch ($action) {
+            case 'confirmer':
+                return $this->confirmer($request, $request->input('visite_id'));
+
+            case 'rejeter':
+                return $this->rejeter($request, $request->input('visite_id'));
+
+            case 'marquer-effectuee':
+                return $this->marquerEffectuee($request, $request->input('visite_id'));
+
+            default:
+                return back()->with('error', 'Action non reconnue');
+        }
+    }
+
+
 
     public function create(Request $request)
     {
@@ -60,7 +234,7 @@ class VisiteController extends Controller
         // Vérifier visite en cours
         $visiteExistante = Visite::where('client_id', Auth::id())
             ->where('bien_id', $bienId)
-            ->whereIn('statut', ['en_attente', 'confirmee'])
+            ->whereIn('statut', ['en_attente', 'planifiee'])
             ->exists();
 
         if ($visiteExistante) {
@@ -114,7 +288,7 @@ class VisiteController extends Controller
         // Vérification visite déjà existante
         $visiteExistante = Visite::where('client_id', Auth::id())
             ->where('bien_id', $request->bien_id)
-            ->whereIn('statut', ['en_attente', 'confirmee'])
+            ->whereIn('statut', ['en_attente', 'planifiee'])
             ->exists();
 
         if ($visiteExistante) {
@@ -165,42 +339,6 @@ class VisiteController extends Controller
     }
 
     /**
-     * ADMIN - Confirmer une visite
-     */
-    public function confirmer(Request $request, $id)
-    {
-        $this->authorize('admin');
-
-        $request->validate([
-            'date_visite' => 'required|date|after:today',
-            'notes' => 'nullable|string|max:500',
-        ]);
-
-        $visite = Visite::with(['appartement'])->findOrFail($id);
-
-        if ($visite->statut !== 'en_attente') {
-            return back()->with('error', 'Cette visite ne peut plus être confirmée.');
-        }
-
-        // Pour les immeubles, vérifier que l'appartement est toujours disponible
-        if ($visite->appartement_id) {
-            if ($visite->appartement->statut !== 'disponible') {
-                return back()->with('error', 'L\'appartement n\'est plus disponible.');
-            }
-        }
-
-        $visite->update([
-            'statut' => 'confirmee',
-            'date_visite' => $request->date_visite,
-            'notes_admin' => $request->notes,
-            'confirmee_at' => now(),
-            'confirmee_par' => Auth::id(),
-        ]);
-
-        return back()->with('success', 'Visite confirmée.');
-    }
-
-    /**
      * Annuler une visite (Client)
      */
     public function annuler($id)
@@ -211,7 +349,7 @@ class VisiteController extends Controller
             abort(403, 'Vous ne pouvez annuler que vos propres visites.');
         }
 
-        if (!in_array($visite->statut, ['en_attente', 'confirmee'])) {
+        if (!in_array($visite->statut, ['en_attente', 'planifiee'])) {
             return back()->with('error', 'Cette visite ne peut plus être annulée.');
         }
 
@@ -224,30 +362,15 @@ class VisiteController extends Controller
     }
 
     /**
-     * ADMIN - Lister toutes les visites
-     */
-    public function adminIndex()
-    {
-        $this->authorize('admin'); // Policy
-
-        $visites = Visite::with(['bien.category', 'client'])
-            ->latest('date_visite')
-            ->get();
-
-        return Inertia::render('Admin/Visites/Index', [
-            'visites'   => $visites,
-            'userRoles' => Auth::user()->roles->pluck('name'),
-        ]);
-    }
-
-
-
-    /**
      * ADMIN - Rejeter une visite
      */
     public function rejeter(Request $request, $id)
     {
-        $this->authorize('admin');
+        $user = Auth::user();
+
+        if (!$user->hasRole('admin')) {
+            abort(403, 'Action non autorisée');
+        }
 
         $request->validate([
             'motif_rejet' => 'required|string|max:500',
@@ -274,7 +397,11 @@ class VisiteController extends Controller
      */
     public function marquerEffectuee(Request $request, $id)
     {
-        $this->authorize('admin');
+        $user = Auth::user();
+
+        if (!$user->hasRole('admin')) {
+            abort(403, 'Action non autorisée');
+        }
 
         $request->validate([
             'commentaire_visite' => 'nullable|string|max:1000',
@@ -282,15 +409,55 @@ class VisiteController extends Controller
 
         $visite = Visite::findOrFail($id);
 
-        if ($visite->statut !== 'confirmee') {
+        if ($visite->statut !== 'planifiee') {
             return back()->with('error', 'Seules les visites confirmées peuvent être marquées comme effectuées.');
         }
 
+        // ✅ NOUVEAU : Vérifier que la date de visite + 2h est dépassée
+        $dateVisitePlus2h = Carbon::parse($visite->date_visite)->addHours(2);
+        $maintenant = now();
+
+        Log::info('🕐 Vérification temporelle pour marquer effectuée', [
+            'visite_id' => $visite->id,
+            'date_visite' => $visite->date_visite,
+            'date_visite_plus_2h' => $dateVisitePlus2h,
+            'maintenant' => $maintenant,
+            'peut_marquer_effectuee' => $maintenant->greaterThan($dateVisitePlus2h)
+        ]);
+
+        if ($maintenant->lessThan($dateVisitePlus2h)) {
+            $heuresRestantes = $maintenant->diffInHours($dateVisitePlus2h, false);
+            $minutesRestantes = $maintenant->diffInMinutes($dateVisitePlus2h, false) % 60;
+
+            $tempsRestant = '';
+            if ($heuresRestantes > 0) {
+                $tempsRestant = abs($heuresRestantes) . ' heure(s)';
+                if ($minutesRestantes > 0) {
+                    $tempsRestant .= ' et ' . abs($minutesRestantes) . ' minute(s)';
+                }
+            } else {
+                $tempsRestant = abs($minutesRestantes) . ' minute(s)';
+            }
+
+            Log::warning('⏰ Tentative prématurée de marquer effectuée', [
+                'visite_id' => $visite->id,
+                'temps_restant' => $tempsRestant
+            ]);
+
+            return back()->with('error', "Cette visite ne peut pas encore être marquée comme effectuée. Veuillez attendre au moins 2 heures après l'heure prévue de la visite. Temps restant : {$tempsRestant}.");
+        }
+
+        // ✅ Si le délai est respecté, marquer comme effectuée
         $visite->update([
             'statut'            => 'effectuee',
             'commentaire_visite'=> $request->commentaire_visite,
             'effectuee_at'      => now(),
             'effectuee_par'     => Auth::id(),
+        ]);
+
+        Log::info('✅ Visite marquée comme effectuée', [
+            'visite_id' => $visite->id,
+            'effectuee_par' => Auth::id()
         ]);
 
         return back()->with('success', 'Visite marquée comme effectuée.');
