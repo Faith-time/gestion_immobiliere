@@ -168,10 +168,7 @@
         <span class="info-label">Adresse :</span>
         <span class="info-value">{{ $bien->address }}, {{ $bien->city }}</span>
     </div>
-    <div class="info-line">
-        <span class="info-label">Téléphone :</span>
-        <span class="info-value">{{ $bailleur->telephone ?? 'N/A' }}</span>
-    </div>
+
 </div>
 
 <div style="text-align: center; margin: 15px 0; font-weight: bold;">ET D'AUTRE PART</div>
@@ -193,20 +190,12 @@
         <span class="info-label">Situation Matrimoniale :</span>
         <span class="info-value">{{ $dossier ? ($dossier->situation_familiale == 'marie' ? 'Marié(e)' : 'Célibataire') : 'N/A' }}</span>
     </div>
-    <div class="info-line">
-        <span class="info-label">Téléphone :</span>
-        <span class="info-value">{{ $locataire->telephone ?? 'N/A' }}</span>
-    </div>
+
     <div class="info-line">
         <span class="info-label">Profession :</span>
         <span class="info-value">{{ $dossier->profession ?? 'N/A' }}</span>
     </div>
-    @if($dossier && $dossier->derniere_quittance_path)
-        <div class="info-line">
-            <span class="info-label">Dernière quittance de loyer :</span>
-            <span class="info-value">Fournie</span>
-        </div>
-    @endif
+  
     @if($dossier && $dossier->personne_contact)
         <div class="info-line">
             <span class="info-label">En cas de force majeure, contacter :</span>

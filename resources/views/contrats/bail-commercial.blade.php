@@ -178,18 +178,12 @@
         <span class="info-label">Situation Matrimoniale :</span>
         <span class="info-value">{{ $dossier ? ($dossier->situation_familiale == 'marie' ? 'MARIÉ(E)' : 'CÉLIBATAIRE') : 'N/A' }}</span>
     </div>
-    <div class="info-line">
-        <span class="info-label">TEL :</span>
-        <span class="info-value">{{ $locataire->telephone ?? 'N/A' }}</span>
-    </div>
+
     <div class="info-line">
         <span class="info-label">Profession :</span>
         <span class="info-value">{{ $dossier->profession ?? 'COMMERÇANT' }}</span>
     </div>
-    <div class="info-line">
-        <span class="info-label">WHATSAPP :</span>
-        <span class="info-value">{{ $locataire->telephone ?? 'N/A' }}</span>
-    </div>
+
     @if($dossier && $dossier->derniere_quittance_path)
         <div class="info-line">
             <span class="info-label">Dernière quittance de loyer :</span>
@@ -210,10 +204,7 @@
             <span class="info-value">{{ $dossier->telephone_contact }}</span>
         </div>
     @endif
-    <div class="info-line">
-        <span class="info-label">RÉFÉRENCE :</span>
-        <span class="info-value">{{ $dossier->personne_contact ?? 'LUI-MÊME' }}</span>
-    </div>
+
 </div>
 
 <div class="note-box">

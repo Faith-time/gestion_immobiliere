@@ -174,10 +174,6 @@
         <span class="info-label">Adresse :</span>
         <span class="info-value">{{ $bien->address }}, {{ $bien->city }}</span>
     </div>
-    <div class="info-line">
-        <span class="info-label">Téléphone :</span>
-        <span class="info-value">{{ $bailleur->telephone ?? 'N/A' }}</span>
-    </div>
 </div>
 
 <div style="text-align: center; margin: 15px 0; font-weight: bold;">ET D'AUTRE PART</div>
@@ -198,10 +194,6 @@
     <div class="info-line">
         <span class="info-label">Situation Matrimoniale :</span>
         <span class="info-value">{{ $dossier ? ($dossier->situation_familiale == 'marie' ? 'Marié(e)' : 'Célibataire') : 'N/A' }}</span>
-    </div>
-    <div class="info-line">
-        <span class="info-label">Téléphone :</span>
-        <span class="info-value">{{ $locataire->telephone ?? 'N/A' }}</span>
     </div>
     <div class="info-line">
         <span class="info-label">Profession :</span>

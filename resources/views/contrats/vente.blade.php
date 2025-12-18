@@ -206,10 +206,6 @@
     <div class="info-grid">
         <div class="info-label">Nom et Prénoms :</div>
         <div class="info-value">{{ $vendeur->name }}</div>
-
-        <div class="info-label">Téléphone :</div>
-        <div class="info-value">{{ $vendeur->telephone ?? $vendeur->phone ?? 'Non renseigné' }}</div>
-
         <div class="info-label">Email :</div>
         <div class="info-value">{{ $vendeur->email }}</div>
 
@@ -289,7 +285,7 @@ if (isset($vente)) {
     <div class="article-content">
         Le prix est fixé à <span class="prix">{{ number_format($vente->prix_vente, 0, ',', ' ') }} FCFA</span>.
         @if($bien->mandat)
-            Commission d'agence incluse : {{ number_format($bien->mandat->commission_fixe, 0, ',', ' ') }} FCFA.
+            Commission d'agence incluse
         @endif
     </div>
 </div>
